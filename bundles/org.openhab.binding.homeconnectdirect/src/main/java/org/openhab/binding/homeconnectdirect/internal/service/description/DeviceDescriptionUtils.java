@@ -1,0 +1,99 @@
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+package org.openhab.binding.homeconnectdirect.internal.service.description;
+
+import java.util.List;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.homeconnectdirect.internal.handler.model.Value;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.ContentType;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.DeviceDescriptionType;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.ContentTypeProvider;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.EnumerationTypeProvider;
+import org.openhab.binding.homeconnectdirect.internal.service.feature.model.FeatureMapping;
+import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource;
+import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.data.ValueData;
+
+@NonNullByDefault
+public class DeviceDescriptionUtils {
+
+    private DeviceDescriptionUtils() {
+        // Utility class
+    }
+
+    public static @Nullable List<Value> mapValues(DeviceDescriptionService deviceDescriptionService,
+            FeatureMapping featureMapping, Resource resource, @Nullable List<ValueData> valueDataList) {
+        List<Value> mappedValues = null;
+        if (valueDataList != null) {
+            var values = valueDataList.stream().map(valueData -> {
+                var valueDescription = deviceDescriptionService.getDeviceDescriptionObject(valueData.uid());
+
+                // key
+                var key = featureMapping.mapFeatureIdToKey(valueData.uid());
+
+                // type
+                var type = valueDescription != null ? valueDescription.type() : DeviceDescriptionType.UNKNOWN;
+
+                // valueType
+                ContentType contentType = null;
+                if (valueDescription != null
+                        && valueDescription.object() instanceof ContentTypeProvider contentTypeProvider) {
+                    contentType = contentTypeProvider.contentType();
+                }
+
+                // value
+                Object value = valueData.value();
+                if (DeviceDescriptionType.SELECTED_PROGRAM.equals(type)
+                        || DeviceDescriptionType.ACTIVE_PROGRAM.equals(type)) {
+                    var programUid = mapObjectToInteger(valueData.value());
+                    if (programUid != null) {
+                        var program = deviceDescriptionService.findProgram(programUid);
+                        if (program != null) {
+                            value = program.key();
+                        }
+                    }
+                } else if (ContentType.ENUMERATION.equals(contentType)) {
+                    if (valueDescription != null
+                            && valueDescription.object() instanceof EnumerationTypeProvider enumerationTypeProvider) {
+                        var enumTypeId = enumerationTypeProvider.enumerationType();
+                        var enumValue = mapObjectToInteger(valueData.value());
+                        if (enumTypeId != null && enumValue != null) {
+                            var enumeration = deviceDescriptionService.findEnumeration(enumTypeId, enumValue);
+                            if (enumeration != null) {
+                                value = enumeration.valueKey();
+                            }
+                        }
+                    }
+                }
+
+                return new Value(valueData.uid(), key, value, valueData.value(), type, contentType);
+            }).toList();
+
+            if (!values.isEmpty()) {
+                mappedValues = values;
+            }
+        }
+        return mappedValues;
+    }
+
+    public static @Nullable Integer mapObjectToInteger(Object object) {
+        return switch (object) {
+            case Integer intValue -> intValue;
+            case Long longValue -> longValue.intValue();
+            case Float floatValue when floatValue % 1 == 0 -> floatValue.intValue();
+            case Double doubleValue when doubleValue % 1 == 0 -> doubleValue.intValue();
+            default -> null;
+        };
+    }
+}
