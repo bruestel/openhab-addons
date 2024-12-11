@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{base :: head}"></head>
+
+<body>
+<nav th:replace="~{base :: navbar}"></nav>
+<div class="d-flex">
+    <div th:replace="~{base :: sidebar_large(${appliances}, ${selectedMenuEntry})}"></div>
+    <div th:replace="~{base :: sidebar_small(${appliances}, ${selectedMenuEntry})}"></div>
+
+    <div class="flex-grow-1 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2 hcd-header">
+            <h1>Appliance Profiles</h1>
+            <div>
+                <a class="btn btn-sm mt-1 btn-secondary" th:href="@{__${profileUpdatePath}__}">
+                    <span class="mdi mdi-file-upload"></span>
+                    Upload Profile
+                </a>
+                <a class="btn btn-sm mt-1 btn-secondary" th:href="@{__${profileUpdatePath}__}">
+                    <span class="mdi mdi-cloud-sync"></span>
+                    Fetch Profiles
+                </a>
+            </div>
+        </div>
+
+        <div class="card mt-3 hcd-card" th:each="profile : ${profiles}">
+            <div class="card-header d-flex align-items-center">
+                <th:block th:insert="~{base :: icon(${profile.type})}"></th:block>
+                <span th:text="${utils.getLabelByType(profile.type)}">Coffee Maker</span>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Home Appliance ID</dt>
+                    <dd class="col-sm-9" th:text="${profile.haId}">SIEMENS-TI9555X1DE-000000000000</dd>
+
+                    <dt class="col-sm-3">Serial Number</dt>
+                    <dd class="col-sm-9" th:text="${profile.serialNumber}">000000000000000000</dd>
+
+                    <dt class="col-sm-3">Connection Type</dt>
+                    <dd class="col-sm-9" th:text="${profile.connectionType}">AES</dd>
+
+                    <dt class="col-sm-3">Type</dt>
+                    <dd class="col-sm-9" th:text="${profile.type}">COFFEEMAKER</dd>
+
+                    <dt class="col-sm-3">Created</dt>
+                    <dd class="col-sm-9" th:text="${utils.formatDateTime(profile.created())}"></dd>
+                </dl>
+                <div class="d-flex justify-content-end mt-3">
+                    <a href="#" class="btn btn-primary btn-sm me-1"><span class="mdi mdi-download"></span> Download Profile</a>
+                    <a href="#" class="btn btn-danger btn-sm"><span class="mdi mdi-delete"></span> Delete Profile</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--/*/ <th:block th:insert="~{base :: js}"></th:block> /*/-->
+</body>
+</html>

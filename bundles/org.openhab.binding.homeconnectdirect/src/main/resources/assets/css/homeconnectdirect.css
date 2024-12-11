@@ -1,0 +1,128 @@
+:root {
+    --bs-primary: #375de6;
+}
+
+.nav-pills {
+    --bs-nav-pills-link-active-bg: #375de6;
+}
+
+.btn-primary {
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+
+.navbar-brand,
+.offcanvas-title,
+.primary-text {
+    color: var(--bs-primary) !important;
+}
+
+.sidebar {
+    width: 280px;
+    height: 100vh;
+}
+
+.offcanvas-header {
+    position: relative;
+    padding: 15px 15px 0px 15px;
+}
+
+.btn-close {
+    position: absolute;
+    top: 23px;
+    right: 17px;
+}
+
+.offcanvas-body {
+    padding: 0px 15px;
+}
+
+hr {
+    margin: 10px 0;
+}
+
+.navbar-custom {
+    min-width: 320px;
+}
+
+.menu-button {
+    height: 48px;
+    width: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.menu-button span {
+    font-size: 24px;
+    color: var(--bs-primary);
+}
+
+.hcd-card {
+    max-width: 1024px;
+}
+
+.hcd-header {
+    max-width: 1024px;
+}
+
+#eventTableContainer {
+    overflow-y: auto;
+    margin-top: 1rem
+}
+
+.fade-in {
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+th {
+    text-align: left;
+    padding: 8px;
+}
+
+.min-size {
+    white-space: nowrap;
+    width: 1%;
+}
+
+.pre-highlight {
+    padding: 10px;
+    background-color: #f6f8fa;
+    border-radius: 5px;
+    white-space: pre-wrap;
+}
+.key {
+    color: brown;
+    font-weight: bold;
+}
+.string {
+    color: green;
+}
+.number {
+    color: blue;
+}
+.boolean {
+    color: darkorange;
+}
+.null {
+    color: magenta;
+}
+

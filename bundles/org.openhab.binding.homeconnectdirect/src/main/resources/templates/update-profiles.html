@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{base :: head}"></head>
+
+<body>
+<nav th:replace="~{base :: navbar}"></nav>
+<div class="d-flex">
+    <div th:replace="~{base :: sidebar_large(${appliances}, ${selectedMenuEntry})}"></div>
+    <div th:replace="~{base :: sidebar_small(${appliances}, ${selectedMenuEntry})}"></div>
+
+    <div class="flex-grow-1 p-3">
+
+        <h1 class="mb-4">Update Profiles</h1>
+
+        <th:block th:if="${bindingConfigurationPresent}">
+            <div th:unless="${done}" class="card mt-3 hcd-card">
+                <div class="card-body">
+                    <p>When triggering the "Fetch Profiles" action, the stored SingleKey ID credentials are used
+                        to load your appliance configuration. This action typically only needs to be performed once,
+                        as long as the devices are not reset or receive an update.
+                        It ensures that the current configuration is loaded and ready,
+                        enabling smooth integration of your devices into OpenHAB.
+                    </p>
+                    <dl class="row">
+                        <dt class="col-sm-3">SingleKey ID</dt>
+                        <dd class="col-sm-9" th:text="${username}">username</dd>
+                    </dl>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Cancel</a>
+                        <form method="POST" th:action="@{__${profileUpdatePath}__}">
+                            <button class="ms-3 btn btn-primary btn-sm" type="submit">Fetch Profiles</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <th:block th:if="${done}">
+                <p th:unless="${profiles.isEmpty()}">Device profiles have been successfully imported.</p>
+                <p th:if="${profiles.isEmpty()}">Could not import a device profile. Please check your log.</p>
+
+                <div class="card mt-3 hcd-card" th:each="profile : ${profiles}">
+                    <div class="card-header d-flex align-items-center">
+                        <th:block th:insert="~{base :: icon(${profile.type})}"></th:block>
+                        <span th:text="${utils.getLabelByType(profile.type)}">Coffee Maker</span>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Home Appliance ID</dt>
+                            <dd class="col-sm-9" th:text="${profile.haId}">SIEMENS-TI9555X1DE-000000000000</dd>
+
+                            <dt class="col-sm-3">Serial Number</dt>
+                            <dd class="col-sm-9" th:text="${profile.serialNumber}">000000000000000000</dd>
+
+                            <dt class="col-sm-3">Type</dt>
+                            <dd class="col-sm-9" th:text="${profile.type}">COFFEEMAKER</dd>
+                        </dl>
+                    </div>
+                </div>
+            </th:block>
+        </th:block>
+
+        <th:block th:unless="${bindingConfigurationPresent}">
+            <p>Please enter your SingleKey ID credentials in the binding configuration.
+                You can do this either through the UI or via the OSGi console.
+                These credentials are necessary for the binding to load and manage
+                your appliance configuration effectively.
+            </p>
+            <h6>Via UI</h6>
+            <ol>
+                <li>Open openHAB main UI in the web browser</li>
+                <li>Go to: <em>Administration</em> -> <em>Settings</em> -> <em>Add-on Settings</em> -> <em>Home Connect Direct</em></li>
+                <li>Enter SingleKey ID credentials</li>
+                <li>Save</li>
+            </ol>
+            <h6>Via OSGi console</h6>
+            <ol>
+                <li>Open console (e.g. <code>ssh -p 8101 openhab@localhost</code>)</li>
+                <li><code>openhab> config:edit <span th:remove="tag" th:text="${configurationPid}">binding.homeconnectdirect</span></code></li>
+                <li><code>openhab> config:property-set singleKeyIdUsername [mobile or email]</code></li>
+                <li><code>openhab> config:property-set singleKeyIdPassword [password]</code></li>
+                <li><code>openhab> config:property-list</code></li>
+            </ol>
+        </th:block>
+    </div>
+</div>
+
+<!--/*/ <th:block th:insert="~{base :: js}"></th:block> /*/-->
+</body>
+</html>

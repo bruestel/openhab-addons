@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="homeconnectdirect"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<!-- Thing Types -->
+	<thing-type id="dishwasher" extensible="switch, string, number">
+		<label>Dishwasher</label>
+		<description>Dishwasher which supports Home Connect.</description>
+		<channels>
+			<channel id="power_state" typeId="system.power"/>
+			<channel id="door_state" typeId="door_state"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="remaining_program_time" typeId="remaining_program_time"/>
+			<channel id="program_progress" typeId="program_progress"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="program_phase" typeId="program_or_process_phase"/>
+			<channel id="salt_lack" typeId="salt_lack"/>
+			<channel id="rinse_aid_lack" typeId="rinse_aid_lack"/>
+			<channel id="salt_nearly_empty" typeId="salt_nearly_empty"/>
+			<channel id="rinse_aid_nearly_empty" typeId="rinse_aid_nearly_empty"/>
+			<channel id="machine_care_reminder" typeId="machine_care_reminder"/>
+
+			<!-- TODO impl.
+				<channel id="ambient_light_state" typeId="ambient_light_state"/>
+				<channel id="ambient_light_brightness_state" typeId="system.brightness"/>
+				<channel id="ambient_light_color_state" typeId="ambient_light_color_state"/>
+				<channel id="ambient_light_custom_color_state" typeId="ambient_light_custom_color_state"/>
+			-->
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<thing-type id="cookprocessor" extensible="switch, string, number">
+		<label>Cook Processor</label>
+		<description>Cook processor which supports Home Connect.</description>
+		<channels>
+			<channel id="power_state" typeId="system.power"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="program_progress" typeId="program_progress"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<thing-type id="washer" extensible="switch, string, number">
+		<label>Washer</label>
+		<description>Washer which supports Home Connect.</description>
+		<channels>
+			<channel id="door_state" typeId="door_state"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="remaining_program_time" typeId="remaining_program_time"/>
+			<channel id="program_progress" typeId="program_progress"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="idos1_fill_level_poor" typeId="idos_fill_level_poor"/>
+			<channel id="idos2_fill_level_poor" typeId="idos_fill_level_poor"/>
+			<channel id="idos1_active" typeId="idos_active"/>
+			<channel id="idos2_active" typeId="idos_active"/>
+			<channel id="washer_temperature" typeId="washer_temperature"/>
+			<channel id="washer_spin_speed" typeId="washer_spin_speed"/>
+			<channel id="laundry_load_information" typeId="laundry_load_information"/>
+			<channel id="laundry_load_recommendation" typeId="laundry_load_recommendation"/>
+			<channel id="laundry_process_phase" typeId="program_or_process_phase"/>
+			<channel id="drum_clean_reminder" typeId="drum_clean_reminder"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<thing-type id="washerdryer" extensible="switch, string, number">
+		<label>Washer / Dryer combination</label>
+		<description>Washer and dryer combination which supports Home Connect.</description>
+		<channels>
+			<channel id="door_state" typeId="door_state"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="remaining_program_time" typeId="remaining_program_time"/>
+			<channel id="program_progress" typeId="program_progress"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="idos1_fill_level_poor" typeId="idos_fill_level_poor"/>
+			<channel id="idos2_fill_level_poor" typeId="idos_fill_level_poor"/>
+			<channel id="idos1_active" typeId="idos_active"/>
+			<channel id="idos2_active" typeId="idos_active"/>
+			<channel id="washer_temperature" typeId="washer_temperature"/>
+			<channel id="washer_spin_speed" typeId="washer_spin_speed"/>
+			<channel id="laundry_load_information" typeId="laundry_load_information"/>
+			<channel id="laundry_load_recommendation" typeId="laundry_load_recommendation"/>
+			<channel id="laundry_process_phase" typeId="program_or_process_phase"/>
+			<channel id="drum_clean_reminder" typeId="drum_clean_reminder"/>
+			<channel id="drying_target" typeId="drying_target"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<thing-type id="dryer" extensible="switch, string, number">
+		<label>Dryer</label>
+		<description>Dryer which supports Home Connect.</description>
+		<channels>
+			<channel id="door_state" typeId="door_state"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="remaining_program_time" typeId="remaining_program_time"/>
+			<channel id="program_progress" typeId="program_progress"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="laundry_load_information" typeId="laundry_load_information"/>
+			<channel id="laundry_load_recommendation" typeId="laundry_load_recommendation"/>
+			<channel id="laundry_process_phase" typeId="program_or_process_phase"/>
+			<channel id="drying_target" typeId="drying_target"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<thing-type id="coffeemaker" extensible="switch, string, number">
+		<label>Coffee Maker</label>
+		<description>Coffee maker which supports Home Connect.</description>
+		<channels>
+			<channel id="power_state" typeId="system.power"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="program_progress" typeId="program_progress"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="process_phase" typeId="program_or_process_phase"/>
+			<channel id="countdown_cleaning" typeId="countdown"/>
+			<channel id="countdown_calc_and_clean" typeId="countdown"/>
+			<channel id="countdown_descaling" typeId="countdown"/>
+			<channel id="countdown_water_filter" typeId="countdown"/>
+			<channel id="water_tank_empty" typeId="water_tank_empty"/>
+			<channel id="water_tank_nearly_empty" typeId="water_tank_nearly_empty"/>
+			<channel id="drip_tray_full" typeId="drip_tray_full"/>
+			<channel id="empty_milk_tank" typeId="empty_milk_tank"/>
+			<channel id="bean_container_empty" typeId="bean_container_empty"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<thing-type id="oven" extensible="switch, string, number">
+		<label>Oven</label>
+		<description>Oven which supports Home Connect.</description>
+		<channels>
+			<channel id="door_state" typeId="door_state"/>
+			<channel id="power_state" typeId="system.power"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="program_command" typeId="program_command"/>
+			<channel id="program_progress" typeId="program_progress"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="remaining_program_time" typeId="remaining_program_time"/>
+			<channel id="duration" typeId="oven_duration"/>
+
+			<!-- TODO impl.
+				<channel id="elapsed_program_time" typeId="elapsed_program_time"/>
+				<channel id="setpoint_temperature" typeId="setpoint_temperature"/>
+				<channel id="oven_current_cavity_temperature" typeId="oven_current_cavity_temperature"/>
+			-->
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<!-- TODO add freezer, fridgefreezer, refrigerator, winecooler, cleaningrobot, cooktop, hood, warmingdrawer -->
+
+	<thing-type id="generic" extensible="switch, string, number">
+		<label>Generic appliance</label>
+		<description>Appliance which supports Home Connect.</description>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<!-- Channel Types -->
+	<channel-type id="door_state">
+		<item-type>Contact</item-type>
+		<label>Door State</label>
+		<description>This status describes the door state of a home appliance. A status change is triggered either by the user
+			operating the home appliance locally (i.e. open / close the door) or automatically by the home appliance (i.e. lock
+			the door).</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="operation_state">
+		<item-type>String</item-type>
+		<label>Operation State</label>
+		<description>This status describes the operation state of the home appliance.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="remote_start_allowance">
+		<item-type>Switch</item-type>
+		<label>Remote Start Allowance</label>
+		<description>This status indicates whether the remote program start is enabled. This can happen due to a programmatic
+			change (only disabling), or manually by the user changing the flag locally on the home appliance, or automatically
+			after a certain duration - usually 24 hours.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="remote_control_active">
+		<item-type>Switch</item-type>
+		<label>Remote Control Activation</label>
+		<description>This status indicates whether remote control permission is enabled.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="local_control_active">
+		<item-type>Switch</item-type>
+		<label>Local Control</label>
+		<description>This status indicates whether the home appliance is currently manually controlled by the user operating
+			the home appliance, e.g. opening the door or pressing a button.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="active_program">
+		<item-type>String</item-type>
+		<label>Active Program</label>
+		<description>This status describes the active program of the home appliance.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="selected_program">
+		<item-type>String</item-type>
+		<label>Selected Program</label>
+		<description>This state describes the selected program of the home appliance.</description>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="remaining_program_time">
+		<item-type>Number:Time</item-type>
+		<label>Remaining Program Time</label>
+		<description>This status indicates the remaining program time of the home appliance.</description>
+		<state pattern="%d %unit%" readOnly="true"/>
+	</channel-type>
+	<channel-type id="program_progress">
+		<item-type>Number:Dimensionless</item-type>
+		<label>Progress State</label>
+		<description>This status describes the program progress of the home appliance.</description>
+		<state readOnly="true" min="0" max="100" pattern="%d %unit%"/>
+	</channel-type>
+	<channel-type id="program_command">
+		<item-type>String</item-type>
+		<label>Program Command</label>
+		<state>
+			<options>
+				<option value="start">Start program</option>
+				<option value="pause">Pause program</option>
+				<option value="resume">Resume program</option>
+				<option value="stop">Stop program</option>
+			</options>
+		</state>
+	</channel-type>
+	<channel-type id="machine_care_reminder">
+		<item-type>Switch</item-type>
+		<label>Machine Care Reminder</label>
+		<description>Indicates whether the dishwasher needs cleaning.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="idos_fill_level_poor">
+		<item-type>Switch</item-type>
+		<label>i-Dos Fill Level Poor</label>
+		<description>Indicates whether the i-Dos is almost empty (if appliance
+			supports i-Dos).</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="idos_active">
+		<item-type>Switch</item-type>
+		<label>i-Dos Active</label>
+		<description>Whether i-Dos is enabled for a washing programme (if the machine supports i-Dos).</description>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="washer_temperature">
+		<item-type>String</item-type>
+		<label>Washing Program Temperature</label>
+		<description>This status describes the temperature of the washing program of the home appliance.</description>
+		<state>
+			<options>
+				<option value="Cold">Cold</option>
+				<option value="GC20">20 °C</option>
+				<option value="GC30">30 °C</option>
+				<option value="GC40">40 °C</option>
+				<option value="GC50">50 °C</option>
+				<option value="GC60">60 °C</option>
+				<option value="GC70">70 °C</option>
+				<option value="GC80">80 °C</option>
+				<option value="GC90">90 °C</option>
+				<option value="Auto">Auto</option>
+				<option value="Max">Max</option>
+				<option value="UlCold">Cold (US/CA)</option>
+				<option value="UlWarm">Warm (US/CA)</option>
+				<option value="UlHot">Hot (US/CA)</option>
+				<option value="UlExtraHot">Extra hot (US/CA)</option>
+			</options>
+		</state>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="washer_spin_speed">
+		<item-type>String</item-type>
+		<label>Spin Speed</label>
+		<description>This status defines the spin speed of a washer program of the home appliance.</description>
+		<state>
+			<options>
+				<option value="Off">No spinning</option>
+				<option value="RPM400">400 rpm</option>
+				<option value="RPM600">600 rpm</option>
+				<option value="RPM800">800 rpm</option>
+				<option value="RPM1000">1000 rpm</option>
+				<option value="RPM1200">1200 rpm</option>
+				<option value="RPM1400">1400 rpm</option>
+				<option value="RPM1600">1600 rpm</option>
+				<option value="Auto">Auto</option>
+				<option value="Max">Max</option>
+				<option value="LaundryCare.Washer.EnumType.SpinSpeed.UlOff">No spinning (US/CA)</option>
+				<option value="LaundryCare.Washer.EnumType.SpinSpeed.UlLow">Low (US/CA)</option>
+				<option value="LaundryCare.Washer.EnumType.SpinSpeed.UlMedium">Medium (US/CA)</option>
+				<option value="LaundryCare.Washer.EnumType.SpinSpeed.UlHigh">High (US/CA)</option>
+			</options>
+		</state>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="laundry_load_information">
+		<item-type>Number:Mass</item-type>
+		<label>Load Information</label>
+		<description>This status describes the current laundry load information of the home appliance.</description>
+		<state readOnly="true" pattern="%d %unit%"/>
+	</channel-type>
+	<channel-type id="laundry_load_recommendation">
+		<item-type>Number:Mass</item-type>
+		<label>Load Recommendation</label>
+		<description>This is the recommended load for the appliance's current programme.</description>
+		<state readOnly="true" pattern="%d %unit%"/>
+	</channel-type>
+	<channel-type id="drum_clean_reminder">
+		<item-type>Switch</item-type>
+		<label>Drum Clean Reminder</label>
+		<description>Indicates whether the washer drum needs cleaning.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="program_or_process_phase">
+		<item-type>String</item-type>
+		<label>Program or Process Phase</label>
+		<description>This status describes the program or process phase of the home appliance.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="salt_lack">
+		<item-type>Switch</item-type>
+		<label>Lack of Salt</label>
+		<description>Indicates if the dishwasher salt is empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="rinse_aid_lack">
+		<item-type>Switch</item-type>
+		<label>Lack of Rinse Aid</label>
+		<description>Indicates if the dishwasher rinse aid is empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="salt_nearly_empty">
+		<item-type>Switch</item-type>
+		<label>Salt Nearly Empty</label>
+		<description>Indicates when the dishwasher salt is almost empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="rinse_aid_nearly_empty">
+		<item-type>Switch</item-type>
+		<label>Rinse Aid Nearly Empty</label>
+		<description>Indicates when the dishwasher rinse aid is almost empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="countdown">
+		<item-type>Number</item-type>
+		<label>Countdown</label>
+		<description>This display shows a countdown indicating the time remaining until a specific maintenance or cleaning
+			task is due. The countdown updates dynamically, providing a clear and convenient way to monitor upcoming actions.</description>
+		<state readOnly="true" pattern="%d"/>
+	</channel-type>
+	<channel-type id="water_tank_empty">
+		<item-type>Switch</item-type>
+		<label>Water Tank Empty</label>
+		<description>Indicates when the coffee machine's water tank is empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="water_tank_nearly_empty">
+		<item-type>Switch</item-type>
+		<label>Water Tank Nearly Empty</label>
+		<description>Indicates when the coffee machine's water tank is almost empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="drip_tray_full">
+		<item-type>Switch</item-type>
+		<label>Drip Tray Full</label>
+		<description>Indicates when the drip tray of the coffee machine is full.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="empty_milk_tank">
+		<item-type>Switch</item-type>
+		<label>Empty Milk Tank</label>
+		<description>Indicates when the coffee machine's milk tank is empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="bean_container_empty">
+		<item-type>Switch</item-type>
+		<label>Bean Container Empty</label>
+		<description>Indicates that the coffee machine's bean container is empty.</description>
+		<state readOnly="true"/>
+	</channel-type>
+	<channel-type id="drying_target">
+		<item-type>String</item-type>
+		<label>Drying Target</label>
+		<description>Specifies the desired dryness setting.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="oven_duration">
+		<item-type>Number:Time</item-type>
+		<label>Selected Duration</label>
+		<description>This status describes the duration of the program of the home appliance.</description>
+		<state pattern="%d %unit%"/>
+	</channel-type>
+
+	<!-- Dynamic Channels -->
+	<channel-type id="switch">
+		<item-type>Switch</item-type>
+		<label>On/Off Switch</label>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+		<config-description>
+			<parameter name="eventKey" type="text" required="true">
+				<label>Event Key</label>
+				<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
+			</parameter>
+		</config-description>
+	</channel-type>
+	<channel-type id="string">
+		<item-type>String</item-type>
+		<label>Text Value</label>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+		<config-description>
+			<parameter name="eventKey" type="text" required="true">
+				<label>Event Key</label>
+				<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
+			</parameter>
+		</config-description>
+	</channel-type>
+	<channel-type id="number">
+		<item-type>Number</item-type>
+		<label>Number Value</label>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+		<config-description>
+			<parameter name="eventKey" type="text" required="true">
+				<label>Event Key</label>
+				<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
+			</parameter>
+		</config-description>
+	</channel-type>
+
+</thing:thing-descriptions>

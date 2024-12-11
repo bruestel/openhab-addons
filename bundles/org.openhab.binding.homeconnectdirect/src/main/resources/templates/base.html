@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:fragment="head">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Connect Direct Console</title>
+
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" th:href="@{__${assetPath}__/favicon/apple-touch-icon.png}">
+    <link rel="icon" type="image/png" sizes="32x32" th:href="@{__${assetPath}__/favicon/favicon-32x32.png}">
+    <link rel="icon" type="image/png" sizes="16x16" th:href="@{__${assetPath}__/favicon/favicon-16x16.png}">
+    <link rel="mask-icon" th:href="@{__${assetPath}__/favicon/safari-pinned-tab.svg}" color="#5bbad5">
+    <link rel="shortcut icon" th:href="@{__${assetPath}__/favicon/favicon.ico}">
+    <meta name="theme-color" content="#ffffff">
+
+    <link th:href="@{__${assetPath}__/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{__${assetPath}__/css/materialdesignicons.min.css}" rel="stylesheet">
+    <link th:href="@{__${assetPath}__/css/homeconnectdirect.css}" rel="stylesheet">
+</head>
+
+<body>
+<!-- navbar for small screens -->
+<nav th:fragment="navbar" class="navbar navbar-light bg-light d-md-none navbar-custom">
+    <div class="container-fluid px-0">
+        <div class="d-flex align-items-center justify-content-between w-100 ms-3 me-2">
+            <div>
+                <span class="navbar-brand mb-0 h1">Home Connect Direct</span>
+            </div>
+            <button class="btn menu-button" type="button" data-bs-toggle="offcanvas"
+                    data-bs-target="#offcanvasSidebar" aria-controls="offcanvasSidebar">
+                <span class="mdi mdi-menu mdi-24px"></span>
+            </button>
+
+        </div>
+    </div>
+</nav>
+
+<div class="d-flex">
+    <!-- sidebar for large screens -->
+    <div th:fragment="sidebar_large(appliances, selectedMenuEntry)" class="d-none d-md-block bg-light p-3 sidebar flex-shrink-0">
+        <div class="mb-3 mb-md-0 me-md-auto text-decoration-none">
+            <span class="fs-4 primary-text">Home Connect Direct</span>
+            <small class="text-muted d-block mb-3">Console</small>
+        </div>
+        <hr>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item">
+                <a th:href="${basePath}" class="nav-link d-flex align-items-center"
+                   th:classappend="${selectedMenuEntry == 'profile' ? 'active' : 'link-dark'}">
+                    <i class="mdi mdi-cog mdi-24px me-1"> </i>
+                    <span>Appliance Profiles</span>
+                </a>
+            </li>
+            <li th:each="appliance : ${appliances}" class="nav-item">
+                <a th:href="@{__${appliancePath + appliance.getUID().toString()}__}" class="nav-link d-flex align-items-center"
+                   th:attr="aria-current=${selectedMenuEntry == 'dish' ? 'page' : 'false'}"
+                   th:classappend="${selectedMenuEntry == appliance.getUID().toString() ? 'active' : 'link-dark'}"
+                    th:switch="${appliance.getThingTypeUID().getId()}">
+                    <i th:case="dishwasher" class="mdi mdi-dishwasher mdi-24px me-1"></i>
+                    <i th:case="cookprocessor" class="mdi mdi-blender mdi-24px me-1"></i>
+                    <i th:case="coffeemaker" class="mdi mdi-coffee-maker mdi-24px me-1"></i>
+                    <i th:case="washer" class="mdi mdi-washing-machine mdi-24px me-1"></i>
+                    <i th:case="*" class="mdi mdi-home-automation mdi-24px me-1"></i>
+                    <span th:text="${appliance.label}">Appliance name</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- sidebar as offcanvas for small screens -->
+    <div th:fragment="sidebar_small(appliances, selectedMenuEntry)" class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasSidebar"
+         aria-labelledby="offcanvasSidebarLabel">
+        <div class="offcanvas-header">
+            <div>
+                <h5 class="offcanvas-title" id="offcanvasSidebarLabel">Home Connect Direct</h5>
+                <small class="text-muted">Console</small>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+
+        </div>
+        <div class="offcanvas-body">
+            <hr>
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a th:href="${basePath}" class="nav-link align-items-center"
+                       th:attr="aria-current=${selectedMenuEntry == 'profile' ? 'page' : 'false'}"
+                       th:classappend="${selectedMenuEntry == 'profile' ? 'active' : 'link-dark'}">
+                        <i class="mdi mdi-cog mdi-24px me-1"> </i>
+                        <span>Appliance Profiles</span>
+                    </a>
+                </li>
+
+                <li th:each="appliance : ${appliances}" class="nav-item">
+                    <a th:href="@{/__${basePath}__/appliance/__${appliance.getUID().toString()}__}"
+                       class="nav-link d-flex align-items-center"
+                       th:attr="aria-current=${selectedMenuEntry == 'dish' ? 'page' : 'false'}"
+                       th:classappend="${selectedMenuEntry == appliance.getUID().toString() ? 'active' : 'link-dark'}">
+                        <span th:if="${utils.isCoffeeMaker(appliance.getThingTypeUID().getId())}" class="mdi mdi-coffee-maker mdi-24px me-1"></span>
+                        <span th:if="${utils.isCookProcessor(appliance.getThingTypeUID().getId())}" class="mdi mdi-blender mdi-24px me-1"></span>
+                        <span th:if="${utils.isDishwasher(appliance.getThingTypeUID().getId())}" class="mdi mdi-dishwasher mdi-24px me-1"></span>
+                        <span th:if="${utils.isWasher(appliance.getThingTypeUID().getId())}" class="mdi mdi-washing-machine mdi-24px me-1"></span>
+                        <span th:if="${utils.isDryer(appliance.getThingTypeUID().getId())}" class="mdi mdi-tumble-dryer mdi-24px me-1"></span>
+                        <span th:if="${utils.isOven(appliance.getThingTypeUID().getId())}" class="mdi mdi-stove mdi-24px me-1"></span>
+                        <span th:if="${utils.isGeneric(appliance.getThingTypeUID().getId())}" class="mdi mdi-home-automation mdi-24px me-1"></span>
+
+                        <span th:text="${appliance.label}">Appliance name</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<th:block th:fragment="icon(type)">
+    <span th:if="${utils.isCoffeeMaker(type)}" class="mdi mdi-coffee-maker mdi-24px me-1"></span>
+    <span th:if="${utils.isCookProcessor(type)}" class="mdi mdi-blender mdi-24px me-1"></span>
+    <span th:if="${utils.isDishwasher(type)}" class="mdi mdi-dishwasher mdi-24px me-1"></span>
+    <span th:if="${utils.isWasher(type)}" class="mdi mdi-washing-machine mdi-24px me-1"></span>
+    <span th:if="${utils.isDryer(type)}" class="mdi mdi-tumble-dryer mdi-24px me-1"></span>
+    <span th:if="${utils.isOven(type)}" class="mdi mdi-stove mdi-24px me-1"></span>
+    <span th:if="${utils.isGeneric(type)}" class="mdi mdi-home-automation mdi-24px me-1"></span>
+</th:block>
+
+<th:block th:fragment="js">
+    <script th:src="@{__${assetPath}__/js/bootstrap.bundle.min.js}"></script>
+    <script th:src="@{__${assetPath}__/js/homeconnectdirect.js}"></script>
+</th:block>
+
+</body>
+</html>

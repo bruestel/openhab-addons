@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon:addon id="homeconnectdirect" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:addon="https://openhab.org/schemas/addon/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/addon/v1.0.0 https://openhab.org/schemas/addon-1.0.0.xsd">
+
+	<type>binding</type>
+	<name>Home Connect Direct Binding</name>
+	<description>The binding integrates the Home Connect devices into openHAB. It connects to household appliances from
+		brands such as Bosch and Siemens. The connection is established directly to the devices.</description>
+	<connection>local</connection>
+
+	<config-description>
+		<parameter name="singleKeyIdUsername" type="text" required="true">
+			<context>email</context>
+			<label>Username</label>
+			<description>SingleKey ID email</description>
+		</parameter>
+		<parameter name="singleKeyIdPassword" type="text" required="true">
+			<label>Password</label>
+			<description>SingleKey ID password</description>
+			<context>password</context>
+		</parameter>
+	</config-description>
+
+	<discovery-methods>
+		<discovery-method>
+			<service-type>mdns</service-type>
+			<discovery-parameters>
+				<discovery-parameter>
+					<name>mdnsServiceType</name>
+					<value>_homeconnect._tcp.local.</value>
+				</discovery-parameter>
+			</discovery-parameters>
+		</discovery-method>
+	</discovery-methods>
+
+</addon:addon>

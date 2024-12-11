@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{base :: head}"></head>
+
+<body>
+<nav th:replace="~{base :: navbar}"></nav>
+<div class="d-flex">
+    <div th:replace="~{base :: sidebar_large(${appliances}, ${selectedMenuEntry})}"></div>
+    <div th:replace="~{base :: sidebar_small(${appliances}, ${selectedMenuEntry})}"></div>
+
+    <div class="flex-grow-1 p-3">
+        <h1 class="d-inline-flex align-items-baseline">
+            <span th:remove="tag" th:text="${name}">Appliance name</span>
+            <span class="badge rounded-pill ms-2" style="font-size: 1.1rem; padding: 0.2em 0.4em; transform: translateY(-0.3rem);" th:classappend="${utils.getBadgeStyle(status)}" th:text="${status}">Neu</span>
+        </h1>
+        <small th:text="${uid}" class="text-muted d-block mb-3">ID</small>
+
+        <div id="eventTableContainer" class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Action</th>
+                    <th>Resource</th>
+                    <th>Data</th>
+                </tr>
+                </thead>
+                <tbody id="eventTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Message Details</h5>
+            </div>
+            <div class="modal-body">
+                <p><strong>Timestamp:</strong> <span id="modal-timestamp"></span></p>
+                <p><strong>Action:</strong> <span id="modal-action"></span></p>
+                <p><strong>Resource:</strong> <span id="modal-resource"></span></p>
+                <p id="modal-data-row"><strong>Data:</strong> <pre class="pre-highlight" id="modal-data"></pre></p>
+                <p><strong>Source:</strong><pre class="pre-highlight" id="modal-source"></pre></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--/*/ <th:block th:insert="~{base :: js}"></th:block> /*/-->
+<script>
+    const webSocketUrl = "[[${webSocketUrl}]]";
+    createWebSocketConnection(webSocketUrl);
+    addResizeListener();
+</script>
+</body>
+</html>
