@@ -441,36 +441,20 @@
 		<label>On/Off Switch</label>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
-		<config-description>
-			<parameter name="eventKey" type="text" required="true">
-				<label>Event Key</label>
-				<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
-			</parameter>
-		</config-description>
+		<config-description-ref uri="thing-type:homeconnectdirect:eventkey"/>
 	</channel-type>
 	<channel-type id="string">
 		<item-type>String</item-type>
 		<label>Text Value</label>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
-		<config-description>
-			<parameter name="eventKey" type="text" required="true">
-				<label>Event Key</label>
-				<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
-			</parameter>
-		</config-description>
+		<config-description-ref uri="thing-type:homeconnectdirect:eventkey"/>
 	</channel-type>
 	<channel-type id="number">
 		<item-type>Number</item-type>
 		<label>Number Value</label>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
-		<config-description>
-			<parameter name="eventKey" type="text" required="true">
-				<label>Event Key</label>
-				<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
-			</parameter>
-		</config-description>
+		<config-description-ref uri="thing-type:homeconnectdirect:eventkey"/>
 	</channel-type>
-
 </thing:thing-descriptions>

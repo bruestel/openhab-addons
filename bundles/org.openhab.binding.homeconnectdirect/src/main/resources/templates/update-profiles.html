@@ -29,6 +29,7 @@
                     <div class="d-flex justify-content-end mt-3">
                         <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Cancel</a>
                         <form method="POST" th:action="@{__${profileUpdatePath}__}">
+                            <input type="hidden" name="CSRF_TOKEN" th:value="${CSRF_TOKEN}">
                             <button class="ms-3 btn btn-primary btn-sm" type="submit">Fetch Profiles</button>
                         </form>
                     </div>
@@ -55,6 +56,9 @@
                             <dd class="col-sm-9" th:text="${profile.type}">COFFEEMAKER</dd>
                         </dl>
                     </div>
+                </div>
+                <div class="mt-3">
+                    <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Back</a>
                 </div>
             </th:block>
         </th:block>

@@ -31,4 +31,10 @@
 			<advanced>true</advanced>
 		</parameter>
 	</config-description>
+	<config-description uri="thing-type:homeconnectdirect:eventkey">
+		<parameter name="eventKey" type="text" required="true">
+			<label>Event Key</label>
+			<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
+		</parameter>
+	</config-description>
 </config-description:config-descriptions>

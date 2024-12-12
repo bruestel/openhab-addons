@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{base :: head}"></head>
+
+<body>
+<nav th:replace="~{base :: navbar}"></nav>
+<div class="d-flex">
+    <div th:replace="~{base :: sidebar_large(${appliances}, ${selectedMenuEntry})}"></div>
+    <div th:replace="~{base :: sidebar_small(${appliances}, ${selectedMenuEntry})}"></div>
+
+    <div class="flex-grow-1 p-3">
+
+        <h1 class="mb-4">Upload Profile</h1>
+
+        <div th:unless="${done}" class="card mt-3 hcd-card">
+            <div class="card-body">
+                <form method="POST" th:action="@{__${profileUploadPath}__}" enctype="multipart/form-data">
+                    <label for="zipFile">Select the profile zip:</label>
+                    <input type="hidden" name="CSRF_TOKEN" th:value="${CSRF_TOKEN}">
+                    <input type="file" id="zipFile" name="zipFile" accept=".zip" required>
+                    <button class="ms-3 btn btn-primary btn-sm" type="submit">Upload profile</button>
+                    <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Cancel</a>
+                </form>
+            </div>
+        </div>
+        <th:block th:if="${done}">
+            <p>Device profile has been successfully imported.</p>
+
+            <div class="card mt-3 hcd-card">
+                <div class="card-header d-flex align-items-center">
+                    <th:block th:insert="~{base :: icon(${profile.type})}"></th:block>
+                    <span th:text="${utils.getLabelByType(profile.type)}">Coffee Maker</span>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Home Appliance ID</dt>
+                        <dd class="col-sm-9" th:text="${profile.haId}">SIEMENS-TI9555X1DE-000000000000</dd>
+
+                        <dt class="col-sm-3">Serial Number</dt>
+                        <dd class="col-sm-9" th:text="${profile.serialNumber}">000000000000000000</dd>
+
+                        <dt class="col-sm-3">Type</dt>
+                        <dd class="col-sm-9" th:text="${profile.type}">COFFEEMAKER</dd>
+                    </dl>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Back</a>
+                    </div>
+                </div>
+            </div>
+        </th:block>
+
+    </div>
+</div>
+
+<!--/*/ <th:block th:insert="~{base :: js}"></th:block> /*/-->
+</body>
+</html>

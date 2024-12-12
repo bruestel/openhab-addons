@@ -15,6 +15,7 @@ package org.openhab.binding.homeconnectdirect.internal.service.profile;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.SPACE;
+import static org.apache.commons.lang3.StringUtils.endsWith;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.BINDING_ID;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.BINDING_USERDATA_PATH;
@@ -60,12 +61,17 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -83,6 +89,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -189,6 +196,92 @@ public class ApplianceProfileService {
     public Optional<ApplianceProfile> getProfile(String haId) {
         return getProfiles().stream().filter(applianceProfile -> Objects.equals(applianceProfile.haId(), haId))
                 .findFirst();
+    }
+
+    public void deleteProfile(String haId) {
+        try {
+            File directory = new File(userDataPath);
+            File[] jsonFiles = directory.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));
+
+            if (jsonFiles != null) {
+                for (File jsonFile : jsonFiles) {
+                    var profile = gson.fromJson(new FileReader(jsonFile), ApplianceProfile.class);
+                    if (Objects.equals(profile.haId(), haId)) {
+                        Files.delete(Path.of(userDataPath + File.separator + profile.featureMappingFileName()));
+                        Files.delete(Path.of(userDataPath + File.separator + profile.deviceDescriptionFileName()));
+                        Files.delete(Path.of(userDataPath + File.separator + jsonFile.getName()));
+                    }
+                }
+            }
+
+        } catch (SecurityException | IOException | JsonParseException e) {
+            logger.error("Could not delete profile files! error={}", e.getMessage());
+        }
+    }
+
+    public Optional<ApplianceProfile> uploadProfileZip(InputStream inputStream) {
+        Path profilePath = null;
+
+        try (ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (!entry.isDirectory() && (endsWith(entry.getName(), ".json") || endsWith(entry.getName(), ".xml"))) {
+                    var path = Path.of(userDataPath + File.separator + entry.getName());
+                    Files.copy(zipInputStream, path, StandardCopyOption.REPLACE_EXISTING);
+
+                    if (endsWith(entry.getName(), ".json")) {
+                        profilePath = path;
+                    }
+                }
+            }
+
+            if (profilePath != null) {
+                try (FileReader reader = new FileReader(profilePath.toFile())) {
+                    return Optional.of(gson.fromJson(reader, ApplianceProfile.class));
+                }
+            }
+        } catch (IOException ignored) {
+        }
+
+        return Optional.empty();
+    }
+
+    public boolean downloadProfileZip(String haId, OutputStream outputStream) {
+        var profile = getProfile(haId);
+        if (profile.isEmpty()) {
+            return false;
+        }
+
+        var profileJsonContent = gson.toJson(profile.get());
+
+        try (ZipOutputStream zos = new ZipOutputStream(outputStream);
+                OutputStreamWriter writer = new OutputStreamWriter(zos)) {
+
+            // json
+            ZipEntry zipEntry = new ZipEntry(haId + ".json");
+            zos.putNextEntry(zipEntry);
+            writer.write(profileJsonContent);
+            writer.flush();
+            zos.closeEntry();
+
+            // original XMLs
+            for (Path path : List.of(
+                    Paths.get(userDataPath + File.separator + profile.get().deviceDescriptionFileName()),
+                    Paths.get(userDataPath + File.separator + profile.get().featureMappingFileName()))) {
+                if (Files.exists(path)) {
+                    ZipEntry fileEntry = new ZipEntry(path.getFileName().toString());
+                    zos.putNextEntry(fileEntry);
+                    Files.copy(path, zos);
+                    zos.closeEntry();
+                } else {
+                    logger.warn("Profile file {} does not exist!", profile.get().deviceDescriptionFileName());
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+
+        return true;
     }
 
     public ApplianceDescription getDescription(ApplianceProfile profile) {
@@ -377,22 +470,6 @@ public class ApplianceProfileService {
         }
         return List.of();
     }
-
-    // private ThingTypeUID map(String type) {
-    // ThingTypeUID thingType;
-    // if (APPLIANCE_TYPE_WASHER.equalsIgnoreCase(type)) {
-    // thingType = THING_TYPE_WASHER;
-    // } else if (APPLIANCE_TYPE_DISHWASHER.equalsIgnoreCase(type)) {
-    // thingType = THING_TYPE_DISHWASHER;
-    // } else if (APPLIANCE_TYPE_COOK_PROCESSOR.equalsIgnoreCase(type)) {
-    // thingType = THING_TYPE_COOK_PROCESSOR;
-    // } else if (APPLIANCE_TYPE_COFFEE_MAKER.equalsIgnoreCase(type)) {
-    // thingType = THING_TYPE_COFFEE_MAKER;
-    // } else {
-    // thingType = THING_TYPE_GENERIC;
-    // }
-    // return thingType;
-    // }
 
     private void createProfileDirectory() {
         File directory = new File(userDataPath);
