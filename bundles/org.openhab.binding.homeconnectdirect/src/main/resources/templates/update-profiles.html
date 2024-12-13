@@ -30,7 +30,7 @@
                         <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Cancel</a>
                         <form method="POST" th:action="@{__${profileUpdatePath}__}">
                             <input type="hidden" name="CSRF_TOKEN" th:value="${CSRF_TOKEN}">
-                            <button class="ms-3 btn btn-primary btn-sm" type="submit">Fetch Profiles</button>
+                            <button class="ms-3 btn btn-primary btn-sm" type="submit" onclick="handleButtonClick(this)">Fetch Profiles</button>
                         </form>
                     </div>
                 </div>

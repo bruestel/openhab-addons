@@ -174,3 +174,13 @@ function syntaxHighlight(json) {
         return '<span class="' + cls + '">' + match + '</span>';
     });
 }
+
+function handleButtonClick(button) {
+    const spinner = document.createElement("span");
+    spinner.className = "spinner-border spinner-border-sm me-2";
+    spinner.setAttribute("role", "status");
+    spinner.setAttribute("aria-hidden", "true");
+    button.prepend(spinner);
+    button.disabled = true;
+    button.form.submit();
+}

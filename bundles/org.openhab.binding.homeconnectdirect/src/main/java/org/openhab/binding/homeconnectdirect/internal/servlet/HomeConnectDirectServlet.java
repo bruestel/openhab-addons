@@ -118,7 +118,6 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private final Gson gson;
 
     // TODO show Programs and features
-    // TODO loading indicator fetch profiles
     // TODO README
 
     @Activate
@@ -396,7 +395,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
                 var haId = thing.get().getConfiguration().get("haId") + "";
                 var profile = applianceProfileService.getProfile(haId);
 
-                if (profile.isPresent() && thing.get().getHandler() instanceof BaseHomeConnectDirectHandler handler) {
+                if (profile.isPresent()) {
                     var filename = String.format(LOG_DOWNLOAD_FILENAME_TEMPLATE, Instant.now().getEpochSecond(),
                             StringUtils.toRootLowerCase(haId));
                     response.setContentType(ZIP_CONTENT_TYPE);
@@ -405,12 +404,14 @@ public class HomeConnectDirectServlet extends HttpServlet {
                     try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream());
                             OutputStreamWriter writer = new OutputStreamWriter(zos)) {
 
-                        // events
-                        ZipEntry zipEntry = new ZipEntry("websocket-messages-" + haId + ".json");
-                        zos.putNextEntry(zipEntry);
-                        writer.write(gson.toJson(handler.getApplianceMessages()));
-                        writer.flush();
-                        zos.closeEntry();
+                        if (thing.get().getHandler() instanceof BaseHomeConnectDirectHandler handler) {
+                            // events
+                            ZipEntry zipEntry = new ZipEntry("websocket-messages-" + haId + ".json");
+                            zos.putNextEntry(zipEntry);
+                            writer.write(gson.toJson(handler.getApplianceMessages()));
+                            writer.flush();
+                            zos.closeEntry();
+                        }
 
                         // original XMLs
                         for (Path path : List.of(
