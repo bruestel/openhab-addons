@@ -102,7 +102,6 @@ function addMessageRow(id, message) {
                 dataElement.textContent = '';
             } else {
                 dataRowElement.style.display = 'block';
-                //dataElement.textContent = formattedData;
                 dataElement.innerHTML = syntaxHighlight(formattedData);
             }
 

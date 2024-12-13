@@ -21,45 +21,20 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SERVLET_WEB_SOCKET_PATH;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SUPPORTED_THING_TYPES;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.Serial;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import javax.servlet.MultipartConfigElement;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.http.HttpStatus;
-import org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants;
 import org.openhab.binding.homeconnectdirect.internal.handler.BaseHomeConnectDirectHandler;
 import org.openhab.binding.homeconnectdirect.internal.service.profile.ApplianceProfileService;
 import org.openhab.binding.homeconnectdirect.internal.service.profile.model.ApplianceProfile;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.serializer.ResourceSerializer;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.serializer.ZonedDateTimeSerializer;
+import org.openhab.binding.homeconnectdirect.internal.servlet.model.Program;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingRegistry;
 import org.osgi.service.cm.ConfigurationAdmin;
@@ -78,8 +53,34 @@ import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.web.servlet.JavaxServletWebApplication;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.Serial;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import javax.servlet.MultipartConfigElement;
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 
 /**
  *
@@ -117,9 +118,6 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private final MultipartConfigElement multipartConfig;
     private final Gson gson;
 
-    // TODO show Programs and features
-    // TODO README
-
     @Activate
     public HomeConnectDirectServlet(@Reference HttpService httpService, @Reference ThingRegistry thingRegistry,
             @Reference ApplianceProfileService applianceProfileService,
@@ -131,7 +129,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
         this.applianceProfileService = applianceProfileService;
         this.configurationAdmin = configurationAdmin;
 
-        this.gson = new GsonBuilder().registerTypeAdapter(Resource.class, new ResourceSerializer())
+        this.gson = new GsonBuilder().setPrettyPrinting().registerTypeAdapter(Resource.class, new ResourceSerializer())
                 .registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer()).create();
 
         // register servlet
@@ -344,8 +342,18 @@ public class HomeConnectDirectServlet extends HttpServlet {
     }
 
     private void renderProfilePage(WebContext context, PrintWriter writer) {
-        context.setVariable("profilePath", HomeConnectDirectBindingConstants.BINDING_USERDATA_PATH);
-        context.setVariable("profiles", applianceProfileService.getProfiles());
+        var profiles = applianceProfileService.getProfiles();
+
+        // load programs
+        HashMap<String, String> programs = new HashMap<>();
+        profiles.forEach(profile -> {
+            var haId = profile.haId();
+            getProgramInformation(profile);
+            programs.put(haId, gson.toJson(getProgramInformation(profile)));
+        });
+
+        context.setVariable("programMap", programs);
+        context.setVariable("profiles", profiles);
         context.setVariable("selectedMenuEntry", "profile");
         templateEngine.process("profiles", context, writer);
     }
@@ -494,6 +502,16 @@ public class HomeConnectDirectServlet extends HttpServlet {
             logger.error("Could not read binding configuration! error={}", e.getMessage());
         }
         return Optional.empty();
+    }
+
+    private List<Program> getProgramInformation(ApplianceProfile profile) {
+        var description = applianceProfileService.getDescription(profile);
+        return description.deviceDescription().programList.stream().map(program -> {
+            var programUid = program.uid;
+            var programKey = description.featureMapping().featureMap.get(programUid);
+
+            return new Program(programUid, programKey);
+        }).toList();
     }
 
     @Deactivate

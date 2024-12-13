@@ -45,6 +45,14 @@
                     <dt class="col-sm-3">Created</dt>
                     <dd class="col-sm-9" th:text="${utils.formatDateTime(profile.created())}"></dd>
                 </dl>
+
+                <button class="btn btn-sm btn-warning" type="button" data-bs-toggle="collapse" th:data-bs-target="${'#programs' + profile.haId()}" aria-expanded="false" th:aria-controls="${'programs' + profile.haId()}">
+                    Program list
+                </button>
+                <div class="collapse" th:id="${'programs' + profile.haId()}">
+                    <pre class="pre-highlight" th:text="${programMap.get(profile.haId)}"></pre>
+                </div>
+
                 <div class="d-flex justify-content-end mt-3">
                     <a th:href="@{__${profileDownloadPath}__(haId=${profile.haId()})}" class="btn btn-primary btn-sm me-1"><span class="mdi mdi-download"></span> Download Profile</a>
 
@@ -60,5 +68,21 @@
 </div>
 
 <!--/*/ <th:block th:insert="~{base :: js}"></th:block> /*/-->
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const preElements = document.querySelectorAll("pre.pre-highlight");
+
+        preElements.forEach(pre => {
+            const originalText = pre.textContent;
+            try {
+                const formattedText = syntaxHighlight(originalText);
+                pre.innerHTML = formattedText;
+            } catch (error) {
+                console.error("Could not process JSON:", error);
+            }
+        });
+    });
+</script>
 </body>
 </html>
