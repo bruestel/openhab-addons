@@ -44,6 +44,7 @@ import org.openhab.binding.homeconnectdirect.internal.service.websocket.serializ
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingRegistry;
 import org.openhab.core.thing.binding.ThingHandler;
+import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.ConfigurationPolicy;
@@ -67,20 +68,33 @@ public class HomeConnectDirectWebSocketServlet extends WebSocketServlet {
 
     private final Logger logger;
     private final ThingRegistry thingRegistry;
+    private final ConfigurationAdmin configurationAdmin;
+    private final ServletUtils utils;
     @Serial
     private static final long serialVersionUID = 3_406_770_341_849_696_274L;
 
     @Activate
-    public HomeConnectDirectWebSocketServlet(@Reference ThingRegistry thingRegistry) {
+    public HomeConnectDirectWebSocketServlet(@Reference ThingRegistry thingRegistry,
+            @Reference ConfigurationAdmin configurationAdmin) {
         this.logger = LoggerFactory.getLogger(HomeConnectDirectWebSocketServlet.class);
         this.thingRegistry = thingRegistry;
+        this.configurationAdmin = configurationAdmin;
+        this.utils = new ServletUtils();
     }
 
     @Override
     public void configure(@Nullable WebSocketServletFactory factory) {
         if (factory != null) {
             factory.setCreator((servletUpgradeRequest, servletUpgradeResponse) -> {
+
                 try {
+                    // basic auth
+                    var configuration = utils.getConfiguration(configurationAdmin);
+                    if (configuration.basicAuthEnabled) {
+                        utils.checkAuthorization(servletUpgradeRequest, servletUpgradeResponse,
+                                configuration.basicAuthUsername, configuration.basicAuthPassword);
+                    }
+
                     var path = servletUpgradeRequest.getRequestURI().getPath();
                     var thingUIDString = path.substring(path.lastIndexOf('/') + 1);
                     var thingHandler = getThingHandler(thingUIDString);
@@ -88,7 +102,7 @@ public class HomeConnectDirectWebSocketServlet extends WebSocketServlet {
                     if (thingHandler.isPresent()) {
                         return new HomeConnectDirectWebSocketHandler(thingHandler.get());
                     }
-                } catch (IndexOutOfBoundsException ignored) {
+                } catch (IndexOutOfBoundsException | IOException ignored) {
                 }
 
                 servletUpgradeResponse.setStatusCode(HttpStatus.NOT_FOUND_404);

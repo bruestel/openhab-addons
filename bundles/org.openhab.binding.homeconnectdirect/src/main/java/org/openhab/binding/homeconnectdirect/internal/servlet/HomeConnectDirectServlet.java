@@ -21,13 +21,45 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SERVLET_WEB_SOCKET_PATH;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SUPPORTED_THING_TYPES;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.Serial;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import javax.servlet.MultipartConfigElement;
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants;
+import org.openhab.binding.homeconnectdirect.internal.handler.BaseHomeConnectDirectHandler;
 import org.openhab.binding.homeconnectdirect.internal.service.profile.ApplianceProfileService;
 import org.openhab.binding.homeconnectdirect.internal.service.profile.model.ApplianceProfile;
+import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource;
+import org.openhab.binding.homeconnectdirect.internal.service.websocket.serializer.ResourceSerializer;
+import org.openhab.binding.homeconnectdirect.internal.service.websocket.serializer.ZonedDateTimeSerializer;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingRegistry;
 import org.osgi.service.cm.ConfigurationAdmin;
@@ -46,24 +78,8 @@ import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.web.servlet.JavaxServletWebApplication;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.Serial;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-
-import javax.servlet.MultipartConfigElement;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  *
@@ -78,6 +94,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
     @Serial
     private static final long serialVersionUID = -3227785548304622034L;
     private static final String PATH_APPLIANCE = "/appliance/";
+    private static final String PATH_DOWNLOAD_LOG = "/download-debug-log";
     private static final String PATH_UPDATE_PROFILES = "/update-profiles";
     private static final String PATH_DOWNLOAD_PROFILE = "/download-profile";
     private static final String PATH_UPLOAD_PROFILE = "/upload-profile";
@@ -86,7 +103,8 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private static final String ZIP_CONTENT_TYPE = "application/zip";
     private static final String ASSET_CLASSPATH = "assets";
     private static final String CSRF_TOKEN = "CSRF_TOKEN";
-    private static final String DOWNLOAD_FILENAME_TEMPLATE = BINDING_ID + "-%s.zip";
+    private static final String PROFILE_DOWNLOAD_FILENAME_TEMPLATE = BINDING_ID + "-%s.zip";
+    private static final String LOG_DOWNLOAD_FILENAME_TEMPLATE = "log-%d-" + BINDING_ID + "-%s.zip";
     private static final String MULTIPART_KEY = "org.eclipse.jetty.multipartConfig";
 
     private final Logger logger;
@@ -97,10 +115,11 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private final ServletUtils utils;
     private final ConfigurationAdmin configurationAdmin;
     private final MultipartConfigElement multipartConfig;
+    private final Gson gson;
 
-    // TODO protect whole page via basic auth (optional)
-    // TODO change menu - separator between profiles and things
     // TODO show Programs and features
+    // TODO loading indicator fetch profiles
+    // TODO README
 
     @Activate
     public HomeConnectDirectServlet(@Reference HttpService httpService, @Reference ThingRegistry thingRegistry,
@@ -112,6 +131,9 @@ public class HomeConnectDirectServlet extends HttpServlet {
         this.thingRegistry = thingRegistry;
         this.applianceProfileService = applianceProfileService;
         this.configurationAdmin = configurationAdmin;
+
+        this.gson = new GsonBuilder().registerTypeAdapter(Resource.class, new ResourceSerializer())
+                .registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer()).create();
 
         // register servlet
         try {
@@ -141,10 +163,19 @@ public class HomeConnectDirectServlet extends HttpServlet {
     @Override
     protected void doGet(@NonNullByDefault({}) HttpServletRequest request,
             @NonNullByDefault({}) HttpServletResponse response) throws IOException {
-        var path = request.getPathInfo();
 
+        // basic auth
+        var configuration = utils.getConfiguration(configurationAdmin);
+        if (configuration.basicAuthEnabled) {
+            utils.checkAuthorization(request, response, configuration.basicAuthUsername,
+                    configuration.basicAuthPassword);
+        }
+
+        var path = request.getPathInfo();
         if (StringUtils.startsWith(path, PATH_DOWNLOAD_PROFILE)) {
             sendProfile(request, response);
+        } else if (StringUtils.startsWith(path, PATH_DOWNLOAD_LOG)) {
+            sendLog(request, response);
         } else {
             var writer = response.getWriter();
             var templateContext = prepareContext(request, response);
@@ -173,6 +204,13 @@ public class HomeConnectDirectServlet extends HttpServlet {
         var writer = response.getWriter();
         var templateContext = prepareContext(request, response);
         prepareResponse(response);
+
+        // basic auth
+        var configuration = utils.getConfiguration(configurationAdmin);
+        if (configuration.basicAuthEnabled) {
+            utils.checkAuthorization(request, response, configuration.basicAuthUsername,
+                    configuration.basicAuthPassword);
+        }
 
         var path = request.getPathInfo();
         if (StringUtils.startsWith(path, PATH_UPDATE_PROFILES) && getSingleKeyIdCredentials().isPresent()) {
@@ -249,6 +287,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
         templateContext.setVariable("profileDeletePath", SERVLET_BASE_PATH + PATH_DELETE_PROFILE);
         templateContext.setVariable("profileDownloadPath", SERVLET_BASE_PATH + PATH_DOWNLOAD_PROFILE);
         templateContext.setVariable("profileUploadPath", SERVLET_BASE_PATH + PATH_UPLOAD_PROFILE);
+        templateContext.setVariable("downloadDebugLogPath", SERVLET_BASE_PATH + PATH_DOWNLOAD_LOG);
         templateContext.setVariable("configurationPid", CONFIGURATION_PID);
 
         return templateContext;
@@ -332,13 +371,67 @@ public class HomeConnectDirectServlet extends HttpServlet {
         boolean success = false;
 
         if (haId != null) {
-            var filename = String.format(DOWNLOAD_FILENAME_TEMPLATE, StringUtils.toRootLowerCase(haId));
+            var filename = String.format(PROFILE_DOWNLOAD_FILENAME_TEMPLATE, StringUtils.toRootLowerCase(haId));
             response.setContentType(ZIP_CONTENT_TYPE);
             response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
 
             try {
                 success = applianceProfileService.downloadProfileZip(haId, response.getOutputStream());
             } catch (IOException ignored) {
+            }
+        }
+
+        if (!success) {
+            response.sendError(HttpStatus.INTERNAL_SERVER_ERROR_500);
+        }
+    }
+
+    private void sendLog(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        var thingUid = request.getParameter("uid");
+        boolean success = false;
+
+        if (thingUid != null) {
+            var thing = getAppliance(thingUid);
+            if (thing.isPresent()) {
+                var haId = thing.get().getConfiguration().get("haId") + "";
+                var profile = applianceProfileService.getProfile(haId);
+
+                if (profile.isPresent() && thing.get().getHandler() instanceof BaseHomeConnectDirectHandler handler) {
+                    var filename = String.format(LOG_DOWNLOAD_FILENAME_TEMPLATE, Instant.now().getEpochSecond(),
+                            StringUtils.toRootLowerCase(haId));
+                    response.setContentType(ZIP_CONTENT_TYPE);
+                    response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+                    try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream());
+                            OutputStreamWriter writer = new OutputStreamWriter(zos)) {
+
+                        // events
+                        ZipEntry zipEntry = new ZipEntry("websocket-messages-" + haId + ".json");
+                        zos.putNextEntry(zipEntry);
+                        writer.write(gson.toJson(handler.getApplianceMessages()));
+                        writer.flush();
+                        zos.closeEntry();
+
+                        // original XMLs
+                        for (Path path : List.of(
+                                Paths.get(applianceProfileService.getUserDataPath() + File.separator
+                                        + profile.get().deviceDescriptionFileName()),
+                                Paths.get(applianceProfileService.getUserDataPath() + File.separator
+                                        + profile.get().featureMappingFileName()))) {
+                            if (Files.exists(path)) {
+                                ZipEntry fileEntry = new ZipEntry(path.getFileName().toString());
+                                zos.putNextEntry(fileEntry);
+                                Files.copy(path, zos);
+                                zos.closeEntry();
+                            } else {
+                                logger.warn("Profile file {} does not exist!",
+                                        profile.get().deviceDescriptionFileName());
+                            }
+                        }
+                        success = true;
+                    } catch (IOException ignored) {
+                    }
+                }
             }
         }
 

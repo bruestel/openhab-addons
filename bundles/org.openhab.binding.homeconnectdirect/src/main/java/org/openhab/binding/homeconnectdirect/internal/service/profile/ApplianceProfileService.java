@@ -174,6 +174,10 @@ public class ApplianceProfileService {
         this.userDataPath = userDataPath;
     }
 
+    public String getUserDataPath() {
+        return userDataPath;
+    }
+
     public List<ApplianceProfile> getProfiles() {
         var profiles = new ArrayList<ApplianceProfile>();
         try {

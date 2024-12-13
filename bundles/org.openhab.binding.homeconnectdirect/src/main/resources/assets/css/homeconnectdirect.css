@@ -30,7 +30,7 @@
 .btn-close {
     position: absolute;
     top: 23px;
-    right: 17px;
+    right: 29px;
 }
 
 .offcanvas-body {
@@ -126,3 +126,16 @@ th {
     color: magenta;
 }
 
+.nav-link {
+    display: flex;
+    align-items: center;
+}
+
+.nav-link i {
+    flex-shrink: 0;
+}
+
+.nav-link .text-wrap {
+    white-space: normal;
+    word-break: break-word;
+}

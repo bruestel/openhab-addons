@@ -52,18 +52,29 @@
                     <span>Appliance Profiles</span>
                 </a>
             </li>
-            <li th:each="appliance : ${appliances}" class="nav-item">
-                <a th:href="@{__${appliancePath + appliance.getUID().toString()}__}" class="nav-link d-flex align-items-center"
-                   th:attr="aria-current=${selectedMenuEntry == 'dish' ? 'page' : 'false'}"
-                   th:classappend="${selectedMenuEntry == appliance.getUID().toString() ? 'active' : 'link-dark'}"
-                    th:switch="${appliance.getThingTypeUID().getId()}">
-                    <i th:case="dishwasher" class="mdi mdi-dishwasher mdi-24px me-1"></i>
-                    <i th:case="cookprocessor" class="mdi mdi-blender mdi-24px me-1"></i>
-                    <i th:case="coffeemaker" class="mdi mdi-coffee-maker mdi-24px me-1"></i>
-                    <i th:case="washer" class="mdi mdi-washing-machine mdi-24px me-1"></i>
-                    <i th:case="*" class="mdi mdi-home-automation mdi-24px me-1"></i>
-                    <span th:text="${appliance.label}">Appliance name</span>
-                </a>
+            <li th:unless="${appliances.isEmpty()}" class="nav-item">
+                <div class="nav-link d-flex align-items-center"
+                     th:classappend="${selectedMenuEntry != 'profile' ? '' : 'link-dark'}">
+                    <i class="mdi mdi-home-automation mdi-24px me-1"> </i>
+                    <span>Home Appliances (Things)</span>
+                </div>
+                <ul class="nav flex-column ms-3">
+                    <li th:each="appliance : ${appliances}">
+                        <a th:href="@{__${appliancePath + appliance.getUID().toString()}__}" class="nav-link"
+                           th:classappend="${selectedMenuEntry.equals(appliance.getUID()) ? 'active' : 'link-dark'}"
+                           th:switch="${appliance.getThingTypeUID().getId()}">
+                            <i th:case="dishwasher" class="flex-shrink-0 mdi mdi-dishwasher mdi-24px me-1"></i>
+                            <i th:case="cookprocessor" class="flex-shrink-0 mdi mdi-blender mdi-24px me-1"></i>
+                            <i th:case="coffeemaker" class="flex-shrink-0 mdi mdi-coffee-maker mdi-24px me-1"></i>
+                            <i th:case="washer" class="flex-shrink-0 mdi mdi-washing-machine mdi-24px me-1"></i>
+                            <i th:case="dryer" class="flex-shrink-0 mdi mdi-tumble-dryer mdi-24px me-1"></i>
+                            <i th:case="washerdryer" class="flex-shrink-0 mdi mdi-washing-machine mdi-24px me-1"></i>
+                            <i th:case="oven" class="flex-shrink-0 mdi mdi-stove mdi-24px me-1"></i>
+                            <i th:case="*" class="flex-shrink-0 mdi mdi-home-automation mdi-24px me-1"></i>
+                            <span class="text-wrap ms-2" th:text="${appliance.label}">Appliance name</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
         </ul>
     </div>
@@ -90,22 +101,29 @@
                         <span>Appliance Profiles</span>
                     </a>
                 </li>
+                <li class="nav-item" th:unless="${appliances.isEmpty()}">
+                    <div class="nav-link d-flex align-items-center"
+                         th:classappend="${selectedMenuEntry != 'profile' ? '' : 'link-dark'}">
+                        <i class="mdi mdi-home-automation mdi-24px me-1"></i>
+                        <span>Home Appliances (Things)</span>
+                    </div>
+                    <ul class="nav flex-column ms-3">
+                        <li th:each="appliance : ${appliances}" class="nav-item">
+                            <a th:href="@{__${appliancePath + appliance.getUID().toString()}__}"
+                               class="nav-link d-flex align-items-center"
+                               th:classappend="${selectedMenuEntry.equals(appliance.getUID()) ? 'active' : 'link-dark'}">
+                                <span th:if="${utils.isCoffeeMaker(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-coffee-maker mdi-24px me-1"></span>
+                                <span th:if="${utils.isCookProcessor(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-blender mdi-24px me-1"></span>
+                                <span th:if="${utils.isDishwasher(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-dishwasher mdi-24px me-1"></span>
+                                <span th:if="${utils.isWasher(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-washing-machine mdi-24px me-1"></span>
+                                <span th:if="${utils.isDryer(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-tumble-dryer mdi-24px me-1"></span>
+                                <span th:if="${utils.isOven(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-stove mdi-24px me-1"></span>
+                                <span th:if="${utils.isGeneric(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-home-automation mdi-24px me-1"></span>
 
-                <li th:each="appliance : ${appliances}" class="nav-item">
-                    <a th:href="@{/__${basePath}__/appliance/__${appliance.getUID().toString()}__}"
-                       class="nav-link d-flex align-items-center"
-                       th:attr="aria-current=${selectedMenuEntry == 'dish' ? 'page' : 'false'}"
-                       th:classappend="${selectedMenuEntry == appliance.getUID().toString() ? 'active' : 'link-dark'}">
-                        <span th:if="${utils.isCoffeeMaker(appliance.getThingTypeUID().getId())}" class="mdi mdi-coffee-maker mdi-24px me-1"></span>
-                        <span th:if="${utils.isCookProcessor(appliance.getThingTypeUID().getId())}" class="mdi mdi-blender mdi-24px me-1"></span>
-                        <span th:if="${utils.isDishwasher(appliance.getThingTypeUID().getId())}" class="mdi mdi-dishwasher mdi-24px me-1"></span>
-                        <span th:if="${utils.isWasher(appliance.getThingTypeUID().getId())}" class="mdi mdi-washing-machine mdi-24px me-1"></span>
-                        <span th:if="${utils.isDryer(appliance.getThingTypeUID().getId())}" class="mdi mdi-tumble-dryer mdi-24px me-1"></span>
-                        <span th:if="${utils.isOven(appliance.getThingTypeUID().getId())}" class="mdi mdi-stove mdi-24px me-1"></span>
-                        <span th:if="${utils.isGeneric(appliance.getThingTypeUID().getId())}" class="mdi mdi-home-automation mdi-24px me-1"></span>
-
-                        <span th:text="${appliance.label}">Appliance name</span>
-                    </a>
+                                <span th:text="${appliance.label}">Appliance name</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
         </div>

@@ -10,14 +10,40 @@
 	<connection>local</connection>
 
 	<config-description>
-		<parameter name="singleKeyIdUsername" type="text" required="true">
+		<parameter-group name="singlekey">
+			<label>SingleKey ID</label>
+			<advanced>false</advanced>
+		</parameter-group>
+		<parameter-group name="authentication">
+			<label>HTTP Basic Authentication</label>
+			<description>Protect the Home Connect Web UI Console.</description>
+			<advanced>true</advanced>
+		</parameter-group>
+
+		<parameter name="singleKeyIdUsername" type="text" required="true" groupName="singlekey">
 			<context>email</context>
 			<label>Username</label>
 			<description>SingleKey ID email</description>
 		</parameter>
-		<parameter name="singleKeyIdPassword" type="text" required="true">
+		<parameter name="singleKeyIdPassword" type="text" required="true" groupName="singlekey">
 			<label>Password</label>
 			<description>SingleKey ID password</description>
+			<context>password</context>
+		</parameter>
+		<parameter name="basicAuthEnabled" type="boolean" required="false" groupName="authentication">
+			<default>false</default>
+			<label>HTTP Basic Authentication</label>
+			<description>This configuration parameter allows you to enable or disable HTTP Basic Authentication for the console
+				interface. When enabled, users are required to provide a username and password to access the console. If disabled,
+				authentication will not be required, and the console will be accessible without credentials.</description>
+		</parameter>
+		<parameter name="basicAuthUsername" type="text" required="false" groupName="authentication">
+			<default>admin</default>
+			<label>Basic Authentication Username</label>
+		</parameter>
+		<parameter name="basicAuthPassword" type="text" required="false" groupName="authentication">
+			<default>admin</default>
+			<label>Basic Authentication Password</label>
 			<context>password</context>
 		</parameter>
 	</config-description>

@@ -80,9 +80,10 @@
             <ol>
                 <li>Open console (e.g. <code>ssh -p 8101 openhab@localhost</code>)</li>
                 <li><code>openhab> config:edit <span th:remove="tag" th:text="${configurationPid}">binding.homeconnectdirect</span></code></li>
-                <li><code>openhab> config:property-set singleKeyIdUsername [mobile or email]</code></li>
+                <li><code>openhab> config:property-set singleKeyIdUsername [email]</code></li>
                 <li><code>openhab> config:property-set singleKeyIdPassword [password]</code></li>
                 <li><code>openhab> config:property-list</code></li>
+                <li><code>openhab> config:update</code></li>
             </ol>
         </th:block>
     </div>

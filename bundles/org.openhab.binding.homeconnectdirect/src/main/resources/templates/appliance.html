@@ -14,6 +14,10 @@
             <span class="badge rounded-pill ms-2" style="font-size: 1.1rem; padding: 0.2em 0.4em; transform: translateY(-0.3rem);" th:classappend="${utils.getBadgeStyle(status)}" th:text="${status}">Neu</span>
         </h1>
         <small th:text="${uid}" class="text-muted d-block mb-3">ID</small>
+        <a class="btn btn-sm btn-secondary ms-auto" th:href="@{__${downloadDebugLogPath}__(uid=${uid})}">
+            <span class="mdi mdi-download"></span>
+            Download Log
+        </a>
 
         <div id="eventTableContainer" class="table-responsive">
             <table class="table table-hover table-striped">

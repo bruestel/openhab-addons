@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.homeconnectdirect.internal.servlet;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COFFEE_MAKER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COOK_PROCESSOR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DISHWASHER;
@@ -19,14 +20,26 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_OVEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER_AND_DRYER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONFIGURATION_PID;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Locale;
+import java.util.Objects;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.openhab.binding.homeconnectdirect.internal.configuration.HomeConnectDirectServletConfiguration;
 import org.openhab.core.thing.ThingStatus;
+import org.osgi.service.cm.ConfigurationAdmin;
 
 /**
  *
@@ -97,5 +110,65 @@ public class ServletUtils {
             case INITIALIZING, UNINITIALIZED -> "text-bg-secondary";
             default -> "text-bg-warning";
         };
+    }
+
+    public void checkAuthorization(HttpServletRequest request, HttpServletResponse response, String adminUsername,
+            String adminPassword) throws IOException {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            response.setHeader("WWW-Authenticate", "Basic realm=\"Home Connect Console\"");
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+        } else {
+            String base64Credentials = authHeader.substring("Basic ".length()).trim();
+            String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
+            String[] values = credentials.split(":", 2);
+            String username = values[0];
+            String password = values[1];
+
+            if (!Objects.equals(adminUsername, username) || !Objects.equals(adminPassword, password)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            }
+        }
+    }
+
+    public void checkAuthorization(ServletUpgradeRequest request, ServletUpgradeResponse response, String adminUsername,
+            String adminPassword) throws IOException {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            response.setHeader("WWW-Authenticate", "Basic realm=\"Home Connect Console\"");
+            response.sendForbidden("Forbidden");
+        } else {
+            String base64Credentials = authHeader.substring("Basic ".length()).trim();
+            String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
+            String[] values = credentials.split(":", 2);
+            String username = values[0];
+            String password = values[1];
+
+            if (!Objects.equals(adminUsername, username) || !Objects.equals(adminPassword, password)) {
+                response.sendForbidden("Forbidden");
+            }
+        }
+    }
+
+    public HomeConnectDirectServletConfiguration getConfiguration(ConfigurationAdmin configurationAdmin) {
+        var configuration = new HomeConnectDirectServletConfiguration();
+        try {
+            var config = configurationAdmin.getConfiguration(CONFIGURATION_PID);
+            var properties = config.getProperties();
+
+            if (properties != null) {
+                configuration.basicAuthEnabled = Boolean.parseBoolean(properties.get("basicAuthEnabled") + "");
+                var usernameObject = properties.get("basicAuthUsername");
+                var passwordObject = properties.get("basicAuthPassword");
+                if (usernameObject instanceof String username && passwordObject instanceof String password
+                        && isNotBlank(username) && isNotBlank(password)) {
+                    configuration.basicAuthUsername = username;
+                    configuration.basicAuthPassword = password;
+                }
+            }
+        } catch (IOException ignored) {
+        }
+
+        return configuration;
     }
 }
