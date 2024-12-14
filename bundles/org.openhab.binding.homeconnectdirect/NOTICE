@@ -11,3 +11,50 @@ https://www.eclipse.org/legal/epl-2.0/.
 == Source Code
 
 https://github.com/openhab/openhab-addons
+
+== Third-party Content
+
+Thymeleaf
+* License: Apache License 2.0
+* Project: https://www.thymeleaf.org/
+* Source:  https://github.com/thymeleaf/thymeleaf
+
+OGNL Object Graph Navigation Library
+* License: Apache License 2.0
+* Project: https://ognl.orphan.software/
+* Source:  https://github.com/jkuhnert/ognl/
+
+Javassist
+* License: Apache License 2.0
+* Project: https://www.javassist.org/
+* Source:  https://github.com/jboss-javassist/javassist
+
+ottoparser
+* License: Apache License 2.0
+* Project: https://www.attoparser.org/
+* Source:  https://github.com/attoparser/attoparser
+
+unbescape
+* License: Apache License 2.0
+* Project: https://www.unbescape.org/
+* Source:  https://github.com/unbescape/unbescape
+
+jsoup
+* License: MIT License
+* Project: https://jsoup.org/
+* Source:  https://github.com/jhy/jsoup
+
+conscrypt
+* License: Apache License 2.0
+* Project: https://www.conscrypt.org/
+* Source:  https://github.com/google/conscrypt
+
+Bootstrap
+* License: MIT License
+* Project: https://getbootstrap.com/
+* Source:  https://github.com/twbs/bootstrap
+
+Material Design Icons
+* License: Apache License 2.0
+* Project: https://pictogrammers.com/library/mdi/
+* Source:  https://github.com/Templarian/MaterialDesign
