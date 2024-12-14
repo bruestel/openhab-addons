@@ -49,8 +49,8 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
     private final Logger logger;
 
     public HomeConnectDirectOvenHandler(Thing thing, ApplianceProfileService applianceProfileService,
-            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider) {
-        super(thing, applianceProfileService, descriptionProvider);
+            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider, String deviceId) {
+        super(thing, applianceProfileService, descriptionProvider, deviceId);
 
         this.logger = LoggerFactory.getLogger(HomeConnectDirectOvenHandler.class);
     }

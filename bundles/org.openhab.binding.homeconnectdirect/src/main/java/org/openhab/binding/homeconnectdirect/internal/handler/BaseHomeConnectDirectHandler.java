@@ -55,7 +55,6 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_STANDBY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_AES_URI_TEMPLATE;
-import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_ID;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_NAME;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_TYPE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_TLS_URI_TEMPLATE;
@@ -167,6 +166,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     private final List<Consumer<ApplianceMessage>> applianceMessageConsumers;
     protected final HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider;
     private final Map<String, Boolean> programMap;
+    private final String deviceId;
 
     private @Nullable ScheduledFuture<?> reconnectFuture;
     private @Nullable WebSocketClientService webSocketClientService;
@@ -177,7 +177,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     private long sessionId;
 
     public BaseHomeConnectDirectHandler(Thing thing, ApplianceProfileService applianceProfileService,
-            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider) {
+            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider, String deviceId) {
         super(thing);
 
         this.applianceProfileService = applianceProfileService;
@@ -192,6 +192,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         this.applianceMessageConsumers = Collections.synchronizedList(new ArrayList<>());
         this.programMap = new ConcurrentHashMap<>();
         this.descriptionProvider = descriptionProvider;
+        this.deviceId = deviceId;
     }
 
     @Override
@@ -393,7 +394,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                         outgoingMessageId = Objects.requireNonNull(message.data()).getFirst().messageId();
 
                         // reply
-                        var data = new DeviceData(WS_DEVICE_TYPE, WS_DEVICE_NAME, WS_DEVICE_ID);
+                        var data = new DeviceData(WS_DEVICE_TYPE, WS_DEVICE_NAME, deviceId);
                         send(RESPONSE, message.resource(), List.of(data), message.messageId(), message.version());
 
                         // get services

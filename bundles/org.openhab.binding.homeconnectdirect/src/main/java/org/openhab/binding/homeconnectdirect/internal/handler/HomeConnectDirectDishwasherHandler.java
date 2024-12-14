@@ -45,8 +45,8 @@ import org.openhab.core.types.UnDefType;
 public class HomeConnectDirectDishwasherHandler extends BaseHomeConnectDirectHandler {
 
     public HomeConnectDirectDishwasherHandler(Thing thing, ApplianceProfileService applianceProfileService,
-            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider) {
-        super(thing, applianceProfileService, descriptionProvider);
+            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider, String deviceId) {
+        super(thing, applianceProfileService, descriptionProvider, deviceId);
     }
 
     @Override

@@ -75,8 +75,8 @@ import org.openhab.core.types.UnDefType;
 public class HomeConnectDirectWasherDryerHandler extends BaseHomeConnectDirectHandler {
 
     public HomeConnectDirectWasherDryerHandler(Thing thing, ApplianceProfileService applianceProfileService,
-            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider) {
-        super(thing, applianceProfileService, descriptionProvider);
+            HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider, String deviceId) {
+        super(thing, applianceProfileService, descriptionProvider, deviceId);
     }
 
     @Override

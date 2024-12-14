@@ -20,12 +20,12 @@
 			<advanced>true</advanced>
 		</parameter-group>
 
-		<parameter name="singleKeyIdUsername" type="text" required="true" groupName="singlekey">
+		<parameter name="singleKeyIdUsername" type="text" required="false" groupName="singlekey">
 			<context>email</context>
 			<label>Username</label>
 			<description>SingleKey ID email</description>
 		</parameter>
-		<parameter name="singleKeyIdPassword" type="text" required="true" groupName="singlekey">
+		<parameter name="singleKeyIdPassword" type="text" required="false" groupName="singlekey">
 			<label>Password</label>
 			<description>SingleKey ID password</description>
 			<context>password</context>

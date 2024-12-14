@@ -111,7 +111,8 @@ public class HomeConnectDirectBindingConstants {
     // Home Connect WebSocket Client
     public static final String WS_DEVICE_TYPE = "Application";
     public static final String WS_DEVICE_NAME = "HC Direct";
-    public static final String WS_DEVICE_ID = "cafebabe";
+    public static final String WS_DEVICE_ID_PREFIX = "cafebabe0000";
+    public static final String WS_DEVICE_ID_PATH = OpenHAB.getUserDataFolder() + File.separator + BINDING_ID + ".id";
     public static final String WS_AES_URI_TEMPLATE = "ws://%s:80/homeconnect";
     public static final String WS_TLS_URI_TEMPLATE = "wss://%s:443/homeconnect";
     public static final Duration WS_INACTIVITY_TIMEOUT = Duration.ofSeconds(60);
