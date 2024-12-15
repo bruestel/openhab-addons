@@ -27,7 +27,7 @@ A big thank you to the contributors of these projects for their excellent work!
 
 ## Discovery
 
-Things are discovered via UPnP on the local network. Alternatively, you can add devices manually by IP address.
+Things are discovered via mDNS on the local network. Alternatively, you can add devices manually by IP address.
 
 ## Binding Configuration
 
@@ -179,6 +179,13 @@ This allows you to customize the setup to suit your specific needs and extend th
 | switch          | Switch | RW         | This channel type can be used to represent boolean values as switches. |
 | string          | String | RW         | This channel type can be used to represent strings.                    |
 | number          | Number | RW         | This channel type can be used to represent number values.              |
+
+For dynamic channels, it is necessary to specify an `eventKey` parameter.
+This parameter determines which event from the home appliance the channel should listen to.
+The easiest way to find the appropriate event key is by referring to the communication log.
+Please take a look at the message with the resource `/ro/allMandatoryValues` in the log to identify the correct event key.
+
+![Screenshot Home Connect Direct Binding UI `/ro/allMandatoryValues`](doc/all-mandatory-values.png "All Mandatory Values Example")
 
 ## Full Example
 
