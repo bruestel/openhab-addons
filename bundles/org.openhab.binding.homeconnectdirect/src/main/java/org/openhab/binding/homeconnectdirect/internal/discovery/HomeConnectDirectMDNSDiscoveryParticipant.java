@@ -113,7 +113,7 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
             var friendlyName = getLabel(thingTypeUID, capitalize(lowerCase(brand)));
 
             Map<String, Object> properties = Map.of(PROPERTY_HOME_APPLIANCE_ID, haId, PROPERTY_ADDRESS,
-                    ipv4List.getFirst().getHostAddress(), PROPERTY_CONNECTION_TYPE,
+                    ipv4List.get(0).getHostAddress(), PROPERTY_CONNECTION_TYPE,
                     port == CONNECTION_TYPE_AES_PORT ? CONNECTION_TYPE_AES : CONNECTION_TYPE_TLS);
 
             return DiscoveryResultBuilder.create(thingUID).withProperties(properties).withLabel(friendlyName)

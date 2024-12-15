@@ -391,7 +391,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                 .requireNonNull(gson.fromJson(rawMessage, new TypeToken<Message<FirstMessageId>>() {
                                 }.getType()));
                         sessionId = message.sessionId();
-                        outgoingMessageId = Objects.requireNonNull(message.data()).getFirst().messageId();
+                        outgoingMessageId = Objects.requireNonNull(message.data()).get(0).messageId();
 
                         // reply
                         var data = new DeviceData(WS_DEVICE_TYPE, WS_DEVICE_NAME, deviceId);
@@ -440,7 +440,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                         Message<ApplianceInfo> message = Objects
                                 .requireNonNull(gson.fromJson(rawMessage, new TypeToken<Message<ApplianceInfo>>() {
                                 }.getType()));
-                        var applianceInfo = Objects.requireNonNull(message.data()).getFirst();
+                        var applianceInfo = Objects.requireNonNull(message.data()).get(0);
                         logger.debug("Received appliance info: {} (thingUID={})", applianceInfo, thing.getUID());
                     } else if (RO_ALL_MANDATORY_VALUES.equals(msg.resource()) || RO_VALUES.equals(msg.resource())) {
                         Message<Data> message = Objects
