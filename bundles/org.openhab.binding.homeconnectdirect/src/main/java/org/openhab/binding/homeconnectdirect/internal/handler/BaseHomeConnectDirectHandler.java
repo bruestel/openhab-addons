@@ -743,6 +743,11 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                 delay = configuration.connectionRetryDelay;
             }
             logger.trace("Schedule reconnect in {} minute(s) ({}).", delay, thing.getUID());
+            // disconnect and destroy web socket client service
+            var webSocketClientService = this.webSocketClientService;
+            if (webSocketClientService != null) {
+                webSocketClientService.disconnect();
+            }
             this.reconnectFuture = scheduler.schedule(this::initialize, delay, TimeUnit.MINUTES);
         }
     }

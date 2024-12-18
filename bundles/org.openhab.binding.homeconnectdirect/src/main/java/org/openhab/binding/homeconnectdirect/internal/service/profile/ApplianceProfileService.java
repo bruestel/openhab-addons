@@ -471,6 +471,7 @@ public class ApplianceProfileService {
                 httpClient.stop();
             } catch (Exception ignored) {
             }
+            httpClient.destroy();
         }
         return List.of();
     }

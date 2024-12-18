@@ -94,6 +94,7 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
                 logger.error("Failed to stop websocket client! error={}", e.getMessage());
             }
         }
+        destroyWebSocketClient();
     }
 
     @OnWebSocketConnect
@@ -159,7 +160,21 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
     }
 
     protected void setWebSocketClient(WebSocketClient webSocketClient) {
+        // kill old client
+        destroyWebSocketClient();
+
         this.webSocketClient = webSocketClient;
+    }
+
+    protected void destroyWebSocketClient() {
+        var webSocketClient = getWebSocketClient();
+        if (webSocketClient != null) {
+            try {
+                webSocketClient.stop();
+            } catch (Exception ignored) {
+            }
+            webSocketClient.destroy();
+        }
     }
 
     protected void sendPong(@Nullable Session session) {
