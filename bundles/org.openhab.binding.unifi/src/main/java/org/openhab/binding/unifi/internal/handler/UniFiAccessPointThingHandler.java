@@ -14,8 +14,6 @@ package org.openhab.binding.unifi.internal.handler;
 
 import static org.openhab.binding.unifi.internal.UniFiBindingConstants.*;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -144,13 +142,17 @@ public class UniFiAccessPointThingHandler extends UniFiBaseThingHandler<UniFiDev
                 break;
             case CHANNEL_LAST_SEEN:
                 if (device.getLastSeen() != null) {
-                    state = new DateTimeType(ZonedDateTime.ofInstant(device.getLastSeen(), ZoneId.systemDefault()));
+                    state = new DateTimeType(device.getLastSeen());
                 }
                 break;
             case CHANNEL_EXPERIENCE:
                 if (device.getExperience() != null) {
                     state = new QuantityType<>(device.getExperience(), Units.PERCENT);
                 }
+                break;
+            case CHANNEL_AP_LED:
+                String override = device.getLedOverride();
+                state = "default".equals(override) ? UnDefType.UNDEF : OnOffType.from(override);
                 break;
         }
         return state;
@@ -171,6 +173,8 @@ public class UniFiAccessPointThingHandler extends UniFiBaseThingHandler<UniFiDev
 
         if (CHANNEL_AP_ENABLE.equals(channelID) && command instanceof OnOffType onOffCommand) {
             return handleEnableCommand(controller, device, channelUID, onOffCommand);
+        } else if (CHANNEL_AP_LED.equals(channelID) && command instanceof OnOffType onOffCommand) {
+            return handleLedCommand(controller, device, channelUID, onOffCommand);
         }
         return false;
     }
@@ -178,6 +182,13 @@ public class UniFiAccessPointThingHandler extends UniFiBaseThingHandler<UniFiDev
     private boolean handleEnableCommand(final UniFiController controller, final UniFiDevice device,
             final ChannelUID channelUID, final OnOffType command) throws UniFiException {
         controller.disableAccessPoint(device, command == OnOffType.OFF);
+        refresh();
+        return true;
+    }
+
+    private boolean handleLedCommand(final UniFiController controller, final UniFiDevice device,
+            final ChannelUID channelUID, final OnOffType command) throws UniFiException {
+        controller.setLedOverride(device, command == OnOffType.ON ? "on" : "off");
         refresh();
         return true;
     }
