@@ -70,11 +70,8 @@ public class HomeConnectDirectBindingConstants {
     // Configuration properties
     public static final String PROPERTY_HOME_APPLIANCE_ID = HOME_APPLIANCE_ID;
     public static final String PROPERTY_ADDRESS = "address";
-    public static final String PROPERTY_CONNECTION_TYPE = "connectionType";
 
     // Configuration property values
-    public static final String CONNECTION_TYPE_AES = "AES_HMAC_SHA256";
-    public static final String CONNECTION_TYPE_TLS = "TLS";
     public static final int CONNECTION_TYPE_AES_PORT = 80;
     public static final int CONNECTION_TYPE_TLS_PORT = 443;
 

@@ -12,7 +12,6 @@
  */
 package org.openhab.binding.homeconnectdirect.internal.handler;
 
-import static org.apache.commons.lang3.StringUtils.containsIgnoreCase;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.ABORT_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.ACTIVE_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_ACTIVE_PROGRAM;
@@ -101,6 +100,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.conscrypt.Conscrypt;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.configuration.HomeConnectDirectApplianceConfiguration;
@@ -202,8 +202,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         var configuration = getConfigAs(HomeConnectDirectApplianceConfiguration.class);
         this.configuration = configuration;
 
-        if (StringUtils.isBlank(configuration.address) || StringUtils.isBlank(configuration.haId)
-                || StringUtils.isBlank(configuration.connectionType)) {
+        if (StringUtils.isBlank(configuration.address) || StringUtils.isBlank(configuration.haId)) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                     "The configuration contains an error. Please fill in all mandatory fields.");
         } else {
@@ -244,7 +243,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                     scheduler);
                             webSocketClientService.connect();
                             this.webSocketClientService = webSocketClientService;
-                        } else if (isConscryptSupported(osName, osArch)) {
+                        } else if (Conscrypt.isAvailable()) {
                             URI uri = URI.create(String.format(WS_TLS_URI_TEMPLATE, configuration.address));
                             var webSocketClientService = new WebSocketTlsConscryptClientService(getThing(), uri, key,
                                     this, scheduler);
@@ -793,28 +792,6 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         return new ApplianceMessage(ZonedDateTime.now(), message.messageId(),
                 incoming ? MessageType.INCOMING : MessageType.OUTGOING, message.resource(), message.version(),
                 message.action(), message.code(), message, eventDataList, descriptionChangeEventList);
-    }
-
-    private boolean isConscryptSupported(@Nullable String osName, @Nullable String osArch) {
-        if (osName == null || osArch == null) {
-            return false;
-        }
-
-        if (containsIgnoreCase(osName, "win") && osArch.contains("x86")) {
-            return true;
-        } else if ((containsIgnoreCase(osName, "nix") || containsIgnoreCase(osName, "nux")
-                || containsIgnoreCase(osName, "aix")) && is64BitSupported(osArch)) {
-            return true;
-        } else if ((containsIgnoreCase(osName, "mac") || containsIgnoreCase(osName, "darwin"))
-                && is64BitSupported(osArch)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    private boolean is64BitSupported(String osArch) {
-        return containsIgnoreCase(osArch, "amd64") || containsIgnoreCase(osArch, "x86_64");
     }
 
     private void updateSelectedProgramDescription() {

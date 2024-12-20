@@ -16,7 +16,7 @@
 
   <properties>
     <bnd.importpackage>
-      org.eclipse.jetty.websocket.server,org.jsoup.*;resolution:="optional",javassist.*;resolution:="optional",jakarta.servlet.*;resolution:="optional",javax.*;resolution:="optional",com.sun.jdi.*;resolution:="optional",sun.*;resolution:="optional"
+      org.eclipse.jetty.websocket.server,org.jsoup.*;resolution:="optional",android.util.*;resolution:="optional",dalvik.system.*;resolution:="optional",javassist.*;resolution:="optional",jakarta.servlet.*;resolution:="optional",javax.*;resolution:="optional",com.sun.jdi.*;resolution:="optional",sun.*;resolution:="optional"
     </bnd.importpackage>
     <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
     <ognl.version>3.3.4</ognl.version>
@@ -66,16 +66,31 @@
       <groupId>org.jsoup</groupId>
       <artifactId>jsoup</artifactId>
       <version>${jsoup.version}</version>
-      <!-- <scope>provided</scope> -->
     </dependency>
 
-    <!-- conscrypt Java Security Provider -->
+    <!-- Conscrypt Java Security Provider -->
     <dependency>
       <groupId>org.conscrypt</groupId>
       <artifactId>conscrypt-openjdk-uber</artifactId>
-      <version>2.5.2</version>
+      <version>2.6-jb20241220</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>
+
+  <!-- Repository for Conscrypt artifact -->
+  <repositories>
+    <repository>
+      <id>bruestel-conscrypt</id>
+      <url>https://dl.cloudsmith.io/public/bruestel/conscrypt/maven/</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+        <updatePolicy>always</updatePolicy>
+      </snapshots>
+    </repository>
+  </repositories>
 
 </project>

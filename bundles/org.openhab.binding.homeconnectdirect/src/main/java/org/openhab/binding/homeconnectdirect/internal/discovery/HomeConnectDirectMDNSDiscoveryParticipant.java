@@ -22,12 +22,9 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DRYER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER_AND_DRYER;
-import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONNECTION_TYPE_AES;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONNECTION_TYPE_AES_PORT;
-import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONNECTION_TYPE_TLS;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONNECTION_TYPE_TLS_PORT;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.PROPERTY_ADDRESS;
-import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.PROPERTY_CONNECTION_TYPE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.PROPERTY_HOME_APPLIANCE_ID;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SUPPORTED_THING_TYPES;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_COFFEE_MAKER;
@@ -113,8 +110,7 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
             var friendlyName = getLabel(thingTypeUID, capitalize(lowerCase(brand)));
 
             Map<String, Object> properties = Map.of(PROPERTY_HOME_APPLIANCE_ID, haId, PROPERTY_ADDRESS,
-                    ipv4List.get(0).getHostAddress(), PROPERTY_CONNECTION_TYPE,
-                    port == CONNECTION_TYPE_AES_PORT ? CONNECTION_TYPE_AES : CONNECTION_TYPE_TLS);
+                    ipv4List.get(0).getHostAddress());
 
             return DiscoveryResultBuilder.create(thingUID).withProperties(properties).withLabel(friendlyName)
                     .withRepresentationProperty(PROPERTY_HOME_APPLIANCE_ID).build();
