@@ -112,13 +112,7 @@ You can discover and add Home Connect devices in multiple ways:
 |-----------------|---------|-------------------------------------------------------------------------------------------------------------------|-----------------|----------|----------|
 | haId        | text    | Unique identifier representing a specific home appliance. The `haId` (Home Appliance ID) can be found in the Home Connect Direct console. It is displayed on the "Appliance Profile" page.                                                        | N/A             | yes      | no       |
 | address        | text    | Address of home appliance (hostname or IP)                                                                        | N/A             | yes      | no       |
-| connectionType        | text    | Type of encryption, whether to use AES with websocket (`AES_HMAC_SHA256`) or use TLS encrypted websocket (`TLS`). | AES_HMAC_SHA256 | yes      | no       |
 | connectionRetryDelay | integer | Reconnect delay in minutes (min: 1 max: 60)                                                                       | 1               | no       | yes      |
-
-> **INFO:** Due to the libraries used by this binding, the connection type `TLS` is currently unavailable on some systems, such as ARM-based Linux.  
-Please keep this limitation in mind when setting up things on such platforms.
-
-
 
 ## Channels
 
@@ -194,18 +188,18 @@ Below is an example of how to configure and use a Home Connect device with the o
 ### Thing Configuration
 
 ```java
-Thing homeconnectdirect:dishwasher:siemens-sn658x06te   "Dishwasher"      [ haId = "SIEMENS-SN658X06TE-000000000000", address = "10.168.2.241", connectionType = "AES_HMAC_SHA256", connectionRetryDelay = 1 ] {
+Thing homeconnectdirect:dishwasher:siemens-sn658x06te   "Dishwasher"      [ haId = "SIEMENS-SN658X06TE-000000000000", address = "10.168.2.241", connectionRetryDelay = 1 ] {
     Channels:
         Type switch     : brandLogo                     "Brand Logo"      [ eventKey = "Dishcare.Dishwasher.Setting.BrandLogo" ]
         Type string     : timeFormat                    "Time Format"     [ eventKey = "Dishcare.Dishwasher.Setting.TimeFormat" ]
 }
 
-Thing homeconnectdirect:washer:siemens-wm16xe91         "Washer"          [ haId = "SIEMENS-WM16XE91-000000000000", address = "10.168.2.240", connectionType = "AES_HMAC_SHA256", connectionRetryDelay = 2 ] {
+Thing homeconnectdirect:washer:siemens-wm16xe91         "Washer"          [ haId = "SIEMENS-WM16XE91-000000000000", address = "10.168.2.240", connectionRetryDelay = 2 ] {
     Channels:
         Type string     : iDosTray                      "i-Dos Open Tray" [ eventKey = "LaundryCare.Washer.Event.IDos.IDosOpenTray" ]
 }
 
-Thing homeconnectdirect:cookprocessor:bosch-mcc9555dwc  "Cookit"          [ haId = "000000000000000000", address = "10.168.2.242", connectionType = "TLS", connectionRetryDelay = 1 ] {
+Thing homeconnectdirect:cookprocessor:bosch-mcc9555dwc  "Cookit"          [ haId = "000000000000000000", address = "10.168.2.242", connectionRetryDelay = 1 ] {
     Channels:
         Type number     : buttonVolume                  "Button Volume"   [ eventKey = "BSH.Common.Setting.Sound.Button.Volume" ]
 }

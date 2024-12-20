@@ -23,6 +23,5 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public class HomeConnectDirectApplianceConfiguration {
     public String haId = "";
     public String address = "";
-    public String connectionType = "";
     public int connectionRetryDelay = 1;
 }

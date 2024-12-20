@@ -13,15 +13,6 @@
 			<label>Address</label>
 			<description>Address of home appliance (hostname or IP)</description>
 		</parameter>
-		<parameter name="connectionType" type="text" required="true">
-			<label>Connection Type</label>
-			<description>Type of encryption, whether to use AES with websocket or use TLS encrypted websocket.</description>
-			<options>
-				<option value="AES_HMAC_SHA256">AES</option>
-				<option value="TLS">TLS</option>
-			</options>
-			<default>AES_HMAC_SHA256</default>
-		</parameter>
 		<parameter name="connectionRetryDelay" type="integer" min="1" max="60" required="false" unit="m">
 			<context>time</context>
 			<default>1</default>
