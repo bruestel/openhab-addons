@@ -244,7 +244,8 @@ public class ApplianceProfileService {
                     return Optional.of(gson.fromJson(reader, ApplianceProfile.class));
                 }
             }
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            logger.debug("Could not save profile! error={}", e.getMessage());
         }
 
         return Optional.empty();

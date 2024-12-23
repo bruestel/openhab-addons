@@ -72,7 +72,7 @@
     <dependency>
       <groupId>org.conscrypt</groupId>
       <artifactId>conscrypt-openjdk-uber</artifactId>
-      <version>2.6-jb20241220</version>
+      <version>2.6-jb20241222</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

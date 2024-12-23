@@ -114,7 +114,8 @@ public class HomeConnectDirectWasherDryerHandler extends BaseHomeConnectDirectHa
             switch (event.name()) {
                 case WASHER_SPIN_SPEED -> getLinkedChannel(CHANNEL_WASHER_SPIN_SPEED).ifPresent(channel -> {
                     var spinSpeedStateOptions = getEnumerationValues(event.enumType()).stream()
-                            .filter(integer -> integer >= event.min() && integer <= event.max())
+                            .filter(integer -> (event.min() == null || event.max() == null)
+                                    || (integer >= event.min() && integer <= event.max()))
                             .map(integer -> mapEnumerationValue(WASHER_SPIN_SPEED_ENUM_KEY, integer))
                             .filter(Optional::isPresent).map(Optional::get)
                             .map(value -> new StateOption(value, createWasherSpinSpeedLabel(value))).toList();
@@ -123,7 +124,8 @@ public class HomeConnectDirectWasherDryerHandler extends BaseHomeConnectDirectHa
                 });
                 case WASHER_TEMPERATURE -> getLinkedChannel(CHANNEL_WASHER_TEMPERATURE).ifPresent(channel -> {
                     var temperatureStateOptions = getEnumerationValues(event.enumType()).stream()
-                            .filter(integer -> integer >= event.min() && integer <= event.max())
+                            .filter(integer -> (event.min() == null || event.max() == null)
+                                    || (integer >= event.min() && integer <= event.max()))
                             .map(integer -> mapEnumerationValue(WASHER_TEMPERATURE_ENUM_KEY, integer))
                             .filter(Optional::isPresent).map(Optional::get)
                             .map(value -> new StateOption(value, createWasherTemperatureLabel(value))).toList();
@@ -132,7 +134,8 @@ public class HomeConnectDirectWasherDryerHandler extends BaseHomeConnectDirectHa
                 });
                 case DRYER_DRYING_TARGET -> getLinkedChannel(CHANNEL_DRYER_DRYING_TARGET).ifPresent(channel -> {
                     var dryingTargetStateOptions = getEnumerationValues(event.enumType()).stream()
-                            .filter(integer -> integer >= event.min() && integer <= event.max())
+                            .filter(integer -> (event.min() == null || event.max() == null)
+                                    || (integer >= event.min() && integer <= event.max()))
                             .map(integer -> mapEnumerationValue(DRYER_DRYING_TARGET_ENUM_KEY, integer))
                             .filter(Optional::isPresent).map(Optional::get)
                             .map(value -> new StateOption(value, mapStringType(value))).toList();
