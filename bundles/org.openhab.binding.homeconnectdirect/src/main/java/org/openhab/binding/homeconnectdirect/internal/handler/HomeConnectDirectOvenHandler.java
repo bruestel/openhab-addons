@@ -76,10 +76,17 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
         if (event.enumType() != null) {
             switch (event.name()) {
                 case OVEN_DURATION -> getLinkedChannel(CHANNEL_OVEN_DURATION).ifPresent(channel -> {
-                    var stateDescription = StateDescriptionFragmentBuilder.create()
-                            .withMinimum(BigDecimal.valueOf(event.min())).withMaximum(BigDecimal.valueOf(event.max()))
-                            .withStep(BigDecimal.valueOf(event.stepSize())).withPattern("%d %unit%").build();
-                    descriptionProvider.setStateDescriptionFragment(channel.getUID(), stateDescription);
+                    var stateDescriptionBuilder = StateDescriptionFragmentBuilder.create().withPattern("%d %unit%");
+                    if (event.min() != null) {
+                        stateDescriptionBuilder.withMinimum(BigDecimal.valueOf(event.min()));
+                    }
+                    if (event.max() != null) {
+                        stateDescriptionBuilder.withMaximum(BigDecimal.valueOf(event.max()));
+                    }
+                    if (event.stepSize() != null) {
+                        stateDescriptionBuilder.withStep(BigDecimal.valueOf(event.stepSize()));
+                    }
+                    descriptionProvider.setStateDescriptionFragment(channel.getUID(), stateDescriptionBuilder.build());
                 });
             }
         }

@@ -100,7 +100,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.conscrypt.Conscrypt;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.configuration.HomeConnectDirectApplianceConfiguration;
@@ -243,16 +242,19 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                     scheduler);
                             webSocketClientService.connect();
                             this.webSocketClientService = webSocketClientService;
-                        } else if (Conscrypt.isAvailable()) {
-                            URI uri = URI.create(String.format(WS_TLS_URI_TEMPLATE, configuration.address));
-                            var webSocketClientService = new WebSocketTlsConscryptClientService(getThing(), uri, key,
-                                    this, scheduler);
-                            webSocketClientService.connect();
-                            this.webSocketClientService = webSocketClientService;
                         } else {
-                            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
-                                    "TLS connection is not supported on the current system configuration (" + osName
-                                            + " " + osArch + ").");
+                            try {
+                                URI uri = URI.create(String.format(WS_TLS_URI_TEMPLATE, configuration.address));
+                                var webSocketClientService = new WebSocketTlsConscryptClientService(getThing(), uri,
+                                        key, this, scheduler);
+                                webSocketClientService.connect();
+                                this.webSocketClientService = webSocketClientService;
+                            } catch (Throwable e) {
+                                logger.error("Could not initialize WebSocketTlsConscryptClientService!", e);
+                                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
+                                        "TLS connection is not supported on the current system configuration (" + osName
+                                                + " " + osArch + "). error: " + e.getMessage());
+                            }
                         }
                     } catch (WebSocketClientServiceException e) {
                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
