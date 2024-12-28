@@ -30,6 +30,15 @@
             </div>
             <div class="card-body">
                 <dl class="row">
+                    <dt class="col-sm-3">Brand</dt>
+                    <dd class="col-sm-9" th:text="${profile.brand}">Siemens</dd>
+
+                    <dt class="col-sm-3">VIB</dt>
+                    <dd class="col-sm-9" th:text="${profile.vib}">type</dd>
+
+                    <dt class="col-sm-3">Type</dt>
+                    <dd class="col-sm-9" th:text="${profile.type}">COFFEEMAKER</dd>
+
                     <dt class="col-sm-3">Home Appliance ID</dt>
                     <dd class="col-sm-9" th:text="${profile.haId}">SIEMENS-TI9555X1DE-000000000000</dd>
 
@@ -37,10 +46,7 @@
                     <dd class="col-sm-9" th:text="${profile.serialNumber}">000000000000000000</dd>
 
                     <dt class="col-sm-3">Connection Type</dt>
-                    <dd class="col-sm-9" th:text="${profile.connectionType}">AES</dd>
-
-                    <dt class="col-sm-3">Type</dt>
-                    <dd class="col-sm-9" th:text="${profile.type}">COFFEEMAKER</dd>
+                    <dd class="col-sm-9" th:text="${utils.getLabel(profile.connectionType)}">AES</dd>
 
                     <dt class="col-sm-3">Created</dt>
                     <dd class="col-sm-9" th:text="${utils.formatDateTime(profile.created())}"></dd>

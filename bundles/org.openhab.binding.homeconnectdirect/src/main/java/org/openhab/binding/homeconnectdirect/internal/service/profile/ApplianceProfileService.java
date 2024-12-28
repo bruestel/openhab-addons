@@ -420,7 +420,7 @@ public class ApplianceProfileService {
 
             var created = OffsetDateTime.now();
             var profiles = accountDetails.data().homeAppliances().stream().map(homeAppliance -> new ApplianceProfile(
-                    homeAppliance.identifier(), homeAppliance.type(), homeAppliance.serialNumber(),
+                    homeAppliance.identifier(), homeAppliance.type(), homeAppliance.serialNumber(), "", "", "",
                     homeAppliance.aes() != null && isNotBlank(homeAppliance.aes().key()) ? ConnectionType.AES
                             : ConnectionType.TLS,
                     homeAppliance.aes() != null && isNotBlank(homeAppliance.aes().key()) ? homeAppliance.aes().key()

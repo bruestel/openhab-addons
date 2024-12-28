@@ -14,6 +14,7 @@ package org.openhab.binding.homeconnectdirect.internal.service.profile.model;
 
 import java.time.OffsetDateTime;
 
-public record ApplianceProfile(String haId, String type, String serialNumber, ConnectionType connectionType, String key,
-        String iv, String featureMappingFileName, String deviceDescriptionFileName, OffsetDateTime created) {
+public record ApplianceProfile(String haId, String type, String serialNumber, String brand, String vib, String mac,
+        ConnectionType connectionType, String key, String iv, String featureMappingFileName,
+        String deviceDescriptionFileName, OffsetDateTime created) {
 }

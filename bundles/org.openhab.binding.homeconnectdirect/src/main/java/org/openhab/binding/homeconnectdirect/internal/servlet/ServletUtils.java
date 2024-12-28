@@ -38,6 +38,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.openhab.binding.homeconnectdirect.internal.configuration.HomeConnectDirectServletConfiguration;
+import org.openhab.binding.homeconnectdirect.internal.service.profile.model.ConnectionType;
 import org.openhab.core.thing.ThingStatus;
 import org.osgi.service.cm.ConfigurationAdmin;
 
@@ -101,6 +102,10 @@ public class ServletUtils {
     public String formatDateTime(OffsetDateTime offsetDateTime) {
         var formatter = DateTimeFormatter.ofPattern("MMM d, yyyy, h:mm:ss a z", Locale.ENGLISH);
         return formatter.format(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault()));
+    }
+
+    public String getLabel(ConnectionType connectionType) {
+        return ConnectionType.TLS.equals(connectionType) ? "Secure Web Socket (WSS)" : "Web Socket (WS)";
     }
 
     public String getBadgeStyle(ThingStatus status) {

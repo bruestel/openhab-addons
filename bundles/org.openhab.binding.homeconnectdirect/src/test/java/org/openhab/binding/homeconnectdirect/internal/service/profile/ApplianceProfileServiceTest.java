@@ -38,9 +38,9 @@ class ApplianceProfileServiceTest {
         Path path = Paths
                 .get(requireNonNull(requireNonNull(getClass().getClassLoader()).getResource("userdata")).toURI());
         service.setUserDataPath(path.toAbsolutePath().toString());
-        var profile = new ApplianceProfile("SIEMENS-WM16XE91-000000000000", type, "4711", ConnectionType.AES,
-                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAAAA", givenFeatureMappingFileName,
-                givenDeviceDescriptionFileName, OffsetDateTime.now());
+        var profile = new ApplianceProfile("SIEMENS-WM16XE91-000000000000", type, "4711", "", "", "",
+                ConnectionType.AES, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAAAA",
+                givenFeatureMappingFileName, givenDeviceDescriptionFileName, OffsetDateTime.now());
 
         // when
         var result = service.getDescription(profile);
