@@ -32,13 +32,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -104,8 +107,8 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private static final String ZIP_CONTENT_TYPE = "application/zip";
     private static final String ASSET_CLASSPATH = "assets";
     private static final String CSRF_TOKEN = "CSRF_TOKEN";
-    private static final String PROFILE_DOWNLOAD_FILENAME_TEMPLATE = BINDING_ID + "-%s.zip";
-    private static final String LOG_DOWNLOAD_FILENAME_TEMPLATE = "log-%d-" + BINDING_ID + "-%s.zip";
+    private static final String PROFILE_DOWNLOAD_FILENAME_TEMPLATE = BINDING_ID + "-%s-%s-%s-%s_%s.zip";
+    private static final String LOG_DOWNLOAD_FILENAME_TEMPLATE = BINDING_ID + "-%s-%s-%s_%s.log";
     private static final String MULTIPART_KEY = "org.eclipse.jetty.multipartConfig";
 
     private final Logger logger;
@@ -117,6 +120,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private final ConfigurationAdmin configurationAdmin;
     private final MultipartConfigElement multipartConfig;
     private final Gson gson;
+    private final DateTimeFormatter fileNameDateFormatter;
 
     @Activate
     public HomeConnectDirectServlet(@Reference HttpService httpService, @Reference ThingRegistry thingRegistry,
@@ -131,6 +135,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
 
         this.gson = new GsonBuilder().setPrettyPrinting().registerTypeAdapter(Resource.class, new ResourceSerializer())
                 .registerTypeAdapter(ZonedDateTime.class, new ZonedDateTimeSerializer()).create();
+        this.fileNameDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
         // register servlet
         try {
@@ -378,13 +383,23 @@ public class HomeConnectDirectServlet extends HttpServlet {
         boolean success = false;
 
         if (haId != null) {
-            var filename = String.format(PROFILE_DOWNLOAD_FILENAME_TEMPLATE, StringUtils.toRootLowerCase(haId));
-            response.setContentType(ZIP_CONTENT_TYPE);
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+            var profile = applianceProfileService.getProfile(haId);
+            if (profile.isPresent()) {
+                var type = StringUtils.isNotBlank(profile.get().type()) ? convertToKebabCase(profile.get().type()) : "";
+                var brand = StringUtils.isNotBlank(profile.get().brand()) ? profile.get().brand().toLowerCase() : "";
+                var vib = StringUtils.isNotBlank(profile.get().vib()) ? profile.get().vib().toLowerCase() : "";
+                var mac = StringUtils.isNotBlank(profile.get().mac())
+                        ? profile.get().mac().replaceAll("-", "").toLowerCase()
+                        : "";
+                var filename = String.format(PROFILE_DOWNLOAD_FILENAME_TEMPLATE, type, brand, vib, mac,
+                        LocalDateTime.now().format(fileNameDateFormatter));
+                response.setContentType(ZIP_CONTENT_TYPE);
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
 
-            try {
-                success = applianceProfileService.downloadProfileZip(haId, response.getOutputStream());
-            } catch (IOException ignored) {
+                try {
+                    success = applianceProfileService.downloadProfileZip(haId, response.getOutputStream());
+                } catch (IOException ignored) {
+                }
             }
         }
 
@@ -404,8 +419,13 @@ public class HomeConnectDirectServlet extends HttpServlet {
                 var profile = applianceProfileService.getProfile(haId);
 
                 if (profile.isPresent()) {
-                    var filename = String.format(LOG_DOWNLOAD_FILENAME_TEMPLATE, Instant.now().getEpochSecond(),
-                            StringUtils.toRootLowerCase(haId));
+                    var type = StringUtils.isNotBlank(profile.get().type()) ? convertToKebabCase(profile.get().type())
+                            : "";
+                    var brand = StringUtils.isNotBlank(profile.get().brand()) ? profile.get().brand().toLowerCase()
+                            : "";
+                    var vib = StringUtils.isNotBlank(profile.get().vib()) ? profile.get().vib().toLowerCase() : "";
+                    var filename = String.format(LOG_DOWNLOAD_FILENAME_TEMPLATE, type, brand, vib,
+                            LocalDateTime.now().format(fileNameDateFormatter));
                     response.setContentType(ZIP_CONTENT_TYPE);
                     response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
 
@@ -518,5 +538,11 @@ public class HomeConnectDirectServlet extends HttpServlet {
     protected void dispose() {
         httpService.unregister(SERVLET_BASE_PATH);
         httpService.unregister(SERVLET_ASSETS_PATH);
+    }
+
+    private String convertToKebabCase(String input) {
+        Pattern pattern = Pattern.compile("([a-z])([A-Z])");
+        Matcher matcher = pattern.matcher(input);
+        return matcher.replaceAll("$1-$2").toLowerCase();
     }
 }
