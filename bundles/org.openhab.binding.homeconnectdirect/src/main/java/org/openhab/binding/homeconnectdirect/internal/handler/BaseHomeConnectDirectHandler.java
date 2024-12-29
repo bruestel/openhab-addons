@@ -33,6 +33,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_START;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_STOP;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONFIGURATION_EVENT_KEY;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_ACTIVE_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_DOOR_STATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_LOCAL_CONTROL_ACTIVE;
@@ -43,6 +44,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_REMOTE_CONTROL_ACTIVE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_REMOTE_CONTROL_START_ALLOWED;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_SELECTED_PROGRAM;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.LINUX;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.PAUSE_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.POWER_STATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.POWER_STATE_ENUM_KEY;
@@ -250,10 +252,19 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                 webSocketClientService.connect();
                                 this.webSocketClientService = webSocketClientService;
                             } catch (Throwable e) {
+                                if (isUnsatisfiedLinkError(e) && LINUX.equalsIgnoreCase(osName)) {
+                                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
+                                            "The running system does not support secure Web Socket connections. "
+                                                    + "A GNU C library (glibc) of "
+                                                    + CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION + " or higher is required ("
+                                                    + osName + " " + osArch
+                                                    + "). Please verify this by running 'ldd --version'.");
+                                } else {
+                                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
+                                            "The running system does not support secure Web Socket connections ("
+                                                    + osName + " " + osArch + "). error: " + e.getMessage());
+                                }
                                 logger.error("Could not initialize WebSocketTlsConscryptClientService!", e);
-                                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
-                                        "TLS connection is not supported on the current system configuration (" + osName
-                                                + " " + osArch + "). error: " + e.getMessage());
                             }
                         }
                     } catch (WebSocketClientServiceException e) {
@@ -871,5 +882,21 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         } catch (JsonSyntaxException e) {
             return false;
         }
+    }
+
+    private boolean isUnsatisfiedLinkError(@Nullable Throwable throwable) {
+        int maxDepth = 10;
+        int currentDepth = 0;
+        boolean result = false;
+
+        while (throwable != null && currentDepth < maxDepth) {
+            if (throwable instanceof UnsatisfiedLinkError) {
+                result = true;
+            }
+            throwable = throwable.getCause();
+            currentDepth++;
+        }
+
+        return result;
     }
 }

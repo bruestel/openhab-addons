@@ -78,6 +78,8 @@ public class HomeConnectDirectBindingConstants {
     // Misc
     public static final String BINDING_USERDATA_PATH = OpenHAB.getUserDataFolder() + File.separator + BINDING_ID;
     public static final String CONSCRYPT_PROVIDER = "Conscrypt";
+    public static final String CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION = "2.31";
+    public static final String LINUX = "Linux";
     public static final String CONFIGURATION_EVENT_KEY = "eventKey";
 
     // Home Connect Http Client
