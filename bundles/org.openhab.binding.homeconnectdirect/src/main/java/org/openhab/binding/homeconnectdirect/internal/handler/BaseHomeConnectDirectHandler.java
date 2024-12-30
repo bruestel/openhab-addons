@@ -55,6 +55,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_ON;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_STANDBY;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.UPDATE_ALL_MANDATORY_VALUES_INTERVAL;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_AES_URI_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_NAME;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_TYPE;
@@ -170,6 +171,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     private final String deviceId;
 
     private @Nullable ScheduledFuture<?> reconnectFuture;
+    private @Nullable ScheduledFuture<?> updateValuesFuture;
     private @Nullable WebSocketClientService webSocketClientService;
     private @Nullable HomeConnectDirectApplianceConfiguration configuration;
     private @Nullable ApplianceDescription applianceDescription;
@@ -272,6 +274,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                     } catch (WebSocketClientServiceException e) {
                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
                         scheduleReconnect();
+                        stopUpdateValues();
                     }
                 });
             }
@@ -383,6 +386,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
             webSocketClientService.disconnect();
         }
         stopReconnectSchedule();
+        stopUpdateValues();
         applianceMessageConsumers.clear();
     }
 
@@ -469,6 +473,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                 }.getType()));
 
                         logger.debug("Received appliance update: {} (thingUID={})", message.data(), thing.getUID());
+                        scheduleUpdateValues();
                     }
                 }
                 case GET -> logger.trace("Received message: {} ({})", msg, thing.getUID());
@@ -481,6 +486,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         connected.set(false);
         updateStatus(ThingStatus.OFFLINE);
         scheduleReconnect();
+        stopUpdateValues();
         logger.debug("WebSocket closed (thingUID={})!", thing.getUID());
     }
 
@@ -491,6 +497,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         if (!connected.get()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, throwable.getMessage());
             scheduleReconnect();
+            stopUpdateValues();
         }
     }
 
@@ -772,6 +779,25 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         ScheduledFuture<?> reconnectFuture = this.reconnectFuture;
         if (reconnectFuture != null) {
             reconnectFuture.cancel(true);
+        }
+    }
+
+    private synchronized void scheduleUpdateValues() {
+        var updateValuesFuture = this.updateValuesFuture;
+
+        if ((updateValuesFuture == null || updateValuesFuture.isCancelled() || updateValuesFuture.isDone())
+                && !disposeInitialized.get()) {
+            logger.trace("Schedule update all mandatory values in {} minute(s) ({}).",
+                    UPDATE_ALL_MANDATORY_VALUES_INTERVAL.toMinutes(), thing.getUID());
+            this.updateValuesFuture = scheduler.schedule(() -> sendGet(RO_ALL_MANDATORY_VALUES),
+                    UPDATE_ALL_MANDATORY_VALUES_INTERVAL.toSeconds(), TimeUnit.SECONDS);
+        }
+    }
+
+    private synchronized void stopUpdateValues() {
+        ScheduledFuture<?> updateValuesFuture = this.updateValuesFuture;
+        if (updateValuesFuture != null) {
+            updateValuesFuture.cancel(true);
         }
     }
 
