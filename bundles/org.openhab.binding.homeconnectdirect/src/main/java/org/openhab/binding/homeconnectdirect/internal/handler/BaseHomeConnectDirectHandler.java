@@ -176,6 +176,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     private @Nullable String selectedProgram;
     private long outgoingMessageId;
     private long sessionId;
+    private long lastRefreshExecutionTime;
 
     public BaseHomeConnectDirectHandler(Thing thing, ApplianceProfileService applianceProfileService,
             HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider, String deviceId) {
@@ -194,6 +195,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         this.programMap = new ConcurrentHashMap<>();
         this.descriptionProvider = descriptionProvider;
         this.deviceId = deviceId;
+        this.lastRefreshExecutionTime = 0;
     }
 
     @Override
@@ -279,7 +281,14 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
         if (command instanceof RefreshType) {
-            sendGet(RO_ALL_MANDATORY_VALUES);
+            // only refresh once every 2 seconds
+            synchronized (this) {
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastRefreshExecutionTime >= 2000) {
+                    lastRefreshExecutionTime = currentTime;
+                    sendGet(RO_ALL_MANDATORY_VALUES);
+                }
+            }
         } else if (CHANNEL_POWER_STATE.equals(channelUID.getId()) && command instanceof OnOffType) {
             mapFeatureName(POWER_STATE).ifPresent(settingUid -> {
                 Optional<Integer> value;
