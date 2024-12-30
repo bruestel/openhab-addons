@@ -13,7 +13,6 @@
 package org.openhab.binding.homeconnectdirect.internal.servlet;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.BINDING_ID;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONFIGURATION_PID;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SERVLET_ASSETS_PATH;
@@ -54,7 +53,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.homeconnectdirect.internal.handler.BaseHomeConnectDirectHandler;
@@ -99,7 +97,6 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private static final long serialVersionUID = -3227785548304622034L;
     private static final String PATH_APPLIANCE = "/appliance/";
     private static final String PATH_DOWNLOAD_LOG = "/download-debug-log";
-    private static final String PATH_UPDATE_PROFILES = "/update-profiles";
     private static final String PATH_DOWNLOAD_PROFILE = "/download-profile";
     private static final String PATH_UPLOAD_PROFILE = "/upload-profile";
     private static final String PATH_DELETE_PROFILE = "/delete-profile";
@@ -189,9 +186,6 @@ public class HomeConnectDirectServlet extends HttpServlet {
                 var thingUid = StringUtils.substringAfter(path, PATH_APPLIANCE);
                 getAppliance(thingUid).ifPresentOrElse(thing -> renderAppliancePage(templateContext, writer, thing),
                         () -> renderNotFound(response));
-
-            } else if (StringUtils.startsWith(path, PATH_UPDATE_PROFILES)) {
-                renderUpdateProfilesPage(templateContext, writer);
             } else if (StringUtils.startsWith(path, PATH_UPLOAD_PROFILE)) {
                 renderUploadProfilePage(templateContext, writer);
             } else {
@@ -215,19 +209,7 @@ public class HomeConnectDirectServlet extends HttpServlet {
         }
 
         var path = request.getPathInfo();
-        if (StringUtils.startsWith(path, PATH_UPDATE_PROFILES) && getSingleKeyIdCredentials().isPresent()) {
-            if (isCsrfTokenValid(request)) {
-                var credentials = getSingleKeyIdCredentials().get();
-                var profiles = applianceProfileService.fetchData(credentials.getKey(), credentials.getValue());
-
-                templateContext.setVariable("profiles", profiles);
-                templateContext.setVariable("done", true);
-
-                renderUpdateProfilesPage(templateContext, writer);
-            } else {
-                renderForbiddenError(response, "Invalid CSRF token!");
-            }
-        } else if (StringUtils.startsWith(path, PATH_DELETE_PROFILE) && getSingleKeyIdCredentials().isPresent()) {
+        if (StringUtils.startsWith(path, PATH_DELETE_PROFILE)) {
             var haId = request.getParameter("haId");
             if (isCsrfTokenValid(request) && haId != null) {
                 applianceProfileService.deleteProfile(haId);
@@ -285,7 +267,6 @@ public class HomeConnectDirectServlet extends HttpServlet {
         templateContext.setVariable("basePath", SERVLET_BASE_PATH);
         templateContext.setVariable("assetPath", SERVLET_ASSETS_PATH);
         templateContext.setVariable("appliancePath", SERVLET_BASE_PATH + PATH_APPLIANCE);
-        templateContext.setVariable("profileUpdatePath", SERVLET_BASE_PATH + PATH_UPDATE_PROFILES);
         templateContext.setVariable("profileDeletePath", SERVLET_BASE_PATH + PATH_DELETE_PROFILE);
         templateContext.setVariable("profileDownloadPath", SERVLET_BASE_PATH + PATH_DOWNLOAD_PROFILE);
         templateContext.setVariable("profileUploadPath", SERVLET_BASE_PATH + PATH_UPLOAD_PROFILE);
@@ -349,28 +330,22 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private void renderProfilePage(WebContext context, PrintWriter writer) {
         var profiles = applianceProfileService.getProfiles();
 
-        // load programs
-        HashMap<String, String> programs = new HashMap<>();
-        profiles.forEach(profile -> {
-            var haId = profile.haId();
-            getProgramInformation(profile);
-            programs.put(haId, gson.toJson(getProgramInformation(profile)));
-        });
+        if (profiles.isEmpty()) {
+            renderUploadProfilePage(context, writer);
+        } else {
+            // load programs
+            HashMap<String, String> programs = new HashMap<>();
+            profiles.forEach(profile -> {
+                var haId = profile.haId();
+                getProgramInformation(profile);
+                programs.put(haId, gson.toJson(getProgramInformation(profile)));
+            });
 
-        context.setVariable("programMap", programs);
-        context.setVariable("profiles", profiles);
-        context.setVariable("selectedMenuEntry", "profile");
-        templateEngine.process("profiles", context, writer);
-    }
-
-    private void renderUpdateProfilesPage(WebContext context, PrintWriter writer) {
-        var singleKeyIdCredentials = getSingleKeyIdCredentials();
-        var username = singleKeyIdCredentials.isPresent() ? singleKeyIdCredentials.get().getKey() : "";
-
-        context.setVariable("bindingConfigurationPresent", singleKeyIdCredentials.isPresent());
-        context.setVariable("username", username);
-        context.setVariable("selectedMenuEntry", "profile");
-        templateEngine.process("update-profiles", context, writer);
+            context.setVariable("programMap", programs);
+            context.setVariable("profiles", profiles);
+            context.setVariable("selectedMenuEntry", "profile");
+            templateEngine.process("profiles", context, writer);
+        }
     }
 
     private void renderUploadProfilePage(WebContext context, PrintWriter writer) {
@@ -504,24 +479,6 @@ public class HomeConnectDirectServlet extends HttpServlet {
     private Optional<Thing> getAppliance(String thingUid) {
         return thingRegistry.stream().filter(thing -> SUPPORTED_THING_TYPES.contains(thing.getThingTypeUID()))
                 .filter(thing -> thing.getUID().toString().equals(thingUid)).findFirst();
-    }
-
-    private Optional<Pair<String, String>> getSingleKeyIdCredentials() {
-        try {
-            var config = configurationAdmin.getConfiguration(CONFIGURATION_PID);
-            var properties = config.getProperties();
-            if (properties != null) {
-                var usernameObject = properties.get("singleKeyIdUsername");
-                var passwordObject = properties.get("singleKeyIdPassword");
-                if (usernameObject instanceof String username && passwordObject instanceof String password
-                        && isNotBlank(username) && isNotBlank(password)) {
-                    return Optional.of(Pair.of(username, password));
-                }
-            }
-        } catch (IOException e) {
-            logger.error("Could not read binding configuration! error={}", e.getMessage());
-        }
-        return Optional.empty();
     }
 
     private List<Program> getProgramInformation(ApplianceProfile profile) {

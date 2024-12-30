@@ -12,17 +12,58 @@
 
         <h1 class="mb-4">Upload Profile</h1>
 
-        <div th:unless="${done}" class="card mt-3 hcd-card">
-            <div class="card-body">
-                <form method="POST" th:action="@{__${profileUploadPath}__}" enctype="multipart/form-data">
-                    <label for="zipFile">Select the profile zip:</label>
-                    <input type="hidden" name="CSRF_TOKEN" th:value="${CSRF_TOKEN}">
-                    <input type="file" id="zipFile" name="zipFile" accept=".zip" required>
-                    <button class="ms-3 btn btn-primary btn-sm" type="submit">Upload profile</button>
-                    <a th:href="@{__${basePath}__}" class="btn btn-dark btn-sm">Cancel</a>
-                </form>
+        <th:block th:unless="${done}">
+            <p>
+                Profiles contain all necessary information about a household appliance, including available programs and secret keys required for direct communication with the device.
+                These profiles can be extracted from the Home Connect Cloud using a specialized tool.
+                Once downloaded, the access credentials and profile data can be reused indefinitely without needing further extraction.
+            </p>
+
+            <h2>Home Connect Profile Downloader</h2>
+            <p>
+                The tool for extracting profiles is a graphical application built using <strong>Electron</strong>.
+                Electron is a framework for building cross-platform desktop applications using web technologies like HTML, CSS, and JavaScript.
+                This tool requires a computer with a graphical interface to operate but does not need to run on the same system as openHAB.</p>
+
+            <h3>Steps to Download and Upload a Profile</h3>
+            <div class="step">
+                <h4>Step 1: Download and Start the Tool</h4>
+                <p>
+                    Binaries for various operating systems are available for direct execution. Alternatively, you can build and run the program using Node.js.
+                    For detailed instructions, please refer to the project documentation.
+                </p>
+                <ul>
+                    <li><a href="https://github.com/bruestel/homeconnect-profile-downloader" target="_blank">Project Documentation</a></li>
+                    <li><a href="https://github.com/bruestel/homeconnect-profile-downloader/releases" target="_blank">Releases</a></li>
+                </ul>
             </div>
-        </div>
+
+            <div class="step">
+                <h4>Step 2: Log In with SingleKey ID</h4>
+                <p>Start the tool and log in using your SingleKey ID to access your Home Connect Cloud account.</p>
+            </div>
+
+            <div class="step">
+                <h4>Step 3: Download the Profile</h4>
+                <p>Once logged in, use the tool to download the profiles for your appliances. Save the downloaded profiles to your computer.</p>
+            </div>
+
+            <div class="step">
+                <h4>Step 4: Upload the Profile Here</h4>
+                <p>After downloading the profile, upload it using this interface.</p>
+                <div class="card mt-3 hcd-card">
+                    <div class="card-body">
+                        <form method="POST" th:action="@{__${profileUploadPath}__}" enctype="multipart/form-data">
+                            <label for="zipFile">Select the profile zip:</label>
+                            <input type="hidden" name="CSRF_TOKEN" th:value="${CSRF_TOKEN}">
+                            <input type="file" id="zipFile" name="zipFile" accept=".zip" required>
+                            <button class="ms-3 btn btn-primary btn-sm" type="submit">Upload profile</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </th:block>
+
         <th:block th:if="${done}">
             <p>Device profile has been successfully imported.</p>
 

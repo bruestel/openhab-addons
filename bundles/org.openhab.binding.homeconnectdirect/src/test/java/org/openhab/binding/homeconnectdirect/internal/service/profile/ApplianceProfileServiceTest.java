@@ -13,10 +13,8 @@ import java.time.OffsetDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.mockito.Mockito;
 import org.openhab.binding.homeconnectdirect.internal.service.profile.model.ApplianceProfile;
 import org.openhab.binding.homeconnectdirect.internal.service.profile.model.ConnectionType;
-import org.openhab.core.io.net.http.HttpClientFactory;
 
 class ApplianceProfileServiceTest {
 
@@ -33,8 +31,7 @@ class ApplianceProfileServiceTest {
             int expectedProgramListSize, int expectedEnumerationTypeListSize, int expectedActiveProgramUid,
             int expectedSelectedProgramUid) throws URISyntaxException {
         // given
-        var httpClientFactory = Mockito.mock(HttpClientFactory.class);
-        var service = new ApplianceProfileService(httpClientFactory);
+        var service = new ApplianceProfileService();
         Path path = Paths
                 .get(requireNonNull(requireNonNull(getClass().getClassLoader()).getResource("userdata")).toURI());
         service.setUserDataPath(path.toAbsolutePath().toString());

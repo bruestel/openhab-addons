@@ -29,17 +29,49 @@ A big thank you to the contributors of these projects for their excellent work!
 
 Things are discovered via mDNS on the local network. Alternatively, you can add devices manually by IP address.
 
-## Binding Configuration
+## Thing Configuration
 
-The binding provides two configuration groups: **SingleKey ID** and **HTTP Basic Authentication**.
+### Load Appliance Profiles
 
-### SingleKey ID
+This binding provides a dedicated web user interface to manage and interact with your Home Connect-enabled appliances.
+It allows you to configure appliance profiles, which contain the keys and descriptions required for communication with your home devices.
 
-The SingleKey ID settings include the login credentials for Home Connect.
-These are the same credentials used in the official Home Connect app.
-The credentials need to be entered only once.
-After fetching the appliance configuration from the cloud using these credentials, this step does not need to be repeated.
-The configuration can also be exported and imported for easier management.
+1. **Open the Home Connect Direct Console**  
+   The binding includes a separate user interface accessible through your web browser at: `http(s)://[YOUROPENHAB]:[YOURPORT]/homeconnectdirect`  
+   For example: `http://192.168.178.100:8080/homeconnectdirect`
+2. **Navigate to Appliance Profiles**  
+   Once on the console page, open the **"Appliance Profiles"** menu.
+3. **Managing Profiles**
+   In the top-right corner of the "Appliance Profiles" page, you will find the button`Upload Profile`. Use this option to import appliance profiles that have been previously downloaded or saved.   
+   > **Important Note:**
+   Unfortunately, an additional tool must be used to load the profiles, as the previously integrated fetch tool no longer works.  
+   To load the profiles, use the following tool:
+   > - **Project Repository:** [HomeConnect Profile Downloader](https://github.com/bruestel/homeconnect-profile-downloader)
+   > - **Latest Releases:** [Download Releases](https://github.com/bruestel/homeconnect-profile-downloader/releases)
+   
+   ![Screenshot Home Connect Direct Binding UI](doc/update-profiles.png "Update Profiles")
+   
+> **INFO:** You can also download and securely store these profiles at any time, ensuring you always have a backup of your appliance configurations.
+
+### Create Things
+
+You can discover and add Home Connect devices in multiple ways:
+
+- **Automatic Discovery via UPnP**:  
+  Use the UPnP feature to scan your network and automatically find supported Home Connect devices.
+
+- **Manual Configuration**:  
+  If automatic discovery is not suitable for your environment, you can manually add devices either through a `things` file or by using the openHAB UI.
+
+#### Thing configuration parameters
+
+| Name            | Type    | Description                                                                                                       | Default         | Required | Advanced |
+|-----------------|---------|-------------------------------------------------------------------------------------------------------------------|-----------------|----------|----------|
+| haId        | text    | Unique identifier representing a specific home appliance. The `haId` (Home Appliance ID) can be found in the Home Connect Direct console. It is displayed on the "Appliance Profile" page.                                                        | N/A             | yes      | no       |
+| address        | text    | Address of home appliance (hostname or IP)                                                                        | N/A             | yes      | no       |
+| connectionRetryDelay | integer | Reconnect delay in minutes (min: 1 max: 60)                                                                       | 1               | no       | yes      |
+
+## Binding Configuration (optional)
 
 ### HTTP Basic Authentication
 
@@ -60,59 +92,11 @@ Both configuration groups can be managed either via the **openHAB UI** or the **
 2. Run the following commands:
    ```shell
    openhab> config:edit binding.homeconnectdirect
-   openhab> config:property-set singleKeyIdUsername [SingleKey ID email]
-   openhab> config:property-set singleKeyIdPassword [SingleKey ID password]
    openhab> config:property-set basicAuthEnabled [true or false]
    openhab> config:property-set basicAuthUsername [Home Connect Direct Console username]
    openhab> config:property-set basicAuthPassword [Home Connect Direct Console password]
    openhab> config:property-list
    openhab> config:update
-
-## Thing Configuration
-
-### Load Appliance Profiles
-
-This binding provides a dedicated web user interface to manage and interact with your Home Connect-enabled appliances.
-It allows you to configure appliance profiles, which contain the keys and descriptions required for communication with your home devices.
-
-1. **Open the Home Connect Direct Console**  
-   The binding includes a separate user interface accessible through your web browser at: `http(s)://[YOUROPENHAB]:[YOURPORT]/homeconnectdirect`  
-   For example: `http://192.168.178.100:8080/homeconnectdirect`
-2. **Navigate to Appliance Profiles**  
-   Once on the console page, open the **"Appliance Profiles"** menu.
-3. **Managing Profiles**
-   In the top-right corner of the "Appliance Profiles" page, you will find two buttons:
-
-   - **Upload Profile**:  
-   Use this option to import appliance profiles that have been previously downloaded or saved.
-   This helps you restore configurations without fetching them again.
-
-   - **Fetch Profiles**:  
-   Selecting this option retrieves and updates the profiles of all devices currently connected to your Home Connect account. This process may take a few seconds, depending on the number of devices.
-
-   ![Screenshot Home Connect Direct Binding UI](doc/update-profiles.png "Update Profiles")
-
-By following these steps, you can easily add or update your appliance profiles, ensuring smooth communication and interaction with your Home Connect-enabled devices.
-
-> **INFO:** You can also download and securely store these profiles at any time, ensuring you always have a backup of your appliance configurations.
-
-### Create Things
-
-You can discover and add Home Connect devices in multiple ways:
-
-- **Automatic Discovery via UPnP**:  
-  Use the UPnP feature to scan your network and automatically find supported Home Connect devices.
-
-- **Manual Configuration**:  
-  If automatic discovery is not suitable for your environment, you can manually add devices either through a `things` file or by using the openHAB UI.
-
-#### Thing configuration parameters
-
-| Name            | Type    | Description                                                                                                       | Default         | Required | Advanced |
-|-----------------|---------|-------------------------------------------------------------------------------------------------------------------|-----------------|----------|----------|
-| haId        | text    | Unique identifier representing a specific home appliance. The `haId` (Home Appliance ID) can be found in the Home Connect Direct console. It is displayed on the "Appliance Profile" page.                                                        | N/A             | yes      | no       |
-| address        | text    | Address of home appliance (hostname or IP)                                                                        | N/A             | yes      | no       |
-| connectionRetryDelay | integer | Reconnect delay in minutes (min: 1 max: 60)                                                                       | 1               | no       | yes      |
 
 ## Channels
 
