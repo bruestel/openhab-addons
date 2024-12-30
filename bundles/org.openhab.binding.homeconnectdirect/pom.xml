@@ -16,11 +16,10 @@
 
   <properties>
     <bnd.importpackage>
-      org.eclipse.jetty.websocket.server,org.jsoup.*;resolution:="optional",android.util.*;resolution:="optional",dalvik.system.*;resolution:="optional",javassist.*;resolution:="optional",jakarta.servlet.*;resolution:="optional",javax.*;resolution:="optional",com.sun.jdi.*;resolution:="optional",sun.*;resolution:="optional"
+      org.eclipse.jetty.websocket.server,android.util.*;resolution:="optional",dalvik.system.*;resolution:="optional",javassist.*;resolution:="optional",jakarta.servlet.*;resolution:="optional",javax.*;resolution:="optional",com.sun.jdi.*;resolution:="optional",sun.*;resolution:="optional"
     </bnd.importpackage>
     <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
     <ognl.version>3.3.4</ognl.version>
-    <jsoup.version>1.15.4</jsoup.version>
     <attoparser.version>2.0.7.RELEASE</attoparser.version>
     <unbescape.version>1.1.6.RELEASE</unbescape.version>
     <javassist.version>3.20.0-GA</javassist.version>
@@ -59,13 +58,6 @@
       <artifactId>javassist</artifactId>
       <version>${javassist.version}</version>
       <scope>compile</scope>
-    </dependency>
-
-    <!-- jsoup -->
-    <dependency>
-      <groupId>org.jsoup</groupId>
-      <artifactId>jsoup</artifactId>
-      <version>${jsoup.version}</version>
     </dependency>
 
     <!-- Conscrypt Java Security Provider -->

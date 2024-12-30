@@ -39,11 +39,6 @@ unbescape
 * Project: https://www.unbescape.org/
 * Source:  https://github.com/unbescape/unbescape
 
-jsoup
-* License: MIT License
-* Project: https://jsoup.org/
-* Source:  https://github.com/jhy/jsoup
-
 conscrypt
 * License: Apache License 2.0
 * Project: https://www.conscrypt.org/

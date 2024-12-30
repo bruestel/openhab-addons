@@ -10,26 +10,12 @@
 	<connection>local</connection>
 
 	<config-description>
-		<parameter-group name="singlekey">
-			<label>SingleKey ID</label>
-			<advanced>false</advanced>
-		</parameter-group>
 		<parameter-group name="authentication">
 			<label>HTTP Basic Authentication</label>
 			<description>Protect the Home Connect Web UI Console.</description>
 			<advanced>true</advanced>
 		</parameter-group>
 
-		<parameter name="singleKeyIdUsername" type="text" required="false" groupName="singlekey">
-			<context>email</context>
-			<label>Username</label>
-			<description>SingleKey ID email</description>
-		</parameter>
-		<parameter name="singleKeyIdPassword" type="text" required="false" groupName="singlekey">
-			<label>Password</label>
-			<description>SingleKey ID password</description>
-			<context>password</context>
-		</parameter>
 		<parameter name="basicAuthEnabled" type="boolean" required="false" groupName="authentication">
 			<default>false</default>
 			<label>HTTP Basic Authentication</label>

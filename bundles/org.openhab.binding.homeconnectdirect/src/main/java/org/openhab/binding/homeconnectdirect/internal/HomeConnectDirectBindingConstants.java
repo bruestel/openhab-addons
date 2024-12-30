@@ -82,31 +82,6 @@ public class HomeConnectDirectBindingConstants {
     public static final String LINUX = "Linux";
     public static final String CONFIGURATION_EVENT_KEY = "eventKey";
 
-    // Home Connect Http Client
-    public static final String HC_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
-    public static final String HC_BASE_URL = "https://api.home-connect.com/security/oauth";
-    public static final String HC_AUTHORIZE_URL = HC_BASE_URL + "/authorize";
-    public static final String HC_TOKEN_URL = HC_BASE_URL + "/token";
-    public static final String HC_REDIRECT_TARGET = HC_BASE_URL + "/redirect_target";
-    public static final String HC_ASSET_URL = "https://prod.reu.rest.homeconnectegw.com";
-    public static final String HC_ACCOUNT_DETAILS_URL = HC_ASSET_URL + "/account/details";
-    public static final String HC_DEVICE_INFO_URL = HC_ASSET_URL + "/api/iddf/v1/iddf/";
-    public static final String HC_CLIENT_ID = "9B75AC9EC512F36C84256AC47D813E2C1DD0D6520DF774B020E1E6E2EB29B1F3";
-    public static final Set<String> HC_SCOPES = Set.of("ReadOrigApi");
-    public static final String HC_REDIRECT_URI = "hcauth://auth/prod";
-    public static final String HC_REDIRECT_TARGET_VALUE = "icore";
-    public static final String SINGLE_KEY_ID_BASE_URL = "https://singlekey-id.com";
-    public static final String SINGLE_KEY_ID_AUTHORIZE_URL = SINGLE_KEY_ID_BASE_URL + "/auth/connect/authorize";
-    public static final String SINGLE_KEY_ID_CLIENT_ID = "11F75C04-21C2-4DA9-A623-228B54E9A256";
-    public static final Set<String> SINGLE_KEY_ID_SCOPES = Set.of("openid", "email", "profile", "offline_access",
-            "homeconnect.general");
-    public static final String SINGLE_KEY_ID_STYLE_ID = "style_id";
-    public static final String SINGLE_KEY_ID_STYLES_ID_VALUE = "bsh_hc_01";
-    public static final String SINGLE_KEY_ID_STATE_TEMPLATE = "{\"session_id\":\"%s\"}";
-    public static final String FILE_NAME_FEATURE_MAPPING_TEMPLATE = "%s_FeatureMapping.xml";
-    public static final String FILE_NAME_DEVICE_DESCRIPTION_TEMPLATE = "%s_DeviceDescription.xml";
-    public static final String FILE_NAME_PROFILE_DESCRIPTION_TEMPLATE = "%s.json";
-
     // Home Connect WebSocket Client
     public static final String WS_DEVICE_TYPE = "Application";
     public static final String WS_DEVICE_NAME = "HC Direct";
