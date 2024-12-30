@@ -81,6 +81,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION = "2.31";
     public static final String LINUX = "Linux";
     public static final String CONFIGURATION_EVENT_KEY = "eventKey";
+    public static final Duration UPDATE_ALL_MANDATORY_VALUES_INTERVAL = Duration.ofMinutes(60);
 
     // Home Connect WebSocket Client
     public static final String WS_DEVICE_TYPE = "Application";
