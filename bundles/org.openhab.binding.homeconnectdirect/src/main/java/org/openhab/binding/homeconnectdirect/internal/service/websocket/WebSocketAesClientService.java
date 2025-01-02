@@ -67,6 +67,7 @@ public class WebSocketAesClientService extends AbstractWebSocketClientService {
             String base64EncodedInitializationVector, WebSocketHandler webSocketHandler,
             ScheduledExecutorService scheduler) throws WebSocketClientServiceException {
         super(thing, uri, webSocketHandler, scheduler);
+
         try {
             logger = LoggerFactory.getLogger(WebSocketAesClientService.class);
 
@@ -89,9 +90,19 @@ public class WebSocketAesClientService extends AbstractWebSocketClientService {
 
             // websocket
             setWebSocketClient(new WebSocketClient(new HttpClient()));
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException
-                | InvalidKeyException e) {
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             throw new WebSocketClientServiceException(e.getMessage(), e);
+        } catch (InvalidKeyException e) {
+            var message = e.getMessage();
+            try {
+                if (javax.crypto.Cipher.getMaxAllowedKeyLength(AES) < 256) {
+                    message = "The current cryptographic policy is set to 'limited', which restricts the use of stronger encryption algorithms and key lengths. "
+                            + "To resolve this issue, ensure that the 'crypto.policy' property is set to 'unlimited' in the 'java.security' file located at: "
+                            + "'<JAVA_HOME>/conf/security/java.security'. The unlimited policy is supported natively in your Java version.";
+                }
+            } catch (NoSuchAlgorithmException ignored) {
+            }
+            throw new WebSocketClientServiceException(message, e);
         }
     }
 
