@@ -18,7 +18,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public interface WebSocketClientService {
     void connect();
 
-    void disconnect();
+    void dispose();
 
     void send(String message);
 }

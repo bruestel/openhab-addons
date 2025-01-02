@@ -83,16 +83,18 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
     }
 
     @Override
-    public void disconnect() {
+    public void dispose() {
         stopConnectionChecks();
-        var session = getSession();
-        if (session != null && session.isOpen()) {
-            logger.debug("Disconnecting from {}", applianceUri);
+        var webSocketClient = getWebSocketClient();
+        if (webSocketClient != null) {
             try {
-                session.disconnect();
-            } catch (IOException e) {
-                logger.error("Failed to stop websocket client! error={}", e.getMessage());
+                logger.debug("Stop web socket client ({}).", applianceUri);
+                webSocketClient.stop();
+            } catch (Exception ignored) {
             }
+
+            logger.debug("Destroy web socket client ({}).", applianceUri);
+            webSocketClient.destroy();
         }
     }
 
@@ -118,16 +120,20 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
 
     @OnWebSocketClose
     public void onClose(Session session, int statusCode, String reason) {
-        logger.debug("Close websocket connection. status={}, reason={} thingUID={}", statusCode, reason,
+        logger.debug("Closed websocket connection. status={}, reason={} thingUID={}", statusCode, reason,
                 thing.getUID());
         stopConnectionChecks();
         getWebSocketHandler().onWebSocketClose();
     }
 
     @OnWebSocketError
-    public void onError(Throwable error) throws Exception {
+    public void onError(@Nullable Session session, Throwable error) throws Exception {
         stopConnectionChecks();
         getWebSocketHandler().onWebSocketError(error);
+
+        if (session == null || !session.isOpen()) {
+            getWebSocketHandler().onWebSocketClose();
+        }
     }
 
     protected WebSocketHandler getWebSocketHandler() {
@@ -195,7 +201,11 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
                 if (lastMessage != null && now.isAfter(lastMessage.plus(WS_INACTIVITY_TIMEOUT))) {
                     logger.debug("Last message received {} seconds ago. -> reconnect. (thingUID={})",
                             Duration.between(lastMessage, now).toSeconds(), thing.getUID());
-                    disconnect();
+                    try {
+                        session.disconnect();
+                    } catch (IOException e) {
+                        logger.error("Could not disconnect from session! error={}", e.getMessage());
+                    }
                 }
             }
         }, WS_INACTIVITY_CHECK_INITIAL_DELAY.toSeconds(), WS_INACTIVITY_CHECK_INTERVAL.toSeconds(), TimeUnit.SECONDS);

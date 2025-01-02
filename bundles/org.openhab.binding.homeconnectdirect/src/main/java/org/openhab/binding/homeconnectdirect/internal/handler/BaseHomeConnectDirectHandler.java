@@ -87,6 +87,7 @@ import static org.openhab.core.library.unit.Units.SECOND;
 
 import java.net.URI;
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -162,7 +163,6 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     private final Gson gson;
     private final List<Service> services;
     private final SecureRandom secureRandom;
-    private final AtomicBoolean connected;
     private final AtomicBoolean disposeInitialized;
     private final LimitedSizeList<ApplianceMessage> applianceMessages;
     private final List<Consumer<ApplianceMessage>> applianceMessageConsumers;
@@ -176,6 +176,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     private @Nullable HomeConnectDirectApplianceConfiguration configuration;
     private @Nullable ApplianceDescription applianceDescription;
     private @Nullable String selectedProgram;
+    private @Nullable String connectionError;
     private long outgoingMessageId;
     private long sessionId;
     private long lastRefreshExecutionTime;
@@ -190,7 +191,6 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                 .registerTypeAdapter(Resource.class, new ResourceDeserializer()).create();
         this.secureRandom = new SecureRandom();
         this.services = new ArrayList<>();
-        this.connected = new AtomicBoolean(false);
         this.disposeInitialized = new AtomicBoolean(false);
         this.applianceMessages = new LimitedSizeList<>(300);
         this.applianceMessageConsumers = Collections.synchronizedList(new ArrayList<>());
@@ -202,6 +202,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
 
     @Override
     public void initialize() {
+        connectionError = null;
         disposeInitialized.set(false);
         services.clear();
         var configuration = getConfigAs(HomeConnectDirectApplianceConfiguration.class);
@@ -246,27 +247,39 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                             URI uri = URI.create(String.format(WS_AES_URI_TEMPLATE, configuration.address));
                             var webSocketClientService = new WebSocketAesClientService(getThing(), uri, key, iv, this,
                                     scheduler);
-                            webSocketClientService.connect();
                             this.webSocketClientService = webSocketClientService;
+                            webSocketClientService.connect();
                         } else {
                             try {
                                 URI uri = URI.create(String.format(WS_TLS_URI_TEMPLATE, configuration.address));
                                 var webSocketClientService = new WebSocketTlsConscryptClientService(getThing(), uri,
                                         key, this, scheduler);
-                                webSocketClientService.connect();
                                 this.webSocketClientService = webSocketClientService;
+                                webSocketClientService.connect();
                             } catch (Throwable e) {
-                                if (isUnsatisfiedLinkError(e) && LINUX.equalsIgnoreCase(osName)) {
-                                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
-                                            "The running system does not support secure Web Socket connections. "
-                                                    + "A GNU C library (glibc) of "
-                                                    + CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION + " or higher is required ("
-                                                    + osName + " " + osArch
-                                                    + "). Please verify this by running 'ldd --version'.");
+                                if (isUnsatisfiedLinkError(e)) {
+                                    if (!StringUtils.contains(osArch, "64")) {
+                                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
+                                                "The running system (" + osName + " " + osArch + ") "
+                                                        + "does not support secure Web Socket connections. "
+                                                        + "Only 64-bit operating systems respectively Java (JVM) versions are supported "
+                                                        + "due to limitations of the used library (Conscrypt). error: "
+                                                        + e.getMessage());
+                                    } else if (LINUX.equalsIgnoreCase(osName)) {
+                                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
+                                                "The running system (" + osName + " " + osArch + ") does not support "
+                                                        + "secure Web Socket connections. A GNU C library (glibc) of "
+                                                        + CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION
+                                                        + " or higher is required. Please verify this by running 'ldd --version'.");
+                                    } else {
+                                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
+                                                "The running system (" + osName + " " + osArch + ") does not support "
+                                                        + "secure Web Socket connections. error: " + e.getMessage());
+                                    }
                                 } else {
                                     updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
-                                            "The running system does not support secure Web Socket connections ("
-                                                    + osName + " " + osArch + "). error: " + e.getMessage());
+                                            "The running system (" + osName + " " + osArch + ") does not support "
+                                                    + "secure Web Socket connections. error: " + e.getMessage());
                                 }
                                 logger.error("Could not initialize WebSocketTlsConscryptClientService!", e);
                             }
@@ -274,7 +287,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                     } catch (WebSocketClientServiceException e) {
                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
                         scheduleReconnect();
-                        stopUpdateValues();
+                        stopUpdateAllValuesFuture();
                     }
                 });
             }
@@ -383,17 +396,16 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         disposeInitialized.set(true);
         var webSocketClientService = this.webSocketClientService;
         if (webSocketClientService != null) {
-            webSocketClientService.disconnect();
+            webSocketClientService.dispose();
         }
         stopReconnectSchedule();
-        stopUpdateValues();
+        stopUpdateAllValuesFuture();
         applianceMessageConsumers.clear();
     }
 
     @Override
     public void onWebSocketConnect() {
         updateStatus(ThingStatus.ONLINE);
-        connected.set(true);
         logger.debug("WebSocket connection opened (thingUID={}).", thing.getUID());
     }
 
@@ -473,7 +485,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                 }.getType()));
 
                         logger.debug("Received appliance update: {} (thingUID={})", message.data(), thing.getUID());
-                        scheduleUpdateValues();
+                        scheduleUpdateAllValuesFuture();
                     }
                 }
                 case GET -> logger.trace("Received message: {} ({})", msg, thing.getUID());
@@ -483,22 +495,30 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
 
     @Override
     public void onWebSocketClose() {
-        connected.set(false);
-        updateStatus(ThingStatus.OFFLINE);
-        scheduleReconnect();
-        stopUpdateValues();
         logger.debug("WebSocket closed (thingUID={})!", thing.getUID());
+        stopUpdateAllValuesFuture();
+
+        var connectionError = this.connectionError;
+        if (connectionError != null) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, connectionError);
+        } else {
+            updateStatus(ThingStatus.OFFLINE);
+        }
+
+        // dispose websocket
+        var webSocketClientService = this.webSocketClientService;
+        if (webSocketClientService != null) {
+            scheduler.schedule(webSocketClientService::dispose, 2, TimeUnit.SECONDS);
+            this.webSocketClientService = null;
+        }
+
+        scheduleReconnect();
     }
 
     @Override
     public void onWebSocketError(Throwable throwable) {
         logger.debug("WebSocket error: {} (thingUID={})", throwable.getMessage(), thing.getUID());
-
-        if (!connected.get()) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, throwable.getMessage());
-            scheduleReconnect();
-            stopUpdateValues();
-        }
+        this.connectionError = throwable.getMessage();
     }
 
     public List<ApplianceMessage> getApplianceMessages() {
@@ -650,8 +670,8 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         long msgId = Objects.requireNonNullElseGet(messageId, () -> outgoingMessageId++);
 
         var message = new Message<>(sessionId, msgId, resource, version, action, null, data);
-        var webSocketClientService = this.webSocketClientService;
         var rawMessage = gson.toJson(message);
+        var webSocketClientService = this.webSocketClientService;
         if (webSocketClientService != null) {
             webSocketClientService.send(rawMessage);
         }
@@ -782,21 +802,23 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         }
     }
 
-    private synchronized void scheduleUpdateValues() {
+    private synchronized void scheduleUpdateAllValuesFuture() {
         var updateValuesFuture = this.updateValuesFuture;
 
         if ((updateValuesFuture == null || updateValuesFuture.isCancelled() || updateValuesFuture.isDone())
                 && !disposeInitialized.get()) {
-            logger.trace("Schedule update all mandatory values in {} minute(s) ({}).",
-                    UPDATE_ALL_MANDATORY_VALUES_INTERVAL.toMinutes(), thing.getUID());
+            logger.trace("Schedule update all mandatory values in {} minute(s) - {} ({}).",
+                    UPDATE_ALL_MANDATORY_VALUES_INTERVAL.toMinutes(),
+                    LocalDateTime.now().plus(UPDATE_ALL_MANDATORY_VALUES_INTERVAL), thing.getUID());
             this.updateValuesFuture = scheduler.schedule(() -> sendGet(RO_ALL_MANDATORY_VALUES),
                     UPDATE_ALL_MANDATORY_VALUES_INTERVAL.toSeconds(), TimeUnit.SECONDS);
         }
     }
 
-    private synchronized void stopUpdateValues() {
+    private synchronized void stopUpdateAllValuesFuture() {
         ScheduledFuture<?> updateValuesFuture = this.updateValuesFuture;
         if (updateValuesFuture != null) {
+            logger.trace("Cancel schedule to update all mandatory values ({}).", thing.getUID());
             updateValuesFuture.cancel(true);
         }
     }
