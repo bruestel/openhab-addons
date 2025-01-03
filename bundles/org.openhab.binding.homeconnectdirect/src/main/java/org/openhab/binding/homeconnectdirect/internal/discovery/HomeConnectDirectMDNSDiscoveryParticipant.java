@@ -20,6 +20,8 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COOK_PROCESSOR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DRYER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_HOOD;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_OVEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER_AND_DRYER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONNECTION_TYPE_AES_PORT;
@@ -32,6 +34,8 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DRYER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_GENERIC;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_HOOD;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_OVEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER_DRYER;
 
@@ -162,6 +166,10 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
             return THING_TYPE_COFFEE_MAKER;
         } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_COOK_PROCESSOR)) {
             return THING_TYPE_COOK_PROCESSOR;
+        } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_OVEN)) {
+            return THING_TYPE_OVEN;
+        } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_HOOD)) {
+            return THING_TYPE_HOOD;
         } else {
             return THING_TYPE_GENERIC;
         }
@@ -170,12 +178,20 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
     private String getLabel(ThingTypeUID thingTypeUID, String brand) {
         if (THING_TYPE_WASHER.equals(thingTypeUID)) {
             return "@text/appliance.washer.label [\"" + brand + "\"]";
+        } else if (THING_TYPE_DRYER.equals(thingTypeUID)) {
+            return "@text/appliance.dryer.label [\"" + brand + "\"]";
+        } else if (THING_TYPE_WASHER_DRYER.equals(thingTypeUID)) {
+            return "@text/appliance.washerdryer.label [\"" + brand + "\"]";
         } else if (THING_TYPE_DISHWASHER.equals(thingTypeUID)) {
             return "@text/appliance.dishwasher.label [\"" + brand + "\"]";
         } else if (THING_TYPE_COFFEE_MAKER.equals(thingTypeUID)) {
             return "@text/appliance.coffeemaker.label [\"" + brand + "\"]";
         } else if (THING_TYPE_COOK_PROCESSOR.equals(thingTypeUID)) {
             return "@text/appliance.cookprocessor.label [\"" + brand + "\"]";
+        } else if (THING_TYPE_OVEN.equals(thingTypeUID)) {
+            return "@text/appliance.oven.label [\"" + brand + "\"]";
+        } else if (THING_TYPE_HOOD.equals(thingTypeUID)) {
+            return "@text/appliance.hood.label [\"" + brand + "\"]";
         } else {
             return "@text/appliance.generic.label [\"" + brand + "\"]";
         }

@@ -43,6 +43,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String APPLIANCE_TYPE_COOK_PROCESSOR = "cookprocessor";
     public static final String APPLIANCE_TYPE_COFFEE_MAKER = "coffeemaker";
     public static final String APPLIANCE_TYPE_OVEN = "oven";
+    public static final String APPLIANCE_TYPE_HOOD = "hood";
 
     // List of all thing type UIDs
     public static final ThingTypeUID THING_TYPE_GENERIC = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_GENERIC);
@@ -56,6 +57,7 @@ public class HomeConnectDirectBindingConstants {
     public static final ThingTypeUID THING_TYPE_COOK_PROCESSOR = new ThingTypeUID(BINDING_ID,
             APPLIANCE_TYPE_COOK_PROCESSOR);
     public static final ThingTypeUID THING_TYPE_OVEN = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_OVEN);
+    public static final ThingTypeUID THING_TYPE_HOOD = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_HOOD);
 
     // List of all channel type UIDs
     public static final ChannelTypeUID CHANNEL_TYPE_SWITCH = new ChannelTypeUID(BINDING_ID, "switch");
@@ -65,7 +67,7 @@ public class HomeConnectDirectBindingConstants {
     // Supported thing types
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Set.of(THING_TYPE_GENERIC, THING_TYPE_DISHWASHER,
             THING_TYPE_WASHER, THING_TYPE_WASHER_DRYER, THING_TYPE_DRYER, THING_TYPE_COFFEE_MAKER,
-            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN);
+            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_HOOD);
 
     // Configuration properties
     public static final String PROPERTY_HOME_APPLIANCE_ID = HOME_APPLIANCE_ID;
@@ -119,6 +121,13 @@ public class HomeConnectDirectBindingConstants {
     public static final String DRYER_DRYING_TARGET = "LaundryCare.Dryer.Option.DryingTarget";
     public static final String DRYER_DRYING_TARGET_ENUM_KEY = "LaundryCare.Dryer.EnumType.DryingTarget";
     public static final String OVEN_DURATION = "BSH.Common.Option.Duration";
+    public static final String COOKING_LIGHTING = "Cooking.Common.Setting.Lighting";
+    public static final String COOKING_LIGHTING_BRIGHTNESS = "Cooking.Common.Setting.LightingBrightness";
+    public static final String COOKING_BUTTON_TONES = "Cooking.Common.Setting.ButtonTones";
+    public static final String HOOD_VENTING_LEVEL = "Cooking.Common.Option.Hood.VentingLevel";
+    public static final String HOOD_VENTING_LEVEL_ENUM_KEY = "Cooking.Hood.EnumType.Stage";
+    public static final String HOOD_INTENSIVE_LEVEL = "Cooking.Common.Option.Hood.IntensiveLevel";
+    public static final String HOOD_INTENSIVE_LEVEL_ENUM_KEY = "Cooking.Hood.EnumType.IntensiveStage";
 
     // Appliance Event Keys
     public static final String EVENT_POWER_STATE = POWER_STATE;
@@ -159,6 +168,11 @@ public class HomeConnectDirectBindingConstants {
     public static final String EVENT_COFFEE_MAKER_EMPTY_MILK_TANK = "ConsumerProducts.CoffeeMaker.Event.EmptyMilkTank";
     public static final String EVENT_COFFEE_MAKER_BEAN_CONTAINER_EMPTY = "ConsumerProducts.CoffeeMaker.Event.BeanContainerEmpty";
     public static final String EVENT_OVEN_DURATION = OVEN_DURATION;
+    public static final String EVENT_COOKING_LIGHTING = COOKING_LIGHTING;
+    public static final String EVENT_COOKING_LIGHTING_BRIGHTNESS = COOKING_LIGHTING_BRIGHTNESS;
+    public static final String EVENT_COOKING_BUTTON_TONES = COOKING_BUTTON_TONES;
+    public static final String EVENT_HOOD_VENTING_LEVEL = HOOD_VENTING_LEVEL;
+    public static final String EVENT_HOOD_INTENSIVE_LEVEL = HOOD_INTENSIVE_LEVEL;
 
     // Channels
     public static final String CHANNEL_POWER_STATE = "power_state";
@@ -200,6 +214,11 @@ public class HomeConnectDirectBindingConstants {
     public static final String CHANNEL_COFFEE_MAKER_EMPTY_MILK_TANK = "empty_milk_tank";
     public static final String CHANNEL_COFFEE_MAKER_BEAN_CONTAINER_EMPTY = "bean_container_empty";
     public static final String CHANNEL_OVEN_DURATION = "oven_duration";
+    public static final String CHANNEL_FUNCTIONAL_LIGHT = "functional_light";
+    public static final String CHANNEL_FUNCTIONAL_LIGHT_BRIGHTNESS = "functional_light_brightness";
+    public static final String CHANNEL_BUTTON_TONES = "button_tones";
+    public static final String CHANNEL_HOOD_VENTING_LEVEL = "hood_venting_level";
+    public static final String CHANNEL_HOOD_INTENSIVE_LEVEL = "hood_intensive_level";
 
     // State values
     public static final String STATE_OPEN = "Open";
@@ -207,7 +226,17 @@ public class HomeConnectDirectBindingConstants {
     public static final String STATE_OFF = "Off";
     public static final String STATE_STANDBY = "Standby";
     public static final String STATE_NO_PROGRAM = "0";
+    public static final String STATE_HOOD_STAGE_OFF = "0";
     public static final String STATE_PRESENT = "Present";
+    public static final String STATE_FAN_OFF = "FanOff";
+    public static final String STATE_FAN_STAGE_1 = "FanStage01";
+    public static final String STATE_FAN_STAGE_2 = "FanStage02";
+    public static final String STATE_FAN_STAGE_3 = "FanStage03";
+    public static final String STATE_FAN_STAGE_4 = "FanStage04";
+    public static final String STATE_FAN_STAGE_5 = "FanStage05";
+    public static final String STATE_INTENSIVE_STAGE_OFF = "IntensiveStageOff";
+    public static final String STATE_INTENSIVE_STAGE_1 = "IntensiveStage1";
+    public static final String STATE_INTENSIVE_STAGE_2 = "IntensiveStage2";
 
     // Commands
     public static final String COMMAND_START = "start";

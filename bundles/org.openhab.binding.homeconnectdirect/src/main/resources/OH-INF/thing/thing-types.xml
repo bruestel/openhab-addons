@@ -187,7 +187,28 @@
 		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
 	</thing-type>
 
-	<!-- TODO add freezer, fridgefreezer, refrigerator, winecooler, cleaningrobot, cooktop, hood, warmingdrawer -->
+	<thing-type id="hood" extensible="switch, string, number">
+		<label>Hood</label>
+		<description>Hood which supports Home Connect.</description>
+		<channels>
+			<channel id="power_state" typeId="system.power"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="remote_start_allowance" typeId="remote_start_allowance"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="selected_program" typeId="selected_program"/>
+			<channel id="functional_light" typeId="functional_light"/>
+			<channel id="functional_light_brightness" typeId="system.brightness"/>
+			<channel id="button_tones" typeId="button_tones"/>
+			<channel id="hood_venting_level" typeId="hood_venting_level"/>
+			<channel id="hood_intensive_level" typeId="hood_intensive_level"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<!-- TODO add freezer, fridgefreezer, refrigerator, winecooler, cleaningrobot, cooktop, warmingdrawer -->
 
 	<thing-type id="generic" extensible="switch, string, number">
 		<label>Generic appliance</label>
@@ -433,6 +454,36 @@
 		<label>Selected Duration</label>
 		<description>This status describes the duration of the program of the home appliance.</description>
 		<state pattern="%d %unit%"/>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="functional_light">
+		<item-type>Switch</item-type>
+		<label>Functional Light</label>
+		<description>This setting describes the current functional light state of the home appliance.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="button_tones">
+		<item-type>Switch</item-type>
+		<label>Button Tones</label>
+		<description>This describes the current button tones setting for the home appliance.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="hood_venting_level">
+		<item-type>String</item-type>
+		<label>Venting Level</label>
+		<description>Venting level of the hood.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="hood_intensive_level">
+		<item-type>String</item-type>
+		<label>Intensive level</label>
+		<description>Intensive level of the hood.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 
 	<!-- Dynamic Channels -->
