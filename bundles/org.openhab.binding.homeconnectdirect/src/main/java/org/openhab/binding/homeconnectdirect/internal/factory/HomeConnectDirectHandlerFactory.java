@@ -17,6 +17,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_COFFEE_MAKER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DRYER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_HOOD;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_OVEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER_DRYER;
@@ -33,6 +34,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.handler.BaseHomeConnectDirectHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectCoffeeMakerHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectDishwasherHandler;
+import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectHoodHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectOvenHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectWasherDryerHandler;
 import org.openhab.binding.homeconnectdirect.internal.provider.HomeConnectDirectDynamicStateDescriptionProvider;
@@ -92,6 +94,8 @@ public class HomeConnectDirectHandlerFactory extends BaseThingHandlerFactory {
                     deviceId);
         } else if (THING_TYPE_OVEN.equals(thingTypeUID)) {
             return new HomeConnectDirectOvenHandler(thing, applianceProfileService, descriptionProvider, deviceId);
+        } else if (THING_TYPE_HOOD.equals(thingTypeUID)) {
+            return new HomeConnectDirectHoodHandler(thing, applianceProfileService, descriptionProvider, deviceId);
         } else {
             return new BaseHomeConnectDirectHandler(thing, applianceProfileService, descriptionProvider, deviceId);
         }

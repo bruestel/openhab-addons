@@ -262,8 +262,8 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
                                                 "The running system (" + osName + " " + osArch + ") "
                                                         + "does not support secure Web Socket connections. "
-                                                        + "Only 64-bit operating systems respectively Java (JVM) versions are supported "
-                                                        + "due to limitations of the used library (Conscrypt). error: "
+                                                        + "Only 64-bit operating systems or Java (JVM) versions "
+                                                        + "are supported by the library used (Conscrypt). error: "
                                                         + e.getMessage());
                                     } else if (LINUX.equalsIgnoreCase(osName)) {
                                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
