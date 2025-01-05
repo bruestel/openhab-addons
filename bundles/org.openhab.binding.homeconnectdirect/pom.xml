@@ -23,6 +23,7 @@
     <attoparser.version>2.0.7.RELEASE</attoparser.version>
     <unbescape.version>1.1.6.RELEASE</unbescape.version>
     <javassist.version>3.20.0-GA</javassist.version>
+    <conscrypt.version>2.6-jb20250105</conscrypt.version>
   </properties>
 
   <dependencies>
@@ -64,7 +65,7 @@
     <dependency>
       <groupId>org.conscrypt</groupId>
       <artifactId>conscrypt-openjdk-uber</artifactId>
-      <version>2.6-jb20241229</version>
+      <version>${conscrypt.version}</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

@@ -81,6 +81,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String BINDING_USERDATA_PATH = OpenHAB.getUserDataFolder() + File.separator + BINDING_ID;
     public static final String CONSCRYPT_PROVIDER = "Conscrypt";
     public static final String CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION = "2.31";
+    public static final String CONSCRYPT_SUPPORTED_SYSTEMS = "Linux (X64, ARM, ARM64), Windows (X64), Mac OS (X64, ARM64)";
     public static final String LINUX = "Linux";
     public static final String CONFIGURATION_EVENT_KEY = "eventKey";
     public static final Duration UPDATE_ALL_MANDATORY_VALUES_INTERVAL = Duration.ofMinutes(60);
