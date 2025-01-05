@@ -34,6 +34,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_STOP;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONFIGURATION_EVENT_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_SUPPORTED_SYSTEMS;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_ACTIVE_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_DOOR_STATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_LOCAL_CONTROL_ACTIVE;
@@ -258,28 +259,27 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                 webSocketClientService.connect();
                             } catch (Throwable e) {
                                 if (isUnsatisfiedLinkError(e)) {
-                                    if (!StringUtils.contains(osArch, "64")) {
-                                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
-                                                "The running system (" + osName + " " + osArch + ") "
-                                                        + "does not support secure Web Socket connections. "
-                                                        + "Only 64-bit operating systems or Java (JVM) versions "
-                                                        + "are supported by the library used (Conscrypt). error: "
-                                                        + e.getMessage());
-                                    } else if (LINUX.equalsIgnoreCase(osName)) {
+                                    if (LINUX.equalsIgnoreCase(osName)) {
                                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
                                                 "The running system (" + osName + " " + osArch + ") does not support "
                                                         + "secure Web Socket connections. A GNU C library (glibc) of "
                                                         + CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION
-                                                        + " or higher is required. Please verify this by running 'ldd --version'.");
+                                                        + " or higher is required. Please verify this by running 'ldd --version'. "
+                                                        + "Supported supported operating systems: "
+                                                        + CONSCRYPT_SUPPORTED_SYSTEMS + " Error: " + e.getMessage());
                                     } else {
                                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
                                                 "The running system (" + osName + " " + osArch + ") does not support "
-                                                        + "secure Web Socket connections. error: " + e.getMessage());
+                                                        + "secure Web Socket connections. "
+                                                        + "Supported supported operating systems: "
+                                                        + CONSCRYPT_SUPPORTED_SYSTEMS + " Error: " + e.getMessage());
                                     }
                                 } else {
                                     updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.DISABLED,
                                             "The running system (" + osName + " " + osArch + ") does not support "
-                                                    + "secure Web Socket connections. error: " + e.getMessage());
+                                                    + "secure Web Socket connections. "
+                                                    + "Supported supported operating systems: "
+                                                    + CONSCRYPT_SUPPORTED_SYSTEMS + "Error: " + e.getMessage());
                                 }
                                 logger.error("Could not initialize WebSocketTlsConscryptClientService!", e);
                             }

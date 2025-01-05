@@ -453,8 +453,7 @@
 		<item-type>Number:Time</item-type>
 		<label>Selected Duration</label>
 		<description>This status describes the duration of the program of the home appliance.</description>
-		<state pattern="%d %unit%"/>
-		<state readOnly="false"/>
+		<state readOnly="false" pattern="%d %unit%"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 	<channel-type id="functional_light">
