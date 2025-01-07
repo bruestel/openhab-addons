@@ -565,11 +565,17 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                 getLinkedChannel(CHANNEL_SELECTED_PROGRAM).ifPresent(channel -> updateState(channel.getUID(),
                         event.value() == null || STATE_NO_PROGRAM.equals(event.getValueAsString()) ? UnDefType.UNDEF
                                 : new StringType(event.getValueAsString())));
+                updateSelectedProgramDescription();
             }
-            case EVENT_ACTIVE_PROGRAM ->
-                getLinkedChannel(CHANNEL_ACTIVE_PROGRAM).ifPresent(channel -> updateState(channel.getUID(),
-                        event.value() == null || STATE_NO_PROGRAM.equals(event.getValueAsString()) ? UnDefType.UNDEF
-                                : new StringType(event.getValueAsString())));
+            case EVENT_ACTIVE_PROGRAM -> getLinkedChannel(CHANNEL_ACTIVE_PROGRAM).ifPresent(channel -> {
+                var state = event.value() == null || STATE_NO_PROGRAM.equals(event.getValueAsString()) ? UnDefType.UNDEF
+                        : new StringType(event.getValueAsString());
+
+                updateState(channel.getUID(), state);
+                if (state instanceof StringType stringType) {
+                    updateActiveProgramDescription(channel, stringType.toFullString());
+                }
+            });
             case EVENT_REMAINING_PROGRAM_TIME -> getLinkedChannel(CHANNEL_REMAINING_PROGRAM_TIME).ifPresent(
                     channel -> updateState(channel.getUID(), new QuantityType<>(event.getValueAsInt(), SECOND)));
             case EVENT_PROGRAM_PROGRESS -> getLinkedChannel(CHANNEL_PROGRAM_PROGRESS).ifPresent(
@@ -866,11 +872,34 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
 
     private void updateSelectedProgramDescription() {
         getLinkedChannel(CHANNEL_SELECTED_PROGRAM).ifPresent(channel -> {
+            var selectedProgram = this.selectedProgram;
             var programOptions = programMap.entrySet().stream().filter(Map.Entry::getValue).map(Map.Entry::getKey)
                     .map(programName -> new StateOption(programName, mapStringType(programName))).toList();
 
+            if (selectedProgram != null && programOptions.stream()
+                    .noneMatch(stateOption -> selectedProgram.equals(stateOption.getValue()))) {
+                programOptions = new ArrayList<>(programOptions);
+                programOptions.add(new StateOption(selectedProgram, mapStringType(selectedProgram)));
+            }
+
+            if (logger.isTraceEnabled()) {
+                logger.trace("Update selected program state options: {} ({})",
+                        programOptions.stream()
+                                .map(stateOption -> stateOption.getValue() + ": " + stateOption.getLabel()).toList(),
+                        thing.getUID());
+            }
             descriptionProvider.setStateOptions(channel.getUID(), programOptions);
         });
+    }
+
+    private void updateActiveProgramDescription(Channel channel, String programName) {
+        var programOptions = List.of(new StateOption(programName, mapStringType(programName)));
+
+        if (logger.isTraceEnabled()) {
+            logger.trace("Update active program state options: {}: {} ({})", programOptions.get(0).getValue(),
+                    programOptions.get(0).getLabel(), thing.getUID());
+        }
+        descriptionProvider.setStateOptions(channel.getUID(), programOptions);
     }
 
     private @Nullable Integer getEnumerationUid(int uid) {
