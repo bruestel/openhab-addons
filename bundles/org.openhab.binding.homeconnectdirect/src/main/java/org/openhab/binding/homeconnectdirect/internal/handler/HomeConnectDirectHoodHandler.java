@@ -17,6 +17,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_FUNCTIONAL_LIGHT_BRIGHTNESS;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_HOOD_INTENSIVE_LEVEL;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_HOOD_VENTING_LEVEL;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_SELECTED_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COOKING_BUTTON_TONES;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COOKING_LIGHTING;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COOKING_LIGHTING_BRIGHTNESS;
@@ -39,6 +40,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_INTENSIVE_STAGE_1;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_INTENSIVE_STAGE_2;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_INTENSIVE_STAGE_OFF;
+import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_ACTIVE_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_VALUES;
 import static org.openhab.core.library.unit.Units.PERCENT;
 
@@ -53,6 +55,7 @@ import org.openhab.binding.homeconnectdirect.internal.provider.HomeConnectDirect
 import org.openhab.binding.homeconnectdirect.internal.service.profile.ApplianceProfileService;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Action;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Data;
+import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.ProgramData;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.types.StringType;
@@ -79,7 +82,9 @@ public class HomeConnectDirectHoodHandler extends BaseHomeConnectDirectHandler {
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        super.handleCommand(channelUID, command);
+        if (!CHANNEL_SELECTED_PROGRAM.equals(channelUID.getId())) {
+            super.handleCommand(channelUID, command);
+        }
 
         if (CHANNEL_FUNCTIONAL_LIGHT.equals(channelUID.getId()) && command instanceof OnOffType) {
             mapFeatureName(COOKING_LIGHTING).ifPresent(optionUid -> send(Action.POST, RO_VALUES,
@@ -101,6 +106,9 @@ public class HomeConnectDirectHoodHandler extends BaseHomeConnectDirectHandler {
                     optionUid -> mapEnumerationValueString(HOOD_INTENSIVE_LEVEL_ENUM_KEY, command.toFullString())
                             .ifPresent(enumValue -> send(Action.POST, RO_VALUES,
                                     List.of(new Data(optionUid, enumValue)), null, 1)));
+        } else if (CHANNEL_SELECTED_PROGRAM.equals(channelUID.getId()) && command instanceof StringType) {
+            getSelectedProgramUid(command.toFullString()).ifPresent(programUid -> send(Action.POST, RO_ACTIVE_PROGRAM,
+                    List.of(new ProgramData(programUid, null)), null, 1));
         }
     }
 
