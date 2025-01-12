@@ -12,15 +12,19 @@
  */
 package org.openhab.binding.homeconnectdirect.internal.handler;
 
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_DOOR_STATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_OVEN_DURATION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_OVEN_DURATION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_DURATION;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
 import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_VALUES;
 import static org.openhab.core.library.unit.Units.SECOND;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.homeconnectdirect.internal.handler.model.DescriptionChangeEvent;
 import org.openhab.binding.homeconnectdirect.internal.handler.model.Event;
@@ -28,6 +32,7 @@ import org.openhab.binding.homeconnectdirect.internal.provider.HomeConnectDirect
 import org.openhab.binding.homeconnectdirect.internal.service.profile.ApplianceProfileService;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Action;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Data;
+import org.openhab.core.library.types.OpenClosedType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.Units;
 import org.openhab.core.thing.ChannelUID;
@@ -46,13 +51,17 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
 
+    private final static String DOOR_STATE_POSTFIX = ".DoorState";
+
     private final Logger logger;
+    private final ConcurrentHashMap<String, Boolean> doorStateMap;
 
     public HomeConnectDirectOvenHandler(Thing thing, ApplianceProfileService applianceProfileService,
             HomeConnectDirectDynamicStateDescriptionProvider descriptionProvider, String deviceId) {
         super(thing, applianceProfileService, descriptionProvider, deviceId);
 
         this.logger = LoggerFactory.getLogger(HomeConnectDirectOvenHandler.class);
+        this.doorStateMap = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -94,11 +103,19 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
 
     @Override
     protected void onApplianceEvent(Event event) {
-        super.onApplianceEvent(event);
+        if (!StringUtils.endsWith(event.name(), DOOR_STATE_POSTFIX)) {
+            super.onApplianceEvent(event);
+        }
 
-        switch (event.name()) {
-            case EVENT_OVEN_DURATION -> getLinkedChannel(CHANNEL_OVEN_DURATION).ifPresent(
+        if (event.name().equals(EVENT_OVEN_DURATION)) {
+            getLinkedChannel(CHANNEL_OVEN_DURATION).ifPresent(
                     channel -> updateState(channel.getUID(), new QuantityType<>(event.getValueAsInt(), SECOND)));
+        } else if (StringUtils.endsWith(event.name(), DOOR_STATE_POSTFIX)) {
+            boolean open = STATE_OPEN.equals(event.value());
+            doorStateMap.put(event.name(), open);
+            boolean atLeastOneDoorIsOpen = doorStateMap.values().stream().anyMatch(aBoolean -> aBoolean);
+            getLinkedChannel(CHANNEL_DOOR_STATE).ifPresent(channel -> updateState(channel.getUID(),
+                    atLeastOneDoorIsOpen ? OpenClosedType.OPEN : OpenClosedType.CLOSED));
         }
     }
 }
