@@ -44,6 +44,8 @@ public class HomeConnectDirectBindingConstants {
     public static final String APPLIANCE_TYPE_COFFEE_MAKER = "coffeemaker";
     public static final String APPLIANCE_TYPE_OVEN = "oven";
     public static final String APPLIANCE_TYPE_HOOD = "hood";
+    public static final String APPLIANCE_TYPE_COOKTOP = "cooktop";
+    public static final String APPLIANCE_TYPE_COOKTOP_ALTERNATIVE = "hob";
 
     // List of all thing type UIDs
     public static final ThingTypeUID THING_TYPE_GENERIC = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_GENERIC);
@@ -58,6 +60,7 @@ public class HomeConnectDirectBindingConstants {
             APPLIANCE_TYPE_COOK_PROCESSOR);
     public static final ThingTypeUID THING_TYPE_OVEN = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_OVEN);
     public static final ThingTypeUID THING_TYPE_HOOD = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_HOOD);
+    public static final ThingTypeUID THING_TYPE_COOKTOP = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_COOKTOP);
 
     // List of all channel type UIDs
     public static final ChannelTypeUID CHANNEL_TYPE_SWITCH = new ChannelTypeUID(BINDING_ID, "switch");
@@ -67,7 +70,7 @@ public class HomeConnectDirectBindingConstants {
     // Supported thing types
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Set.of(THING_TYPE_GENERIC, THING_TYPE_DISHWASHER,
             THING_TYPE_WASHER, THING_TYPE_WASHER_DRYER, THING_TYPE_DRYER, THING_TYPE_COFFEE_MAKER,
-            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_HOOD);
+            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_HOOD, THING_TYPE_COOKTOP);
 
     // Configuration properties
     public static final String PROPERTY_HOME_APPLIANCE_ID = HOME_APPLIANCE_ID;
@@ -123,6 +126,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String DRYER_DRYING_TARGET_ENUM_KEY = "LaundryCare.Dryer.EnumType.DryingTarget";
     public static final String OVEN_DURATION = "BSH.Common.Option.Duration";
     public static final String COOKING_LIGHTING = "Cooking.Common.Setting.Lighting";
+    public static final String CHILD_LOCK = "BSH.Common.Setting.ChildLock";
     public static final String COOKING_LIGHTING_BRIGHTNESS = "Cooking.Common.Setting.LightingBrightness";
     public static final String COOKING_BUTTON_TONES = "Cooking.Common.Setting.ButtonTones";
     public static final String HOOD_VENTING_LEVEL = "Cooking.Common.Option.Hood.VentingLevel";
@@ -174,6 +178,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String EVENT_COOKING_BUTTON_TONES = COOKING_BUTTON_TONES;
     public static final String EVENT_HOOD_VENTING_LEVEL = HOOD_VENTING_LEVEL;
     public static final String EVENT_HOOD_INTENSIVE_LEVEL = HOOD_INTENSIVE_LEVEL;
+    public static final String EVENT_CHILD_LOCK = CHILD_LOCK;
 
     // Channels
     public static final String CHANNEL_POWER_STATE = "power_state";
@@ -220,6 +225,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String CHANNEL_BUTTON_TONES = "button_tones";
     public static final String CHANNEL_HOOD_VENTING_LEVEL = "hood_venting_level";
     public static final String CHANNEL_HOOD_INTENSIVE_LEVEL = "hood_intensive_level";
+    public static final String CHANNEL_CHILD_LOCK = "child_lock";
 
     // State values
     public static final String STATE_OPEN = "Open";

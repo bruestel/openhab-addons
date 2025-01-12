@@ -14,6 +14,7 @@ package org.openhab.binding.homeconnectdirect.internal.servlet;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COFFEE_MAKER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COOKTOP;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COOK_PROCESSOR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DRYER;
@@ -68,6 +69,8 @@ public class ServletUtils {
             return "Oven";
         } else if (APPLIANCE_TYPE_HOOD.equalsIgnoreCase(type)) {
             return "Hood";
+        } else if (APPLIANCE_TYPE_COOKTOP.equalsIgnoreCase(type)) {
+            return "Cooktop";
         } else {
             return "Generic Appliance";
         }
@@ -101,9 +104,13 @@ public class ServletUtils {
         return APPLIANCE_TYPE_HOOD.equalsIgnoreCase(type);
     }
 
+    public boolean isCooktop(String type) {
+        return APPLIANCE_TYPE_COOKTOP.equalsIgnoreCase(type);
+    }
+
     public boolean isGeneric(String type) {
-        return !(isWasher(type) || !isDryer(type) || !isOven(type) || !isHood(type) || isCoffeeMaker(type)
-                || isDishwasher(type) || isCookProcessor(type));
+        return !(isWasher(type) || isDryer(type) || isOven(type) || isHood(type) || isCoffeeMaker(type)
+                || isDishwasher(type) || isCookProcessor(type) || isCooktop(type));
     }
 
     public String formatDateTime(OffsetDateTime offsetDateTime) {

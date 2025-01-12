@@ -71,6 +71,7 @@
                             <i th:case="washerdryer" class="flex-shrink-0 mdi mdi-washing-machine mdi-24px me-1"></i>
                             <i th:case="oven" class="flex-shrink-0 mdi mdi-stove mdi-24px me-1"></i>
                             <i th:case="hood" class="flex-shrink-0 mdi mdi-fan mdi-24px me-1"></i>
+                            <i th:case="cooktop" class="flex-shrink-0 mdi mdi-gas-burner mdi-24px me-1"></i>
                             <i th:case="*" class="flex-shrink-0 mdi mdi-home-automation mdi-24px me-1"></i>
                             <span class="text-wrap ms-2" th:text="${appliance.label}">Appliance name</span>
                         </a>
@@ -120,6 +121,7 @@
                                 <span th:if="${utils.isDryer(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-tumble-dryer mdi-24px me-1"></span>
                                 <span th:if="${utils.isOven(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-stove mdi-24px me-1"></span>
                                 <span th:if="${utils.isHood(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-fan mdi-24px me-1"></span>
+                                <span th:if="${utils.isCooktop(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-gas-burner mdi-24px me-1"></span>
                                 <span th:if="${utils.isGeneric(appliance.getThingTypeUID().getId())}" class="flex-shrink-0 mdi mdi-home-automation mdi-24px me-1"></span>
 
                                 <span th:text="${appliance.label}">Appliance name</span>
@@ -140,6 +142,7 @@
     <span th:if="${utils.isDryer(type)}" class="mdi mdi-tumble-dryer mdi-24px me-1"></span>
     <span th:if="${utils.isOven(type)}" class="mdi mdi-stove mdi-24px me-1"></span>
     <span th:if="${utils.isHood(type)}" class="mdi mdi-fan mdi-24px me-1"></span>
+    <span th:if="${utils.isCooktop(type)}" class="mdi mdi-gas-burner mdi-24px me-1"></span>
     <span th:if="${utils.isGeneric(type)}" class="mdi mdi-home-automation mdi-24px me-1"></span>
 </th:block>
 

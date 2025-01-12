@@ -208,7 +208,23 @@
 		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
 	</thing-type>
 
-	<!-- TODO add freezer, fridgefreezer, refrigerator, winecooler, cleaningrobot, cooktop, warmingdrawer -->
+	<thing-type id="cooktop" extensible="switch, string, number">
+		<label>Cooktop</label>
+		<description>Home Connect connected kitchen cooktop (also known as hob).</description>
+		<channels>
+			<channel id="power_state" typeId="system.power"/>
+			<channel id="operation_state" typeId="operation_state"/>
+			<channel id="local_control_active" typeId="local_control_active"/>
+			<channel id="remote_control_active" typeId="remote_control_active"/>
+			<channel id="active_program" typeId="active_program"/>
+			<channel id="button_tones" typeId="button_tones"/>
+			<channel id="child_lock" typeId="child_lock"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<!-- TODO add freezer, fridgefreezer, refrigerator, winecooler, cleaningrobot, warmingdrawer -->
 
 	<thing-type id="generic" extensible="switch, string, number">
 		<label>Generic appliance</label>
@@ -481,6 +497,13 @@
 		<item-type>String</item-type>
 		<label>Intensive level</label>
 		<description>Intensive level of the hood.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="child_lock">
+		<item-type>Switch</item-type>
+		<label>Child Lock</label>
+		<description>This setting describes the current child lock state of the home appliance.</description>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>

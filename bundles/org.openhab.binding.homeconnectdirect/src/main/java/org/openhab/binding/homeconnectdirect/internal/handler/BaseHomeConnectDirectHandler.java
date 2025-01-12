@@ -15,6 +15,7 @@ package org.openhab.binding.homeconnectdirect.internal.handler;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.ABORT_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.ACTIVE_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_ACTIVE_PROGRAM;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_CHILD_LOCK;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_DOOR_STATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_LOCAL_CONTROL_ACTIVE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_OPERATION_STATE;
@@ -28,6 +29,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_NUMBER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_STRING;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_SWITCH;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHILD_LOCK;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_PAUSE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_RESUME;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_START;
@@ -36,6 +38,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_SUPPORTED_SYSTEMS;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_ACTIVE_PROGRAM;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_CHILD_LOCK;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_DOOR_STATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_LOCAL_CONTROL_ACTIVE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_OPERATION_STATE;
@@ -318,7 +321,9 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                 value.ifPresent(
                         integer -> send(Action.POST, RO_VALUES, List.of(new Data(settingUid, integer)), null, 1));
             });
-
+        } else if (CHANNEL_CHILD_LOCK.equals(channelUID.getId()) && command instanceof OnOffType) {
+            mapFeatureName(CHILD_LOCK).ifPresent(optionUid -> send(Action.POST, RO_VALUES,
+                    List.of(new Data(optionUid, OnOffType.ON.equals(command))), null, 1));
         } else if (CHANNEL_PROGRAM_COMMAND.equals(channelUID.getId()) && command instanceof StringType) {
             if (COMMAND_START.equalsIgnoreCase(command.toFullString())) {
                 var selectedProgram = this.selectedProgram;
@@ -580,6 +585,8 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                     channel -> updateState(channel.getUID(), new QuantityType<>(event.getValueAsInt(), SECOND)));
             case EVENT_PROGRAM_PROGRESS -> getLinkedChannel(CHANNEL_PROGRAM_PROGRESS).ifPresent(
                     channel -> updateState(channel.getUID(), new QuantityType<>(event.getValueAsInt(), PERCENT)));
+            case EVENT_CHILD_LOCK -> getLinkedChannel(CHANNEL_CHILD_LOCK)
+                    .ifPresent(channel -> updateState(channel.getUID(), OnOffType.from(event.getValueAsBoolean())));
         }
 
         // update dynamic channels
