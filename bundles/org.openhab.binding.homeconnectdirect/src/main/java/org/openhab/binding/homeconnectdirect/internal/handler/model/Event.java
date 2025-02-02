@@ -26,6 +26,18 @@ public record Event(String name, Object value) {
         }
     }
 
+    public double getValueAsDouble() {
+        try {
+            if (value instanceof Number number) {
+                return number.doubleValue();
+            } else {
+                return Double.parseDouble(value.toString());
+            }
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public boolean getValueAsBoolean() {
         return Boolean.parseBoolean(String.valueOf(value));
     }

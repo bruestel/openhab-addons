@@ -514,20 +514,20 @@
 		<label>On/Off Switch</label>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
-		<config-description-ref uri="thing-type:homeconnectdirect:eventkey"/>
+		<config-description-ref uri="thing-type:homeconnectdirect:dynamic-channel-generic"/>
 	</channel-type>
 	<channel-type id="string">
 		<item-type>String</item-type>
 		<label>Text Value</label>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
-		<config-description-ref uri="thing-type:homeconnectdirect:eventkey"/>
+		<config-description-ref uri="thing-type:homeconnectdirect:dynamic-channel-generic"/>
 	</channel-type>
 	<channel-type id="number">
 		<item-type>Number</item-type>
 		<label>Number Value</label>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
-		<config-description-ref uri="thing-type:homeconnectdirect:eventkey"/>
+		<config-description-ref uri="thing-type:homeconnectdirect:dynamic-channel-number"/>
 	</channel-type>
 </thing:thing-descriptions>
