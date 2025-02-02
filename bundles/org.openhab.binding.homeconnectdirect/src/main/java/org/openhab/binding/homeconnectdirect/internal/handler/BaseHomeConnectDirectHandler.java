@@ -54,10 +54,12 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.POWER_STATE_ENUM_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.RESUME_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SELECTED_PROGRAM;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_FINISHED;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_NO_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OFF;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_ON;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_RUN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_STANDBY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.UPDATE_ALL_MANDATORY_VALUES_INTERVAL;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_AES_URI_TEMPLATE;
@@ -556,9 +558,20 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
             case EVENT_DOOR_STATE ->
                 getLinkedChannel(CHANNEL_DOOR_STATE).ifPresent(channel -> updateState(channel.getUID(),
                         STATE_OPEN.equals(event.value()) ? OpenClosedType.OPEN : OpenClosedType.CLOSED));
-            case EVENT_OPERATION_STATE ->
+            case EVENT_OPERATION_STATE -> {
+                var operationState = event.getValueAsString();
                 getLinkedChannel(CHANNEL_OPERATION_STATE).ifPresent(channel -> updateState(channel.getUID(),
-                        event.value() == null ? UnDefType.UNDEF : new StringType(event.getValueAsString())));
+                        event.value() == null ? UnDefType.UNDEF : new StringType(operationState)));
+                if (STATE_FINISHED.equals(operationState)) {
+                    getLinkedChannel(CHANNEL_PROGRAM_PROGRESS)
+                            .ifPresent(channel -> updateState(channel.getUID(), new QuantityType<>(100, PERCENT)));
+                    getLinkedChannel(CHANNEL_REMAINING_PROGRAM_TIME)
+                            .ifPresent(channel -> updateState(channel.getUID(), new QuantityType<>(0, SECOND)));
+                } else if (STATE_RUN.equals(operationState)) {
+                    getLinkedChannel(CHANNEL_PROGRAM_PROGRESS)
+                            .ifPresent(channel -> updateState(channel.getUID(), new QuantityType<>(0, PERCENT)));
+                }
+            }
             case EVENT_REMOTE_CONTROL_START_ALLOWED -> getLinkedChannel(CHANNEL_REMOTE_START_ALLOWANCE)
                     .ifPresent(channel -> updateState(channel.getUID(), OnOffType.from(event.getValueAsBoolean())));
             case EVENT_REMOTE_CONTROL_ACTIVE -> getLinkedChannel(CHANNEL_REMOTE_CONTROL_ACTIVE)
