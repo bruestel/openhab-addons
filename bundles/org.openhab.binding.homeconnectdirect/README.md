@@ -236,6 +236,16 @@ Present=OPEN
 =CLOSED
 ```
 
+_contact.map_
+
+```perl
+OPEN=opened
+CLOSED=closed
+ON=opened
+OFF=closed
+=unknown
+```
+
 ## Misc
 
 ### Web UI behind reverse proxy
