@@ -232,6 +232,8 @@ public class HomeConnectDirectBindingConstants {
     public static final String STATE_ON = "On";
     public static final String STATE_OFF = "Off";
     public static final String STATE_STANDBY = "Standby";
+    public static final String STATE_FINISHED = "Finished";
+    public static final String STATE_RUN = "Run";
     public static final String STATE_NO_PROGRAM = "0";
     public static final String STATE_HOOD_STAGE_OFF = "0";
     public static final String STATE_PRESENT = "Present";
