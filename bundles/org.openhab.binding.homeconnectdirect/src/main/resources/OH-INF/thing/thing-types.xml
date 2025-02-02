@@ -176,11 +176,11 @@
 			<channel id="local_control_active" typeId="local_control_active"/>
 			<channel id="remaining_program_time" typeId="remaining_program_time"/>
 			<channel id="duration" typeId="oven_duration"/>
+			<channel id="oven_current_cavity_temperature" typeId="oven_current_cavity_temperature"/>
 
 			<!-- TODO impl.
 				<channel id="elapsed_program_time" typeId="elapsed_program_time"/>
 				<channel id="setpoint_temperature" typeId="setpoint_temperature"/>
-				<channel id="oven_current_cavity_temperature" typeId="oven_current_cavity_temperature"/>
 			-->
 		</channels>
 		<representation-property>haId</representation-property>
@@ -506,6 +506,12 @@
 		<description>This setting describes the current child lock state of the home appliance.</description>
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="oven_current_cavity_temperature">
+		<item-type>Number:Temperature</item-type>
+		<label>Cavity Temperature</label>
+		<description>This status describes the oven cavity temperature of the home appliance.</description>
+		<state readOnly="true" pattern="%.0f %unit%"/>
 	</channel-type>
 
 	<!-- Dynamic Channels -->

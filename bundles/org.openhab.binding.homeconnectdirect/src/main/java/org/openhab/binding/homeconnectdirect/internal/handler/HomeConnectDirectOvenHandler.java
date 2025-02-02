@@ -13,16 +13,15 @@
 package org.openhab.binding.homeconnectdirect.internal.handler;
 
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_DOOR_STATE;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_OVEN_CURRENT_CAVITY_TEMPERATURE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_OVEN_DURATION;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_OVEN_CURRENT_CAVITY_TEMPERATURE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_OVEN_DURATION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_DURATION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
 import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_VALUES;
+import static org.openhab.core.library.unit.SIUnits.CELSIUS;
 import static org.openhab.core.library.unit.Units.SECOND;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -41,6 +40,10 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.StateDescriptionFragmentBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The {@link HomeConnectDirectOvenHandler} is responsible for handling commands, which are
@@ -116,6 +119,9 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
             boolean atLeastOneDoorIsOpen = doorStateMap.values().stream().anyMatch(aBoolean -> aBoolean);
             getLinkedChannel(CHANNEL_DOOR_STATE).ifPresent(channel -> updateState(channel.getUID(),
                     atLeastOneDoorIsOpen ? OpenClosedType.OPEN : OpenClosedType.CLOSED));
+        } else if (event.name().equals(EVENT_OVEN_CURRENT_CAVITY_TEMPERATURE)) {
+            getLinkedChannel(CHANNEL_OVEN_CURRENT_CAVITY_TEMPERATURE).ifPresent(
+                    channel -> updateState(channel.getUID(), new QuantityType<>(event.getValueAsInt(), CELSIUS)));
         }
     }
 }

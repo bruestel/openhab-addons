@@ -126,6 +126,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String DRYER_DRYING_TARGET = "LaundryCare.Dryer.Option.DryingTarget";
     public static final String DRYER_DRYING_TARGET_ENUM_KEY = "LaundryCare.Dryer.EnumType.DryingTarget";
     public static final String OVEN_DURATION = "BSH.Common.Option.Duration";
+    public static final String OVEN_CURRENT_CAVITY_TEMPERATURE = "Cooking.Oven.Status.CurrentCavityTemperature";
     public static final String COOKING_LIGHTING = "Cooking.Common.Setting.Lighting";
     public static final String CHILD_LOCK = "BSH.Common.Setting.ChildLock";
     public static final String COOKING_LIGHTING_BRIGHTNESS = "Cooking.Common.Setting.LightingBrightness";
@@ -174,6 +175,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String EVENT_COFFEE_MAKER_EMPTY_MILK_TANK = "ConsumerProducts.CoffeeMaker.Event.EmptyMilkTank";
     public static final String EVENT_COFFEE_MAKER_BEAN_CONTAINER_EMPTY = "ConsumerProducts.CoffeeMaker.Event.BeanContainerEmpty";
     public static final String EVENT_OVEN_DURATION = OVEN_DURATION;
+    public static final String EVENT_OVEN_CURRENT_CAVITY_TEMPERATURE = OVEN_CURRENT_CAVITY_TEMPERATURE;
     public static final String EVENT_COOKING_LIGHTING = COOKING_LIGHTING;
     public static final String EVENT_COOKING_LIGHTING_BRIGHTNESS = COOKING_LIGHTING_BRIGHTNESS;
     public static final String EVENT_COOKING_BUTTON_TONES = COOKING_BUTTON_TONES;
@@ -221,6 +223,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String CHANNEL_COFFEE_MAKER_EMPTY_MILK_TANK = "empty_milk_tank";
     public static final String CHANNEL_COFFEE_MAKER_BEAN_CONTAINER_EMPTY = "bean_container_empty";
     public static final String CHANNEL_OVEN_DURATION = "oven_duration";
+    public static final String CHANNEL_OVEN_CURRENT_CAVITY_TEMPERATURE = "oven_current_cavity_temperature";
     public static final String CHANNEL_FUNCTIONAL_LIGHT = "functional_light";
     public static final String CHANNEL_FUNCTIONAL_LIGHT_BRIGHTNESS = "functional_light_brightness";
     public static final String CHANNEL_BUTTON_TONES = "button_tones";
