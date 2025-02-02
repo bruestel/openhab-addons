@@ -22,10 +22,21 @@
 			<advanced>true</advanced>
 		</parameter>
 	</config-description>
-	<config-description uri="thing-type:homeconnectdirect:eventkey">
+	<config-description uri="thing-type:homeconnectdirect:dynamic-channel-generic">
 		<parameter name="eventKey" type="text" required="true">
 			<label>Event Key</label>
 			<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
+		</parameter>
+	</config-description>
+	<config-description uri="thing-type:homeconnectdirect:dynamic-channel-number">
+		<parameter name="eventKey" type="text" required="true">
+			<label>Event Key</label>
+			<description>TODO e.g. "BSH.Common.Setting.AllowBackendConnection"</description>
+		</parameter>
+		<parameter name="unit" type="text" required="false">
+			<label>Unit Of Measurement</label>
+			<description>Unit of measurement (optional). The unit is used for representing the value in the GUI as well as for
+				converting incoming values (like from '°F' to '°C'). Examples: "°C", "°F", "%%" (escaped percent)</description>
 		</parameter>
 	</config-description>
 </config-description:config-descriptions>

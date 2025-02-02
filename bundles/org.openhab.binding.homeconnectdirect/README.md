@@ -171,6 +171,19 @@ This parameter determines which event from the home appliance the channel should
 The easiest way to find the appropriate event key is by referring to the communication log.
 Please take a look at the message with the resource `/ro/allMandatoryValues` in the log to identify the correct event key.
 
+For channels of type `Number`, it is recommended to specify a unit of measurement. The `unit` parameter serves this purpose.
+The specified unit is used for displaying values in the graphical user interface (GUI) and for converting incoming values where applicable 
+(e.g., from Fahrenheit to Celsius).
+
+**Examples of valid units:**
+
+- "°C" (degrees Celsius)
+- "°F" (degrees Fahrenheit)
+- "%%" (escaped percent symbol)
+
+By defining a unit, you ensure consistent representation and proper conversions of numerical values.
+
+
 ![Screenshot Home Connect Direct Binding UI `/ro/allMandatoryValues`](doc/all-mandatory-values.png "All Mandatory Values Example")
 
 ## Full Example
@@ -194,6 +207,11 @@ Thing homeconnectdirect:washer:siemens-wm16xe91         "Washer"          [ haId
 Thing homeconnectdirect:cookprocessor:bosch-mcc9555dwc  "Cookit"          [ haId = "000000000000000000", address = "10.168.2.242", connectionRetryDelay = 1 ] {
     Channels:
         Type number     : buttonVolume                  "Button Volume"   [ eventKey = "BSH.Common.Setting.Sound.Button.Volume" ]
+}
+
+Thing homeconnectdirect:oven:siemens-hn678g4s6          "Oven"            [ haId = "SIEMENS-HN678G4S6-000000000000", address = "10.168.2.245", connectionRetryDelay = 1 ] {
+    Channels:
+        Type number     :    currentCavityTemperature   "Temperature"     [ eventKey = "Cooking.Oven.Status.CurrentCavityTemperature" unit = "°C" ]
 }
 ```
 ### Item Configuration

@@ -35,6 +35,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_START;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_STOP;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONFIGURATION_EVENT_KEY;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONFIGURATION_UNIT_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_REQUIRED_GLIBC_MIN_VERSION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONSCRYPT_SUPPORTED_SYSTEMS;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.EVENT_ACTIVE_PROGRAM;
@@ -109,6 +110,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import javax.measure.Unit;
+
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -152,6 +155,7 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
 import org.openhab.core.types.StateOption;
 import org.openhab.core.types.UnDefType;
+import org.openhab.core.types.util.UnitUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -391,7 +395,23 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                                 }
                             } else if (CHANNEL_TYPE_NUMBER.equals(channel.getChannelTypeUID())
                                     && command instanceof Number number) {
-                                send(Action.POST, RO_VALUES, List.of(new Data(uid, number.intValue())), null, 1);
+
+                                Unit<?> unit = null;
+                                if (channel.getConfiguration()
+                                        .get(CONFIGURATION_UNIT_KEY) instanceof String unitConfiguration) {
+                                    unit = UnitUtils.parseUnit(unitConfiguration);
+                                }
+                                if (PERCENT.equals(unit)) {
+                                    double value = number.doubleValue();
+
+                                    // percent value
+                                    if (value > 0 && value < 1) {
+                                        value *= 100;
+                                    }
+                                    send(Action.POST, RO_VALUES, List.of(new Data(uid, (int) value)), null, 1);
+                                } else {
+                                    send(Action.POST, RO_VALUES, List.of(new Data(uid, number.intValue())), null, 1);
+                                }
                             }
                         });
                     });
@@ -615,7 +635,18 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                     } else if (CHANNEL_TYPE_STRING.equals(channel.getChannelTypeUID())) {
                         updateState(channel.getUID(), StringType.valueOf(event.getValueAsString()));
                     } else if (CHANNEL_TYPE_NUMBER.equals(channel.getChannelTypeUID())) {
-                        updateState(channel.getUID(), QuantityType.valueOf(event.getValueAsInt(), ONE));
+                        Unit<?> unit = null;
+                        if (channel.getConfiguration()
+                                .get(CONFIGURATION_UNIT_KEY) instanceof String unitConfiguration) {
+                            unit = UnitUtils.parseUnit(unitConfiguration);
+                        }
+                        if (unit != null) {
+                            var state = unit.equals(PERCENT) ? QuantityType.valueOf(event.getValueAsInt(), unit)
+                                    : QuantityType.valueOf(event.getValueAsDouble(), unit);
+                            updateState(channel.getUID(), state);
+                        } else {
+                            updateState(channel.getUID(), QuantityType.valueOf(event.getValueAsDouble(), ONE));
+                        }
                     }
                 });
     }

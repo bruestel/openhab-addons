@@ -87,6 +87,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String CONSCRYPT_SUPPORTED_SYSTEMS = "Linux (X64, ARM, ARM64), Windows (X64), Mac OS (X64, ARM64)";
     public static final String LINUX = "Linux";
     public static final String CONFIGURATION_EVENT_KEY = "eventKey";
+    public static final String CONFIGURATION_UNIT_KEY = "unit";
     public static final Duration UPDATE_ALL_MANDATORY_VALUES_INTERVAL = Duration.ofMinutes(60);
 
     // Home Connect WebSocket Client
