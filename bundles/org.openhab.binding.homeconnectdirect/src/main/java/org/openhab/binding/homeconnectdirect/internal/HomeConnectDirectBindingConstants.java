@@ -46,6 +46,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String APPLIANCE_TYPE_HOOD = "hood";
     public static final String APPLIANCE_TYPE_COOKTOP = "cooktop";
     public static final String APPLIANCE_TYPE_COOKTOP_ALTERNATIVE = "hob";
+    public static final String APPLIANCE_TYPE_FRIDGE_FREEZER = "fridgefreezer";
 
     // List of all thing type UIDs
     public static final ThingTypeUID THING_TYPE_GENERIC = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_GENERIC);
@@ -61,6 +62,8 @@ public class HomeConnectDirectBindingConstants {
     public static final ThingTypeUID THING_TYPE_OVEN = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_OVEN);
     public static final ThingTypeUID THING_TYPE_HOOD = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_HOOD);
     public static final ThingTypeUID THING_TYPE_COOKTOP = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_COOKTOP);
+    public static final ThingTypeUID THING_TYPE_FRIDGE_FREEZER = new ThingTypeUID(BINDING_ID,
+            APPLIANCE_TYPE_FRIDGE_FREEZER);
 
     // List of all channel type UIDs
     public static final ChannelTypeUID CHANNEL_TYPE_SWITCH = new ChannelTypeUID(BINDING_ID, "switch");
@@ -70,7 +73,7 @@ public class HomeConnectDirectBindingConstants {
     // Supported thing types
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Set.of(THING_TYPE_GENERIC, THING_TYPE_DISHWASHER,
             THING_TYPE_WASHER, THING_TYPE_WASHER_DRYER, THING_TYPE_DRYER, THING_TYPE_COFFEE_MAKER,
-            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_HOOD, THING_TYPE_COOKTOP);
+            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_HOOD, THING_TYPE_COOKTOP, THING_TYPE_FRIDGE_FREEZER);
 
     // Configuration properties
     public static final String PROPERTY_HOME_APPLIANCE_ID = HOME_APPLIANCE_ID;
@@ -136,6 +139,11 @@ public class HomeConnectDirectBindingConstants {
     public static final String HOOD_VENTING_LEVEL_ENUM_KEY = "Cooking.Hood.EnumType.Stage";
     public static final String HOOD_INTENSIVE_LEVEL = "Cooking.Common.Option.Hood.IntensiveLevel";
     public static final String HOOD_INTENSIVE_LEVEL_ENUM_KEY = "Cooking.Hood.EnumType.IntensiveStage";
+    public static final String FRIDGE_SET_POINT_TEMPERATURE = "Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator";
+    public static final String FREEZER_SET_POINT_TEMPERATURE = "Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer";
+    public static final String FRIDGE_CHILLER_SET_POINT_TEMPERATURE = "Refrigeration.FridgeFreezer.Setting.SetpointTemperatureChiller";
+    public static final String FRIDGE_SUPER_MODE = "Refrigeration.FridgeFreezer.Setting.SuperModeRefrigerator";
+    public static final String FREEZER_SUPER_MODE = "Refrigeration.FridgeFreezer.Setting.SuperModeFreezer";
 
     // Appliance Event Keys
     public static final String EVENT_POWER_STATE = POWER_STATE;
@@ -184,6 +192,13 @@ public class HomeConnectDirectBindingConstants {
     public static final String EVENT_HOOD_VENTING_LEVEL = HOOD_VENTING_LEVEL;
     public static final String EVENT_HOOD_INTENSIVE_LEVEL = HOOD_INTENSIVE_LEVEL;
     public static final String EVENT_CHILD_LOCK = CHILD_LOCK;
+    public static final String EVENT_FRIDGE_SET_POINT_TEMPERATURE = FRIDGE_SET_POINT_TEMPERATURE;
+    public static final String EVENT_FREEZER_SET_POINT_TEMPERATURE = FREEZER_SET_POINT_TEMPERATURE;
+    public static final String EVENT_FRIDGE_CHILLER_SET_POINT_TEMPERATURE = FRIDGE_CHILLER_SET_POINT_TEMPERATURE;
+    public static final String EVENT_FRIDGE_SUPER_MODE = FRIDGE_SUPER_MODE;
+    public static final String EVENT_FREEZER_SUPER_MODE = FREEZER_SUPER_MODE;
+    public static final String EVENT_FRIDGE_DOOR_STATE = "Refrigeration.FridgeFreezer.Status.DoorRefrigerator";
+    public static final String EVENT_FREEZER_DOOR_STATE = "Refrigeration.FridgeFreezer.Status.DoorFreezer";
 
     // Channels
     public static final String CHANNEL_POWER_STATE = "power_state";
@@ -233,6 +248,13 @@ public class HomeConnectDirectBindingConstants {
     public static final String CHANNEL_HOOD_VENTING_LEVEL = "hood_venting_level";
     public static final String CHANNEL_HOOD_INTENSIVE_LEVEL = "hood_intensive_level";
     public static final String CHANNEL_CHILD_LOCK = "child_lock";
+    public static final String CHANNEL_FRIDGE_DOOR_STATE = "refrigerator_door_state";
+    public static final String CHANNEL_FREEZER_DOOR_STATE = "freezer_door_state";
+    public static final String CHANNEL_FRIDGE_SET_POINT_TEMPERATURE = "setpoint_temperature_refrigerator";
+    public static final String CHANNEL_FREEZER_SET_POINT_TEMPERATURE = "setpoint_temperature_freezer";
+    public static final String CHANNEL_FRIDGE_CHILLER_SET_POINT_TEMPERATURE = "setpoint_temperature_chiller";
+    public static final String CHANNEL_FRIDGE_SUPER_MODE = "super_mode_refrigerator";
+    public static final String CHANNEL_FREEZER_SUPER_MODE = "super_mode_freezer";
 
     // State values
     public static final String STATE_OPEN = "Open";
