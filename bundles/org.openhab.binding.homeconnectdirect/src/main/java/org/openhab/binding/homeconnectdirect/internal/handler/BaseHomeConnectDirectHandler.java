@@ -99,6 +99,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -696,6 +697,20 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         return Optional.empty();
     }
 
+    protected Map<Integer, String> getEnumerationMembers(String enumerationKey) {
+        var applianceDescription = this.applianceDescription;
+        if (applianceDescription != null) {
+            HashMap<Integer, String> result = new HashMap<>();
+
+            applianceDescription.featureMapping().enumDescriptionList.stream()
+                    .filter(enumDescription -> enumDescription.key.equals(enumerationKey)).findFirst()
+                    .ifPresent(enumDescription -> enumDescription.values.forEach(result::put));
+            return result;
+        }
+
+        return Map.of();
+    }
+
     protected void sendGet(Resource resource) {
         sendGet(resource, null);
     }
@@ -921,7 +936,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                 message.action(), message.code(), message, eventDataList, descriptionChangeEventList);
     }
 
-    private void updateSelectedProgramDescription() {
+    protected void updateSelectedProgramDescription() {
         getLinkedChannel(CHANNEL_SELECTED_PROGRAM).ifPresent(channel -> {
             var selectedProgram = this.selectedProgram;
             var programOptions = programMap.entrySet().stream().filter(Map.Entry::getValue).map(Map.Entry::getKey)
@@ -943,7 +958,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         });
     }
 
-    private void updateActiveProgramDescription(Channel channel, String programName) {
+    protected void updateActiveProgramDescription(Channel channel, String programName) {
         var programOptions = List.of(new StateOption(programName, mapStringType(programName)));
 
         if (logger.isTraceEnabled()) {
