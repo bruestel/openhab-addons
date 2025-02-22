@@ -18,6 +18,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_COOKTOP;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DRYER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_FRIDGE_FREEZER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_HOOD;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_OVEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER;
@@ -36,6 +37,7 @@ import org.openhab.binding.homeconnectdirect.internal.handler.BaseHomeConnectDir
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectCoffeeMakerHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectCooktopHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectDishwasherHandler;
+import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectFridgeFreezerHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectHoodHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectOvenHandler;
 import org.openhab.binding.homeconnectdirect.internal.handler.HomeConnectDirectWasherDryerHandler;
@@ -100,6 +102,9 @@ public class HomeConnectDirectHandlerFactory extends BaseThingHandlerFactory {
             return new HomeConnectDirectHoodHandler(thing, applianceProfileService, descriptionProvider, deviceId);
         } else if (THING_TYPE_COOKTOP.equals(thingTypeUID)) {
             return new HomeConnectDirectCooktopHandler(thing, applianceProfileService, descriptionProvider, deviceId);
+        } else if (THING_TYPE_FRIDGE_FREEZER.equals(thingTypeUID)) {
+            return new HomeConnectDirectFridgeFreezerHandler(thing, applianceProfileService, descriptionProvider,
+                    deviceId);
         } else {
             return new BaseHomeConnectDirectHandler(thing, applianceProfileService, descriptionProvider, deviceId);
         }

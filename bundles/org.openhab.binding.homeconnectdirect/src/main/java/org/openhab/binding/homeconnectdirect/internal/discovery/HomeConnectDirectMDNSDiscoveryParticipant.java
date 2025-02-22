@@ -22,6 +22,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_COOK_PROCESSOR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_DRYER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_FRIDGE_FREEZER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_HOOD;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_OVEN;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER;
@@ -36,6 +37,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_COOK_PROCESSOR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DISHWASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_DRYER;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_FRIDGE_FREEZER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_GENERIC;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_HOOD;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_OVEN;
@@ -176,6 +178,8 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
         } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_COOKTOP_ALTERNATIVE)
                 || equalsIgnoreCase(type, APPLIANCE_TYPE_COOKTOP)) {
             return THING_TYPE_COOKTOP;
+        } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_FRIDGE_FREEZER)) {
+            return THING_TYPE_FRIDGE_FREEZER;
         } else {
             return THING_TYPE_GENERIC;
         }
@@ -200,6 +204,8 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
             return "@text/appliance.hood.label [\"" + brand + "\"]";
         } else if (THING_TYPE_COOKTOP.equals(thingTypeUID)) {
             return "@text/appliance.cooktop.label [\"" + brand + "\"]";
+        } else if (THING_TYPE_FRIDGE_FREEZER.equals(thingTypeUID)) {
+            return "@text/appliance.fridgefreezer.label [\"" + brand + "\"]";
         } else {
             return "@text/appliance.generic.label [\"" + brand + "\"]";
         }

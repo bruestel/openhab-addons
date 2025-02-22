@@ -225,7 +225,24 @@
 		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
 	</thing-type>
 
-	<!-- TODO add freezer, fridgefreezer, refrigerator, winecooler, cleaningrobot, warmingdrawer -->
+	<thing-type id="fridgefreezer" extensible="switch, string, number">
+		<label>Refrigerator / Freezer</label>
+		<description>Home Connect connected fridge / freezer.</description>
+		<channels>
+			<channel id="door_state" typeId="door_state"/>
+			<channel id="refrigerator_door_state" typeId="door_state"/>
+			<channel id="freezer_door_state" typeId="door_state"/>
+			<channel id="setpoint_temperature_refrigerator" typeId="setpoint_temperature_refrigerator"/>
+			<channel id="super_mode_refrigerator" typeId="super_mode_refrigerator"/>
+			<channel id="setpoint_temperature_freezer" typeId="setpoint_temperature_freezer"/>
+			<channel id="super_mode_freezer" typeId="super_mode_freezer"/>
+			<channel id="setpoint_temperature_chiller" typeId="setpoint_temperature_chiller"/>
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
+	<!-- TODO add winecooler, cleaningrobot, warmingdrawer -->
 
 	<thing-type id="generic" extensible="switch, string, number">
 		<label>Generic appliance</label>
@@ -519,6 +536,47 @@
 		<label>Meat Probe Temperature</label>
 		<description>This status describes the oven meat probe temperature of the home appliance (if available).</description>
 		<state readOnly="true" pattern="%.0f %unit%"/>
+	</channel-type>
+	<channel-type id="setpoint_temperature_refrigerator">
+		<item-type>Number:Temperature</item-type>
+		<label>Refrigerator Temperature</label>
+		<description>Target temperature of the refrigerator compartment (Range depends on appliance - common range 2 to 8°C).</description>
+		<state step="1" pattern="%.0f %unit%"/>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="setpoint_temperature_freezer">
+		<item-type>Number:Temperature</item-type>
+		<label>Freezer Temperature</label>
+		<description>Target temperature of the freezer compartment (Range depends on appliance - common range -16 to -24°C).</description>
+		<state step="1" pattern="%.0f %unit%"/>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="setpoint_temperature_chiller">
+		<item-type>Number:Temperature</item-type>
+		<label>Chiller Temperature</label>
+		<description>Target temperature of the chiller compartment.</description>
+		<state step="1" pattern="%.0f %unit%"/>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="super_mode_refrigerator">
+		<item-type>Switch</item-type>
+		<label>Refrigerator Super Mode</label>
+		<description>The setting has no impact on setpoint temperatures but will make the fridge compartment cool to the
+			lowest possible temperature until it is disabled manually by the customer or by the HA because of a timeout.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+	<channel-type id="super_mode_freezer">
+		<item-type>Switch</item-type>
+		<label>Freezer Super Mode</label>
+		<description>This setting has no impact on setpoint temperatures but will make the freezer compartment cool to the
+			lowest possible temperature until it is disabled manually by the customer or by the home appliance because of a
+			timeout.</description>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 
 	<!-- Dynamic Channels -->
