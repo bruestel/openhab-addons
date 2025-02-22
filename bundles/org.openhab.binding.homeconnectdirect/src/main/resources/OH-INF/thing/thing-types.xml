@@ -177,6 +177,7 @@
 			<channel id="remaining_program_time" typeId="remaining_program_time"/>
 			<channel id="duration" typeId="oven_duration"/>
 			<channel id="oven_current_cavity_temperature" typeId="oven_current_cavity_temperature"/>
+			<channel id="oven_current_meat_probe_temperature" typeId="oven_current_meat_probe_temperature"/>
 
 			<!-- TODO impl.
 				<channel id="elapsed_program_time" typeId="elapsed_program_time"/>
@@ -511,6 +512,12 @@
 		<item-type>Number:Temperature</item-type>
 		<label>Cavity Temperature</label>
 		<description>This status describes the oven cavity temperature of the home appliance.</description>
+		<state readOnly="true" pattern="%.0f %unit%"/>
+	</channel-type>
+	<channel-type id="oven_current_meat_probe_temperature">
+		<item-type>Number:Temperature</item-type>
+		<label>Meat Probe Temperature</label>
+		<description>This status describes the oven meat probe temperature of the home appliance (if available).</description>
 		<state readOnly="true" pattern="%.0f %unit%"/>
 	</channel-type>
 
