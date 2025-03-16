@@ -541,24 +541,21 @@
 		<item-type>Number:Temperature</item-type>
 		<label>Refrigerator Temperature</label>
 		<description>Target temperature of the refrigerator compartment (Range depends on appliance - common range 2 to 8°C).</description>
-		<state step="1" pattern="%.0f %unit%"/>
-		<state readOnly="false"/>
+		<state readOnly="false" step="1" pattern="%.0f %unit%"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 	<channel-type id="setpoint_temperature_freezer">
 		<item-type>Number:Temperature</item-type>
 		<label>Freezer Temperature</label>
 		<description>Target temperature of the freezer compartment (Range depends on appliance - common range -16 to -24°C).</description>
-		<state step="1" pattern="%.0f %unit%"/>
-		<state readOnly="false"/>
+		<state readOnly="false" step="1" pattern="%.0f %unit%"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 	<channel-type id="setpoint_temperature_chiller">
 		<item-type>Number:Temperature</item-type>
 		<label>Chiller Temperature</label>
 		<description>Target temperature of the chiller compartment.</description>
-		<state step="1" pattern="%.0f %unit%"/>
-		<state readOnly="false"/>
+		<state readOnly="false" step="1" pattern="%.0f %unit%"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 	<channel-type id="super_mode_refrigerator">
