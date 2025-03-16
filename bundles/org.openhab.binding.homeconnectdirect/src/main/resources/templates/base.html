@@ -145,7 +145,7 @@
     <span th:if="${utils.isOven(type)}" class="mdi mdi-stove mdi-24px me-1"></span>
     <span th:if="${utils.isHood(type)}" class="mdi mdi-fan mdi-24px me-1"></span>
     <span th:if="${utils.isCooktop(type)}" class="mdi mdi-gas-burner mdi-24px me-1"></span>
-    <span th:if="${utils.isFridgeFreezer()(type)}" class="mdi mdi-fridge mdi-24px me-1"></span>
+    <span th:if="${utils.isFridgeFreezer(type)}" class="mdi mdi-fridge mdi-24px me-1"></span>
     <span th:if="${utils.isGeneric(type)}" class="mdi mdi-home-automation mdi-24px me-1"></span>
 </th:block>
 
