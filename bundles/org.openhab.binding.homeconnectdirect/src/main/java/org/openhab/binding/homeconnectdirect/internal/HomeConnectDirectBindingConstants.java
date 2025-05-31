@@ -94,7 +94,8 @@ public class HomeConnectDirectBindingConstants {
     public static final Duration UPDATE_ALL_MANDATORY_VALUES_INTERVAL = Duration.ofMinutes(60);
 
     // Home Connect WebSocket Client
-    public static final String WS_DEVICE_TYPE = "Application";
+    public static final String WS_DEVICE_TYPE_APPLICATION_V2 = "Application";
+    public static final Integer WS_DEVICE_TYPE_APPLICATION_V1 = 2;
     public static final String WS_DEVICE_NAME = "HC Direct";
     public static final String WS_DEVICE_ID_PREFIX = "cafebabe0000";
     public static final String WS_DEVICE_ID_PATH = OpenHAB.getUserDataFolder() + File.separator + BINDING_ID + ".id";

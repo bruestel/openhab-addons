@@ -14,5 +14,5 @@ package org.openhab.binding.homeconnectdirect.internal.service.websocket.model;
 
 import com.google.gson.annotations.SerializedName;
 
-public record DeviceData(String deviceType, String deviceName, @SerializedName("deviceID") String deviceId) {
+public record DeviceData(Object deviceType, String deviceName, @SerializedName("deviceID") String deviceId) {
 }

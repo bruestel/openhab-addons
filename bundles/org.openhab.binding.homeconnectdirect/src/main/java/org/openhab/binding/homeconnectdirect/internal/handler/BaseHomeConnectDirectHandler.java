@@ -65,7 +65,8 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.UPDATE_ALL_MANDATORY_VALUES_INTERVAL;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_AES_URI_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_NAME;
-import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_TYPE;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_TYPE_APPLICATION_V1;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_DEVICE_TYPE_APPLICATION_V2;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.WS_TLS_URI_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.service.profile.model.ConnectionType.AES;
 import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Action.GET;
@@ -459,7 +460,9 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                         outgoingMessageId = Objects.requireNonNull(message.data()).get(0).messageId();
 
                         // reply
-                        var data = new DeviceData(WS_DEVICE_TYPE, WS_DEVICE_NAME, deviceId);
+                        var deviceType = message.version() == 1 ? WS_DEVICE_TYPE_APPLICATION_V1
+                                : WS_DEVICE_TYPE_APPLICATION_V2;
+                        var data = new DeviceData(deviceType, WS_DEVICE_NAME, deviceId);
                         send(RESPONSE, message.resource(), List.of(data), message.messageId(), message.version());
 
                         // get services
@@ -469,15 +472,15 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                     }
                 }
                 case RESPONSE, NOTIFY -> {
-                    if (msg.code() != null) {
-                        logger.trace("Received message: resource={} code={} thingUID={}", msg.resource(), msg.code(),
-                                thing.getUID());
-                    } else if (CI_SERVICES.equals(msg.resource())) {
-                        Message<Service> message = Objects
-                                .requireNonNull(gson.fromJson(rawMessage, new TypeToken<Message<Service>>() {
-                                }.getType()));
+                    if (CI_SERVICES.equals(msg.resource())) {
                         services.clear();
-                        services.addAll(Objects.requireNonNull(message.data()));
+
+                        if (Objects.isNull(msg.code())) {
+                            Message<Service> message = Objects
+                                    .requireNonNull(gson.fromJson(rawMessage, new TypeToken<Message<Service>>() {
+                                    }.getType()));
+                            services.addAll(Objects.requireNonNull(message.data()));
+                        }
 
                         // authenticate (needed by washer)
                         sendGet(CI_AUTHENTICATION, List.of(Map.of("nonce", generateNonce())));
@@ -501,6 +504,9 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                         sendGet(RO_ALL_MANDATORY_VALUES);
                         sendGet(RO_VALUES);
                         sendGet(RO_ALL_DESCRIPTION_CHANGES);
+                    } else if (msg.code() != null) {
+                        logger.trace("Received message: resource={} code={} thingUID={}", msg.resource(), msg.code(),
+                                thing.getUID());
                     } else if (IZ_INFO.equals(msg.resource()) || CI_INFO.equals(msg.resource())) {
                         Message<ApplianceInfo> message = Objects
                                 .requireNonNull(gson.fromJson(rawMessage, new TypeToken<Message<ApplianceInfo>>() {
