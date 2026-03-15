@@ -26,7 +26,7 @@
 			<label>Message Queue Size</label>
 			<description>This is the maximum size of the message queue per home appliance. It specifies the maximum number of
 				messages that can be stored. The higher this value is, the more memory is used.</description>
-			<default>400</default>
+			<default>300</default>
 		</parameter>
 	</config-description>
 
