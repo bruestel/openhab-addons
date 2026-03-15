@@ -54,6 +54,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String APPLIANCE_TYPE_COOK_PROCESSOR = "cookprocessor";
     public static final String APPLIANCE_TYPE_COFFEE_MAKER = "coffeemaker";
     public static final String APPLIANCE_TYPE_OVEN = "oven";
+    public static final String APPLIANCE_TYPE_WARMING_DRAWER = "warmingdrawer";
     public static final String APPLIANCE_TYPE_HOOD = "hood";
     public static final String APPLIANCE_TYPE_COOKTOP = "cooktop";
     public static final String APPLIANCE_TYPE_COOKTOP_ALTERNATIVE = "hob";
@@ -71,6 +72,8 @@ public class HomeConnectDirectBindingConstants {
     public static final ThingTypeUID THING_TYPE_COOK_PROCESSOR = new ThingTypeUID(BINDING_ID,
             APPLIANCE_TYPE_COOK_PROCESSOR);
     public static final ThingTypeUID THING_TYPE_OVEN = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_OVEN);
+    public static final ThingTypeUID THING_TYPE_WARMING_DRAWER = new ThingTypeUID(BINDING_ID,
+            APPLIANCE_TYPE_WARMING_DRAWER);
     public static final ThingTypeUID THING_TYPE_HOOD = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_HOOD);
     public static final ThingTypeUID THING_TYPE_COOKTOP = new ThingTypeUID(BINDING_ID, APPLIANCE_TYPE_COOKTOP);
     public static final ThingTypeUID THING_TYPE_FRIDGE_FREEZER = new ThingTypeUID(BINDING_ID,
@@ -90,7 +93,8 @@ public class HomeConnectDirectBindingConstants {
     // Supported thing types
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Set.of(THING_TYPE_GENERIC, THING_TYPE_DISHWASHER,
             THING_TYPE_WASHER, THING_TYPE_WASHER_DRYER, THING_TYPE_DRYER, THING_TYPE_COFFEE_MAKER,
-            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_HOOD, THING_TYPE_COOKTOP, THING_TYPE_FRIDGE_FREEZER);
+            THING_TYPE_COOK_PROCESSOR, THING_TYPE_OVEN, THING_TYPE_WARMING_DRAWER, THING_TYPE_HOOD, THING_TYPE_COOKTOP,
+            THING_TYPE_FRIDGE_FREEZER);
 
     // Configuration properties
     public static final String PROPERTY_HOME_APPLIANCE_ID = HOME_APPLIANCE_ID;

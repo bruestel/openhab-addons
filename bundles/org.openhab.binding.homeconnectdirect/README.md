@@ -15,6 +15,7 @@ The following appliance types are supported. Appliance types marked with an aste
 | Washer / Dryer Combination      | `washerdryer`   |
 | Dryer                           | `dryer`         |
 | Oven                            | `oven`          |
+| Warming Drawer*                 | `warmingdrawer` |
 | Coffee Machine                  | `coffeemaker`   |
 | Hood*                           | `hood`          |
 | Cooktop (Hob)*                  | `cooktop`       |
@@ -70,20 +71,20 @@ These channels provide immediate access to common functions. Available channels 
 
 #### General Channels
 
-| Channel ID                     | Item Type            | Access | Description                                                                                                                                             | Supported Appliance Types                                                                  |
-|--------------------------------|----------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| `power-state`                  | Switch               | R/W    | Controls and monitors the appliance power state.                                                                                                        | Dishwasher, Cook Processor, Coffee Maker, Oven, Hood, Cooktop                              |
-| `door`                         | Contact              | R      | Indicates if the door is Open or Closed.                                                                                                                | Dishwasher, Washer, Washer/Dryer, Dryer                                                    |
-| `operation-state`              | String               | R      | Current state (e.g., Run, Ready, Finished).                                                                                                             | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Hood, Cooktop |
-| `remote-control-start-allowed` | Switch               | R      | Indicates if remote operation is enabled.                                                                                                               | Dishwasher, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Hood                          |
-| `child-lock`                   | Switch               | R/W    | The child lock state.                                                                                                                                   | Cook Processor, Washer, Washer/Dryer, Dryer, Oven, Cooktop                                 |
-| `active-program`               | String               | R      | The program currently running.                                                                                                                          | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Hood, Cooktop |
-| `selected-program`             | String               | R/W    | The program currently selected on the device.                                                                                                           | Dishwasher, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven                                |
-| `remaining-program-time`       | Number:Time          | R      | Estimated time remaining.                                                                                                                               | Dishwasher, Washer, Washer/Dryer, Dryer, Oven                                              |
-| `program-progress`             | Number:Dimensionless | R      | Progress in percent (0-100%).                                                                                                                           | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven                |
-| `program-command`              | String               | W      | Send commands like `start`, `pause`, or `resume`.                                                                                                       | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer                                    |
-| `command`                      | String               | W      | Send specific operation commands to the appliance.                                                                                                      | All                                                                                        |
-| `raw-message`                  | String               | W      | Advanced: Send raw JSON payloads.<br>Example (Start coffee program): `{"action": "POST", "resource": "/ro/activeProgram", "data": [{"program": 8217}]}` | All                                                                                        |
+| Channel ID                     | Item Type            | Access | Description                                                                                                                                             | Supported Appliance Types                                                                                  |
+|--------------------------------|----------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `power-state`                  | Switch               | R/W    | Controls and monitors the appliance power state.                                                                                                        | Dishwasher, Cook Processor, Coffee Maker, Oven, Warming Drawer, Hood, Cooktop                              |
+| `door`                         | Contact              | R      | Indicates if the door is Open or Closed.                                                                                                                | Dishwasher, Washer, Washer/Dryer, Dryer                                                                    |
+| `operation-state`              | String               | R      | Current state (e.g., Run, Ready, Finished).                                                                                                             | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood, Cooktop |
+| `remote-control-start-allowed` | Switch               | R      | Indicates if remote operation is enabled.                                                                                                               | Dishwasher, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood                          |
+| `child-lock`                   | Switch               | R/W    | The child lock state.                                                                                                                                   | Cook Processor, Washer, Washer/Dryer, Dryer, Oven, Cooktop                                                 |
+| `active-program`               | String               | R      | The program currently running.                                                                                                                          | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood, Cooktop |
+| `selected-program`             | String               | R/W    | The program currently selected on the device.                                                                                                           | Dishwasher, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer                                |
+| `remaining-program-time`       | Number:Time          | R      | Estimated time remaining.                                                                                                                               | Dishwasher, Washer, Washer/Dryer, Dryer, Oven, Warming Drawer                                              |
+| `program-progress`             | Number:Dimensionless | R      | Progress in percent (0-100%).                                                                                                                           | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer                |
+| `program-command`              | String               | W      | Send commands like `start`, `pause`, or `resume`.                                                                                                       | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer                                                    |
+| `command`                      | String               | W      | Send specific operation commands to the appliance.                                                                                                      | All                                                                                                        |
+| `raw-message`                  | String               | W      | Advanced: Send raw JSON payloads.<br>Example (Start coffee program): `{"action": "POST", "resource": "/ro/activeProgram", "data": [{"program": 8217}]}` | All                                                                                                        |
 
 #### Dishwasher Channels
 
@@ -125,13 +126,13 @@ These channels provide immediate access to common functions. Available channels 
 | `idos1-fill-level-poor`       | Switch      | R      | Indicates whether i-Dos 1 is almost empty (dynamically added).          |
 | `idos2-fill-level-poor`       | Switch      | R      | Indicates whether i-Dos 2 is almost empty (dynamically added).          |
 
-#### Oven Channels
+#### Oven & Warming Drawer Channels
 
 | Channel ID                   | Item Type          | Access | Description                                                                                           |
 |------------------------------|--------------------|--------|-------------------------------------------------------------------------------------------------------|
 | `oven-program-command`       | String             | W      | Controls program execution (`start`, `pause`, `resume`, `stop`).                                      |
-| `duration`                   | Number:Time        | R/W    | The duration of the oven program.                                                                     |
-| `setpoint-temperature`       | Number:Temperature | R/W    | Target temperature of the oven.                                                                       |
+| `duration`                   | Number:Time        | R/W    | The duration of the program (Oven).                                                                   |
+| `setpoint-temperature`       | Number:Temperature | R/W    | Target temperature.                                                                                   |
 | `temperature-{n}`            | Number:Temperature | R      | The current cavity temperature (dynamically added, where {n} is the cavity number).                   |
 | `cavity-light-{n}`           | Switch             | R/W    | The cavity light state (dynamically added, where {n} is the cavity number).                           |
 | `door-{n}`                   | Contact            | R      | Indicates if the door is Open or Closed (dynamically added, where {n} is the cavity number).          |
@@ -196,11 +197,11 @@ These channels reflect the **current actual values** of the home appliance. They
 
 Examples: "How hot is the oven?", "Is the door open?", "Which program is running?"
 
-| Channel Type ID | Item Type | Config Parameters | Description |
-|---|---|---|---|
-| `switch` | Switch | `valueKey` | For boolean values (true/false). |
-| `string` | String | `valueKey` | For text or enumeration values. |
-| `number` | Number | `valueKey`, `unit` | For numeric values. `unit` is optional (e.g., "°C", "%"). |
+| Channel Type ID | Item Type | Config Parameters  | Description                                               |
+|-----------------|-----------|--------------------|-----------------------------------------------------------|
+| `switch`        | Switch    | `valueKey`         | For boolean values (true/false).                          |
+| `string`        | String    | `valueKey`         | For text or enumeration values.                           |
+| `number`        | Number    | `valueKey`, `unit` | For numeric values. `unit` is optional (e.g., "°C", "%"). |
 
 #### 2. Device Description Channels
 
@@ -209,11 +210,11 @@ These channels describe the **capabilities and constraints** of the appliance. T
 Home Connect appliances are dynamic; allowed ranges or available options change based on the selected program or operation state.
 Examples: "What is the maximum allowed temperature for the current program?", "Can I currently change the power state (Read/Write) or is it locked (Read-Only)?", "Is a specific option available right now?"
 
-| Channel Type ID | Item Type | Config Parameters | Description |
-|---|---|---|---|
-| `device-description-switch` | Switch | `descriptionKey`, `attribute` | For boolean attributes (e.g. `available`). |
-| `device-description-string` | String | `descriptionKey`, `attribute` | For text attributes (e.g. `access`, `enumerationType`). |
-| `device-description-number` | Number | `descriptionKey`, `attribute` | For numeric attributes (e.g. `min`, `max`, `stepSize`). |
+| Channel Type ID             | Item Type | Config Parameters             | Description                                             |
+|-----------------------------|-----------|-------------------------------|---------------------------------------------------------|
+| `device-description-switch` | Switch    | `descriptionKey`, `attribute` | For boolean attributes (e.g. `available`).              |
+| `device-description-string` | String    | `descriptionKey`, `attribute` | For text attributes (e.g. `access`, `enumerationType`). |
+| `device-description-number` | Number    | `descriptionKey`, `attribute` | For numeric attributes (e.g. `min`, `max`, `stepSize`). |
 
 **Supported Attributes:**
 

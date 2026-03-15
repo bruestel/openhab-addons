@@ -21,6 +21,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_FRIDGE_FREEZER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_HOOD;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_OVEN;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WARMING_DRAWER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.APPLIANCE_TYPE_WASHER_AND_DRYER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CONNECTION_TYPE_AES_PORT;
@@ -38,6 +39,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_GENERIC;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_HOOD;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_OVEN;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WARMING_DRAWER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.THING_TYPE_WASHER_DRYER;
 import static org.openhab.binding.homeconnectdirect.internal.common.utils.StringUtils.*;
@@ -170,6 +172,8 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
             return THING_TYPE_COOK_PROCESSOR;
         } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_OVEN)) {
             return THING_TYPE_OVEN;
+        } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_WARMING_DRAWER)) {
+            return THING_TYPE_WARMING_DRAWER;
         } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_HOOD)) {
             return THING_TYPE_HOOD;
         } else if (equalsIgnoreCase(type, APPLIANCE_TYPE_COOKTOP_ALTERNATIVE)
@@ -197,6 +201,8 @@ public class HomeConnectDirectMDNSDiscoveryParticipant implements MDNSDiscoveryP
             return "@text/appliance.cookprocessor.label [\"" + brand + "\"]";
         } else if (THING_TYPE_OVEN.equals(thingTypeUID)) {
             return "@text/appliance.oven.label [\"" + brand + "\"]";
+        } else if (THING_TYPE_WARMING_DRAWER.equals(thingTypeUID)) {
+            return "@text/appliance.warmingdrawer.label [\"" + brand + "\"]";
         } else if (THING_TYPE_HOOD.equals(thingTypeUID)) {
             return "@text/appliance.hood.label [\"" + brand + "\"]";
         } else if (THING_TYPE_COOKTOP.equals(thingTypeUID)) {

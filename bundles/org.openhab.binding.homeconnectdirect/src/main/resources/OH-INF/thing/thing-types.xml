@@ -257,6 +257,36 @@
 		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
 	</thing-type>
 
+	<thing-type id="warmingdrawer"
+		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		<label>Warming Drawer</label>
+		<description>Warming Drawer which supports Home Connect.</description>
+		<semantic-equipment-tag>Oven</semantic-equipment-tag>
+		<channels>
+			<!-- general -->
+			<channel id="remote-control-start-allowed" typeId="remote-control-start-allowed-channel"/>
+			<channel id="power-state" typeId="system.power"/>
+			<channel id="operation-state" typeId="operation-state-channel"/>
+			<channel id="command" typeId="command-channel"/>
+			<channel id="raw-message" typeId="raw-message-channel"/>
+
+			<!-- warming drawer specific -->
+			<channel id="oven-program-command" typeId="oven-program-command-channel"/>
+
+			<!-- program -->
+			<channel id="active-program" typeId="active-program-channel"/>
+			<channel id="selected-program" typeId="selected-program-channel"/>
+			<channel id="program-progress" typeId="program-progress-channel"/>
+			<channel id="remaining-program-time" typeId="remaining-program-time-channel"/>
+
+			<!-- program options -->
+			<channel id="setpoint-temperature" typeId="oven-setpoint-temperature-channel"/>
+
+		</channels>
+		<representation-property>haId</representation-property>
+		<config-description-ref uri="thing-type:homeconnectdirect:appliance"/>
+	</thing-type>
+
 	<thing-type id="hood"
 		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
 		<label>Hood</label>
