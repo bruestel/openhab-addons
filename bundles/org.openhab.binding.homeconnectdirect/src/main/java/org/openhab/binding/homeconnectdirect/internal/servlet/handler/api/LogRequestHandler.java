@@ -353,7 +353,7 @@ public class LogRequestHandler {
             } else {
                 for (ApplianceMessage message : messages) {
                     if (message.type() == null || message.dateTime() == null || message.resource() == null
-                            || message.action() == null || message.values() == null) {
+                            || message.action() == null) {
                         isValid = false;
                     }
                 }
