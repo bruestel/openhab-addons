@@ -1038,7 +1038,7 @@ function app() {
 
         getFilteredDescriptionEntries(description) {
             if (!description) return [];
-            const excludedKeys = ['key', 'uid', 'parentUid', 'parentKey', 'parentType', 'changes', 'type', 'object'];
+            const excludedKeys = ['key', 'uid', 'parentUid', 'parentKey', 'parentType', 'changes', 'type', 'object', 'value'];
             return Object.entries(description)
                 .filter(([key, value]) => !excludedKeys.includes(key) && value !== null && value !== undefined);
         },
@@ -1290,7 +1290,7 @@ function app() {
 
         getFilteredRawPayloadEntries(payload) {
             if (!payload) return [];
-            const excludedKeys = ['uid', 'parentUID'];
+            const excludedKeys = ['uid', 'parentUID', 'value'];
             return Object.entries(payload)
                 .filter(([key, value]) => !excludedKeys.includes(key) && value !== null && value !== undefined);
         },

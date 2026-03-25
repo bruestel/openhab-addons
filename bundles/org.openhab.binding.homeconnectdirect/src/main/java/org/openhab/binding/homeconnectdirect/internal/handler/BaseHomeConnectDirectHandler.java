@@ -64,6 +64,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.REMOTE_CONTROL_START_ALLOWED_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.RESUME_PROGRAM_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SELECTED_PROGRAM_KEY;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_AJAR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_FINISHED;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_MAINS_OFF;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_NO_PROGRAM;
@@ -718,7 +719,8 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
             case POWER_STATE_KEY -> updateStateIfLinked(CHANNEL_POWER_STATE,
                     () -> OnOffType.from(STATE_ON.equalsIgnoreCase(value.getValueAsString())));
             case DOOR_STATE_KEY -> updateStateIfLinked(CHANNEL_DOOR,
-                    () -> STATE_OPEN.equals(value.value()) ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
+                    () -> STATE_OPEN.equals(value.value()) || STATE_AJAR.equals(value.value()) ? OpenClosedType.OPEN
+                            : OpenClosedType.CLOSED);
             case OPERATION_STATE_KEY -> {
                 var oldOperationState = keyValueStore.get(OPERATION_STATE_KEY);
                 var newOperationState = value.getValueAsString();
@@ -939,7 +941,7 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
     protected void sendIntegerSettingIfAllowed(QuantityType<?> command, String settingKey) {
         getDeviceDescriptionServiceOptional().ifPresent(deviceDescriptionService -> {
             if (deviceDescriptionService.isSettingAvailableAndWritable(settingKey)) {
-                mapOptionKey(settingKey).ifPresent(optionUid -> send(Action.POST, RO_VALUES,
+                mapSettingKey(settingKey).ifPresent(optionUid -> send(Action.POST, RO_VALUES,
                         List.of(new ValueData(optionUid, command.intValue())), null, 1));
             } else {
                 logger.info(
@@ -1101,10 +1103,23 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
 
         // handle device description change messages
         List<DeviceDescriptionChange> deviceDescriptionChanges = null;
+        List<Value> specialMappedValues = null;
         if (incoming && deviceDescriptionService != null && (RO_DESCRIPTION_CHANGE.equals(message.resource())
                 || RO_ALL_DESCRIPTION_CHANGES.equals(message.resource()))) {
-            deviceDescriptionChanges = deviceDescriptionService
-                    .applyDescriptionChanges(message.getDataAsList(DescriptionChangeData.class));
+            var descriptionChangeData = message.getDataAsList(DescriptionChangeData.class);
+            deviceDescriptionChanges = deviceDescriptionService.applyDescriptionChanges(descriptionChangeData);
+
+            // some appliances emit value changes together with description changes
+            if (descriptionChangeData != null && featureMappingService != null) {
+                var featureMapping = featureMappingService.getFeatureMapping();
+                var deviceDescriptionChangeValues = descriptionChangeData.stream()
+                        .filter(description -> description.value() != null)
+                        .map(description -> new ValueData(description.uid(),
+                                Objects.requireNonNull(description.value())))
+                        .toList();
+                specialMappedValues = DeviceDescriptionUtils.mapValues(deviceDescriptionService, featureMapping,
+                        message.resource(), deviceDescriptionChangeValues);
+            }
         }
 
         // handle value messages
@@ -1117,10 +1132,22 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                     message.resource(), valueDataList);
         }
 
+        // special case: desciption change and value messages
+        List<Value> combinedValues = null;
+        if (mappedValues != null || specialMappedValues != null) {
+            combinedValues = new ArrayList<>();
+            if (mappedValues != null) {
+                combinedValues.addAll(mappedValues);
+            }
+            if (specialMappedValues != null) {
+                combinedValues.addAll(specialMappedValues);
+            }
+        }
+
         return new ApplianceMessage(OffsetDateTime.now(ZONE_ID), message.messageId(),
                 incoming ? MessageType.INCOMING : MessageType.OUTGOING, message.resource(), message.version(),
                 message.sessionId(), message.messageId(), message.action(), message.code(), message.data(),
-                mappedValues, deviceDescriptionChanges);
+                (combinedValues == null || combinedValues.isEmpty()) ? null : combinedValues, deviceDescriptionChanges);
     }
 
     private void updateSelectedProgramDescription() {

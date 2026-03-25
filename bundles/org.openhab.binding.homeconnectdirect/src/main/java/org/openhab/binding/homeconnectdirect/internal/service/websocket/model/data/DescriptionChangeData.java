@@ -21,6 +21,6 @@ import com.google.gson.annotations.SerializedName;
 @NonNullByDefault
 public record DescriptionChangeData(int uid, @SerializedName("parentUID") @Nullable Integer parentUid,
         @Nullable Boolean available, @Nullable Access access, @Nullable Number min, @Nullable Number max,
-        @Nullable Number stepSize, @SerializedName("default") @Nullable String defaultValue,
-        @Nullable Integer enumType) {
+        @Nullable Number stepSize, @SerializedName("default") @Nullable String defaultValue, @Nullable Integer enumType,
+        @Nullable Object value) {
 }

@@ -1072,7 +1072,7 @@
                             <pre x-html="getHighlightedSourceContent(currentMessage.values)" class="source-code"></pre>
                         </div>
                     </details>
-                    <details x-show="currentMessage.descriptionChanges && currentMessage.descriptionChanges.length > 0" open>
+                    <details x-show="currentMessage.descriptionChanges && currentMessage.descriptionChanges.length > 0" :open="!(currentMessage.values && currentMessage.values.length > 0)">
                         <summary>Description Change(s)</summary>
                         <div class="code-container">
                             <button class="copy-overlay-btn" @click="copySource(currentMessage.descriptionChanges)">Copy</button>

@@ -1049,6 +1049,53 @@
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 	</channel-type>
 
+	<channel-type id="fridgefreezer-chiller-preset-channel">
+		<item-type>String</item-type>
+		<label>Chiller Preset</label>
+		<description>Allows selecting a predefined cooling mode for the chiller compartment.</description>
+		<tags>
+			<tag>Control</tag>
+			<tag>Mode</tag>
+		</tags>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+
+	<channel-type id="fridgefreezer-dispenser-water-filter-saturation-channel">
+		<item-type>Number:Dimensionless</item-type>
+		<label>Dispenser Water Filter Saturation</label>
+		<description>Indicates the current saturation level of the water dispenser filter. A higher value suggests the filter
+			is approaching the end of its service life and may need replacement soon.</description>
+		<tags>
+			<tag>Status</tag>
+		</tags>
+		<state readOnly="true" min="0" max="100" pattern="%d %unit%"/>
+	</channel-type>
+
+	<channel-type id="fridgefreezer-dispenser-enabled-channel">
+		<item-type>Switch</item-type>
+		<label>Dispenser Enabled</label>
+		<description>Enables or disables the dispenser.</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+
+	<channel-type id="fridgefreezer-dispenser-party-mode-channel">
+		<item-type>Switch</item-type>
+		<label>Dispenser Party Mode</label>
+		<description>Enables or disables the dispenser party mode.</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
+		<state readOnly="false"/>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+
 	<channel-type id="command-channel">
 		<item-type>String</item-type>
 		<label>Command</label>

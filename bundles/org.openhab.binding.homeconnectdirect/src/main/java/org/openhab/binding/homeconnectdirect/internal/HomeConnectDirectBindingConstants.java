@@ -206,12 +206,24 @@ public class HomeConnectDirectBindingConstants {
     public static final String OVEN_CURRENT_MEAT_PROBE_TEMPERATURE_KEY = "Cooking.Oven.Status.CurrentMeatprobeTemperature";
     public static final String OVEN_CAVITY_SELECTOR_ENUM_KEY = "Cooking.Oven.EnumType.CavitySelector";
     public static final String FRIDGE_DOOR_STATE_KEY = "Refrigeration.FridgeFreezer.Status.DoorRefrigerator";
+    public static final String FRIDGE_DOOR_STATE_2_KEY = "Refrigeration.Common.Status.Door.Refrigerator";
+    public static final String FRIDGE_CHILLER_DOOR_STATE_KEY = "Refrigeration.Common.Status.Door.ChillerCommon";
     public static final String FRIDGE_SET_POINT_TEMPERATURE_KEY = "Refrigeration.FridgeFreezer.Setting.SetpointTemperatureRefrigerator";
+    public static final String FRIDGE_SET_POINT_TEMPERATURE_2_KEY = "Refrigeration.Common.Setting.Refrigerator.SetpointTemperature";
     public static final String FRIDGE_CHILLER_SET_POINT_TEMPERATURE_KEY = "Refrigeration.FridgeFreezer.Setting.SetpointTemperatureChiller";
+    public static final String FRIDGE_CHILLER_SET_POINT_TEMPERATURE_2_KEY = "Refrigeration.Common.Setting.ChillerCommon.SetpointTemperature";
+    public static final String FRIDGE_CHILLER_PRESET_KEY = "Refrigeration.Common.Setting.ChillerCommon.Preset";
     public static final String FRIDGE_SUPER_MODE_KEY = "Refrigeration.FridgeFreezer.Setting.SuperModeRefrigerator";
+    public static final String FRIDGE_SUPER_MODE_2_KEY = "Refrigeration.Common.Setting.Refrigerator.SuperMode";
+    public static final String FRIDGE_DISPENSER_WATER_FILTER_SATURATION_KEY = "Refrigeration.Common.Status.Dispenser.WaterFilterSaturation";
+    public static final String FRIDGE_DISPENSER_PARTY_MODE_KEY = "Refrigeration.Common.Setting.Dispenser.PartyMode";
+    public static final String FRIDGE_DISPENSER_ENABLED_KEY = "Refrigeration.Common.Setting.Dispenser.Enabled";
     public static final String FREEZER_SET_POINT_TEMPERATURE_KEY = "Refrigeration.FridgeFreezer.Setting.SetpointTemperatureFreezer";
+    public static final String FREEZER_SET_POINT_TEMPERATURE_2_KEY = "Refrigeration.Common.Setting.Freezer.SetpointTemperature";
     public static final String FREEZER_DOOR_STATE_KEY = "Refrigeration.FridgeFreezer.Status.DoorFreezer";
+    public static final String FREEZER_DOOR_STATE_2_KEY = "Refrigeration.Common.Status.Door.Freezer";
     public static final String FREEZER_SUPER_MODE_KEY = "Refrigeration.FridgeFreezer.Setting.SuperModeFreezer";
+    public static final String FREEZER_SUPER_MODE_2_KEY = "Refrigeration.Common.Setting.Freezer.SuperMode";
 
     // Appliance Template Keys
     public static final String OVEN_DOOR_STATE_KEY_TEMPLATE = "Cooking.Oven.Status.Cavity.%03d.DoorState";
@@ -284,9 +296,14 @@ public class HomeConnectDirectBindingConstants {
     public static final String CHANNEL_CHILD_LOCK = "child-lock";
     public static final String CHANNEL_FRIDGE_DOOR_STATE = "refrigerator-door";
     public static final String CHANNEL_FREEZER_DOOR_STATE = "freezer-door";
+    public static final String CHANNEL_FRIDGE_CHILLER_DOOR_STATE = "chiller-door";
+    public static final String CHANNEL_FRIDGE_DISPENSER_WATER_FILTER_SATURATION = "dispenser-water-filter-saturation";
+    public static final String CHANNEL_FRIDGE_DISPENSER_ENABLED = "dispenser-enabled";
+    public static final String CHANNEL_FRIDGE_DISPENSER_PARTY_MODE = "dispenser-party-mode";
     public static final String CHANNEL_FRIDGE_SET_POINT_TEMPERATURE = "setpoint-temperature-refrigerator";
     public static final String CHANNEL_FREEZER_SET_POINT_TEMPERATURE = "setpoint-temperature-freezer";
     public static final String CHANNEL_FRIDGE_CHILLER_SET_POINT_TEMPERATURE = "setpoint-temperature-chiller";
+    public static final String CHANNEL_FRIDGE_CHILLER_PRESET = "chiller-preset";
     public static final String CHANNEL_FRIDGE_SUPER_MODE = "super-mode-refrigerator";
     public static final String CHANNEL_FREEZER_SUPER_MODE = "super-mode-freezer";
     public static final String CHANNEL_RAW_MESSAGE = "raw-message";
@@ -308,9 +325,14 @@ public class HomeConnectDirectBindingConstants {
     public static final String CHANNEL_TYPE_OVEN_CAVITY_LIGHT = "oven-cavity-light-channel";
     public static final String CHANNEL_TYPE_FRIDGE_FREEZER_SET_POINT_TEMPERATURE = "fridgefreezer-setpoint-temperature-channel";
     public static final String CHANNEL_TYPE_FRIDGE_FREEZER_SUPER_MODE = "fridgefreezer-super-mode-channel";
+    public static final String CHANNEL_TYPE_FRIDGE_DISPENSER_WATER_FILTER_SATURATION = "fridgefreezer-dispenser-water-filter-saturation-channel";
+    public static final String CHANNEL_TYPE_FRIDGE_DISPENSER_ENABLED = "fridgefreezer-dispenser-enabled-channel";
+    public static final String CHANNEL_TYPE_FRIDGE_DISPENSER_PARTY_MODE = "fridgefreezer-dispenser-party-mode-channel";
+    public static final String CHANNEL_TYPE_FRIDGE_CHILLER_PRESET = "fridgefreezer-chiller-preset-channel";
 
     // State values
     public static final String STATE_OPEN = "Open";
+    public static final String STATE_AJAR = "Ajar";
     public static final String STATE_ON = "On";
     public static final String STATE_OFF = "Off";
     public static final String STATE_MAINS_OFF = "MainsOff";
@@ -340,6 +362,7 @@ public class HomeConnectDirectBindingConstants {
 
     // Dimensions
     public static final String NUMBER_TEMPERATURE = CoreItemFactory.NUMBER + ":Temperature";
+    public static final String NUMBER_DIMENSIONLESS = CoreItemFactory.NUMBER + ":Dimensionless";
 
     // i18n
     public static final String I18N_I_DOS_FILL_LEVEL_POOR = "channel.idos.fill-level-poor";
@@ -356,6 +379,10 @@ public class HomeConnectDirectBindingConstants {
     public static final String I18N_FRIDGE_FREEZER_SET_POINT_TEMPERATURE = "channel.fridgefreezer.setpoint";
     public static final String I18N_FRIDGE_FREEZER_DOOR = "channel.fridgefreezer.door";
     public static final String I18N_FRIDGE_FREEZER_SUPER_MODE = "channel.fridgefreezer.super-mode";
+    public static final String I18N_FRIDGE_DISPENSER_WATER_FILTER_SATURATION = "channel.fridgefreezer.water-filter-saturation";
+    public static final String I18N_FRIDGE_DISPENSER_ENABLED = "channel.fridgefreezer.dispenser-enabled";
+    public static final String I18N_FRIDGE_DISPENSER_PARTY_MODE = "channel.fridgefreezer.dispenser-party-mode";
+    public static final String I18N_FRIDGE_CHILLER_PRESET = "channel.fridgefreezer.chiller-preset";
     public static final String I18N_DOOR = "channel.door";
 
     // Device Description Attributes

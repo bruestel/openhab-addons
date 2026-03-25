@@ -174,16 +174,20 @@ These channels provide immediate access to common functions. Available channels 
 
 #### Fridge / Freezer Channels
 
-| Channel ID                          | Item Type          | Access | Description                                                                                      |
-|-------------------------------------|--------------------|--------|--------------------------------------------------------------------------------------------------|
-| `refrigerator-door`                 | Contact            | R      | Indicates if the refrigerator door is Open or Closed (dynamically added).                        |
-| `freezer-door`                      | Contact            | R      | Indicates if the freezer door is Open or Closed (dynamically added).                             |
-| `door`                              | Contact            | R      | Indicates if the door is Open or Closed (dynamically added - fallback if specific doors absent). |
-| `setpoint-temperature-refrigerator` | Number:Temperature | R/W    | Target temperature of the refrigerator compartment (dynamically added).                          |
-| `setpoint-temperature-freezer`      | Number:Temperature | R/W    | Target temperature of the freezer compartment (dynamically added).                               |
-| `setpoint-temperature-chiller`      | Number:Temperature | R/W    | Target temperature of the chiller compartment (dynamically added).                               |
-| `super-mode-refrigerator`           | Switch             | R/W    | Enables Super Cooling mode for the refrigerator (dynamically added).                             |
-| `super-mode-freezer`                | Switch             | R/W    | Enables Super Freezing mode for the freezer (dynamically added).                                 |
+| Channel ID                          | Item Type            | Access | Description                                                                                      |
+|-------------------------------------|----------------------|--------|--------------------------------------------------------------------------------------------------|
+| `refrigerator-door`                 | Contact              | R      | Indicates if the refrigerator door is Open or Closed (dynamically added).                        |
+| `freezer-door`                      | Contact              | R      | Indicates if the freezer door is Open or Closed (dynamically added).                             |
+| `door`                              | Contact              | R      | Indicates if the door is Open or Closed (dynamically added - fallback if specific doors absent). |
+| `setpoint-temperature-refrigerator` | Number:Temperature   | R/W    | Target temperature of the refrigerator compartment (dynamically added).                          |
+| `setpoint-temperature-freezer`      | Number:Temperature   | R/W    | Target temperature of the freezer compartment (dynamically added).                               |
+| `setpoint-temperature-chiller`      | Number:Temperature   | R/W    | Target temperature of the chiller compartment (dynamically added).                               |
+| `super-mode-refrigerator`           | Switch               | R/W    | Enables Super Cooling mode for the refrigerator (dynamically added).                             |
+| `super-mode-freezer`                | Switch               | R/W    | Enables Super Freezing mode for the freezer (dynamically added).                                 |
+| `dispenser-enabled`                 | Switch               | R/W    | Enables or disables the dispenser (dynamically added).                                           |
+| `dispenser-party-mode`              | Switch               | R/W    | Enables or disables the dispenser party mode (dynamically added).                                |
+| `dispenser-water-filter-saturation` | Number:Dimensionless | R      | Water filter saturation level of the dispenser in percent (dynamically added).                   |
+| `chiller-preset`                    | String               | R/W    | Allows selecting a predefined cooling mode for the chiller compartment (dynamically added).      |
 
 ### Custom Channels
 

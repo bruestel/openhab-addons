@@ -55,6 +55,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.PAUSE_PROGRAM_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.RESUME_PROGRAM_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.SELECTED_PROGRAM_KEY;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_AJAR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_NO_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
 import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_ACTIVE_PROGRAM;
@@ -88,6 +89,7 @@ import org.openhab.binding.homeconnectdirect.internal.service.profile.ApplianceP
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Action;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.data.ProgramData;
 import org.openhab.core.library.CoreItemFactory;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.OpenClosedType;
 import org.openhab.core.library.types.QuantityType;
@@ -157,8 +159,10 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
                 logger.warn("Could not set duration! uid={}", getThing().getUID());
             }
         } else if (CHANNEL_OVEN_SET_POINT_TEMPERATURE.equals(channelUID.getId())
-                && command instanceof QuantityType<?> quantity) {
+                && (command instanceof QuantityType<?> || command instanceof DecimalType)) {
             var unit = getTemperatureUnitOfOption(OVEN_SET_POINT_TEMPERATURE_KEY);
+            QuantityType<?> quantity = (command instanceof QuantityType<?> qt) ? qt
+                    : new QuantityType<>(((DecimalType) command), unit);
             var temperatureQuantityType = quantity.toUnit(unit);
             if (temperatureQuantityType != null) {
                 sendIntegerOptionIfAllowed(temperatureQuantityType, OVEN_SET_POINT_TEMPERATURE_KEY);
@@ -250,7 +254,8 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
         doorChannels.forEach(dynamicChannel -> {
             if (value.key().equals(dynamicChannel.key())) {
                 updateStateIfLinked(dynamicChannel.channelName(),
-                        () -> STATE_OPEN.equals(value.value()) ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
+                        () -> STATE_OPEN.equals(value.value()) || STATE_AJAR.equals(value.value()) ? OpenClosedType.OPEN
+                                : OpenClosedType.CLOSED);
             }
         });
         Stream.of(currentTemperatureChannels, meatProbeChannels).flatMap(Set::stream)
