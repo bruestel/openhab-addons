@@ -42,6 +42,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.I18N_START_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.I18N_STOP_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.NUMBER_TEMPERATURE;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OPERATION_STATE_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_CAVITY_LIGHT_KEY_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_CAVITY_SELECTOR_ENUM_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_CURRENT_MEAT_PROBE_TEMPERATURE_KEY;
@@ -50,6 +51,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_CURRENT_TEMPERATURE_KEY_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_DOOR_STATE_KEY_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_DURATION_KEY;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_MEAT_PROBE_PLUGGED_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_MEAT_PROBE_PLUGGED_KEY_TEMPLATE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.OVEN_SET_POINT_TEMPERATURE_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.PAUSE_PROGRAM_KEY;
@@ -58,7 +60,9 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_AJAR;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_NO_PROGRAM;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_OPEN;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.STATE_RUN;
 import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_ACTIVE_PROGRAM;
+import static org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource.RO_ALL_MANDATORY_VALUES;
 import static org.openhab.core.library.unit.ImperialUnits.FAHRENHEIT;
 import static org.openhab.core.library.unit.SIUnits.CELSIUS;
 import static org.openhab.core.library.unit.Units.SECOND;
@@ -68,12 +72,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import javax.measure.Unit;
 import javax.measure.quantity.Temperature;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.configuration.HomeConnectDirectConfiguration;
 import org.openhab.binding.homeconnectdirect.internal.handler.model.DynamicChannel;
 import org.openhab.binding.homeconnectdirect.internal.handler.model.Value;
@@ -114,6 +121,7 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
 
     private static final String DEFAULT_CAVITY_NAME = "Main";
     private static final int DEFAULT_CAVITY_INDEX = 0;
+    private static final long POLLING_INTERVAL_SECONDS = 60;
 
     private final Logger logger;
     private final CopyOnWriteArraySet<DynamicChannel> doorChannels;
@@ -121,6 +129,8 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
     private final CopyOnWriteArraySet<DynamicChannel> meatProbeChannels;
     private final CopyOnWriteArraySet<DynamicChannel> lightChannels;
     private final CopyOnWriteArraySet<DynamicChannel> meatProbePluggedChannels;
+
+    private @Nullable ScheduledFuture<?> pollingFuture;
 
     public HomeConnectDirectOvenHandler(Thing thing, ApplianceProfileService applianceProfileService,
             HomeConnectDirectDynamicCommandDescriptionProvider commandDescriptionProvider,
@@ -145,6 +155,16 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
     @Override
     protected void initializeFinished() {
         initializeAllStates();
+        if (STATE_RUN.equals(getKeyValueStore().get(OPERATION_STATE_KEY))
+                && hasTemperatureStatusWithoutNotifyOnChange()) {
+            scheduleValuesPolling();
+        }
+    }
+
+    @Override
+    public void dispose() {
+        stopValuesPolling();
+        super.dispose();
     }
 
     @Override
@@ -248,6 +268,13 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
             case OVEN_SET_POINT_TEMPERATURE_KEY -> updateStateIfLinked(CHANNEL_OVEN_SET_POINT_TEMPERATURE,
                     () -> new QuantityType<>(value.getValueAsInt(), getTemperatureUnitOfOption(value.key())));
             case SELECTED_PROGRAM_KEY, ACTIVE_PROGRAM_KEY -> updateProgramCommandDescription();
+            case OPERATION_STATE_KEY -> {
+                if (STATE_RUN.equals(value.getValueAsString()) && hasTemperatureStatusWithoutNotifyOnChange()) {
+                    scheduleValuesPolling();
+                } else {
+                    stopValuesPolling();
+                }
+            }
         }
 
         // dynamic stuff
@@ -358,7 +385,8 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
                     // meat probe plugged
                     var meatProbePluggedKey = String.format(OVEN_MEAT_PROBE_PLUGGED_KEY_TEMPLATE, cavityIndex);
                     var meatProbePluggedChannel = String.format(CHANNEL_OVEN_MEAT_PROBE_PLUGGED_TEMPLATE, cavityIndex);
-                    var meatProbePluggedStatusDescription = deviceDescriptionService.findStatusByKey(doorStateKey);
+                    var meatProbePluggedStatusDescription = deviceDescriptionService
+                            .findStatusByKey(meatProbePluggedKey);
                     if (meatProbePluggedStatusDescription != null) {
                         meatProbePluggedChannels.add(new DynamicChannel(meatProbePluggedChannel, meatProbePluggedKey,
                                 meatProbePluggedStatusDescription.contentType()));
@@ -379,6 +407,15 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
                     OVEN_CURRENT_MEAT_PROBE_TEMPERATURE_KEY, CHANNEL_OVEN_CURRENT_MEAT_PROBE_TEMPERATURE_TEMPLATE,
                     CHANNEL_TYPE_OVEN_CURRENT_MEAT_PROBE_TEMPERATURE, I18N_OVEN_CURRENT_MEAT_PROBE_TEMPERATURE,
                     meatProbeChannels, DEFAULT_CAVITY_NAME);
+
+            // meat probe plugged (main cavity)
+            if (deviceDescriptionService.findStatusByKey(OVEN_MEAT_PROBE_PLUGGED_KEY) != null) {
+                var meatProbePluggedChannel = String.format(CHANNEL_OVEN_MEAT_PROBE_PLUGGED_TEMPLATE,
+                        DEFAULT_CAVITY_INDEX);
+                channelsChanged |= addChannelIfNotExist(thingBuilder, meatProbePluggedChannel,
+                        CHANNEL_TYPE_OVEN_MEAT_PROBE_PLUGGED, CoreItemFactory.SWITCH, getTranslationProvider().getText(
+                                I18N_OVEN_MEAT_PROBE_PLUGGED, getTranslationProvider().getText(DEFAULT_CAVITY_NAME)));
+            }
 
             // door fallback
             if (doorChannels.isEmpty()) {
@@ -458,5 +495,40 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
 
             setCommandOptions(channel.getUID(), commandOptions);
         });
+    }
+
+    /**
+     * Checks if any registered temperature status has notifyOnChange set to false.
+     */
+    private boolean hasTemperatureStatusWithoutNotifyOnChange() {
+        var deviceDescriptionService = getDeviceDescriptionServiceOptional().orElse(null);
+        if (deviceDescriptionService == null) {
+            return false;
+        }
+
+        return Stream.of(currentTemperatureChannels, meatProbeChannels).flatMap(Set::stream).map(DynamicChannel::key)
+                .map(deviceDescriptionService::findStatusByKey).filter(Objects::nonNull)
+                .anyMatch(status -> !status.notifyOnChange());
+    }
+
+    private synchronized void scheduleValuesPolling() {
+        var pollingFuture = this.pollingFuture;
+
+        if (pollingFuture == null || pollingFuture.isCancelled() || pollingFuture.isDone()) {
+            logger.debug("Schedule mandatory values polling every {} second(s) ({}).", POLLING_INTERVAL_SECONDS,
+                    getThing().getUID());
+            this.pollingFuture = scheduler.scheduleWithFixedDelay(() -> sendGet(RO_ALL_MANDATORY_VALUES),
+                    POLLING_INTERVAL_SECONDS, POLLING_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        }
+    }
+
+    private synchronized void stopValuesPolling() {
+        var pollingFuture = this.pollingFuture;
+
+        if (pollingFuture != null) {
+            logger.debug("Stop mandatory values polling ({}).", getThing().getUID());
+            pollingFuture.cancel(true);
+            this.pollingFuture = null;
+        }
     }
 }

@@ -204,6 +204,7 @@ public class HomeConnectDirectBindingConstants {
     public static final String OVEN_SET_POINT_TEMPERATURE_KEY = "Cooking.Oven.Option.SetpointTemperature";
     public static final String OVEN_CURRENT_TEMPERATURE_KEY = "Cooking.Oven.Status.CurrentCavityTemperature";
     public static final String OVEN_CURRENT_MEAT_PROBE_TEMPERATURE_KEY = "Cooking.Oven.Status.CurrentMeatprobeTemperature";
+    public static final String OVEN_MEAT_PROBE_PLUGGED_KEY = "Cooking.Oven.Status.MeatprobePlugged";
     public static final String OVEN_CAVITY_SELECTOR_ENUM_KEY = "Cooking.Oven.EnumType.CavitySelector";
     public static final String FRIDGE_DOOR_STATE_KEY = "Refrigeration.FridgeFreezer.Status.DoorRefrigerator";
     public static final String FRIDGE_DOOR_STATE_2_KEY = "Refrigeration.Common.Status.Door.Refrigerator";
