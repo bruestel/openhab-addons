@@ -74,6 +74,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import javax.measure.Unit;
@@ -121,7 +122,10 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
 
     private static final String DEFAULT_CAVITY_NAME = "Main";
     private static final int DEFAULT_CAVITY_INDEX = 0;
-    private static final long POLLING_INTERVAL_SECONDS = 60;
+    private static final long POLLING_INTERVAL_RUN_SECONDS = 60;
+    private static final long POLLING_INTERVAL_COOLDOWN_SECONDS = 300;
+    private static final int TEMPERATURE_THRESHOLD_HIGH = 50;
+    private static final int TEMPERATURE_THRESHOLD_LOW = 30;
 
     private final Logger logger;
     private final CopyOnWriteArraySet<DynamicChannel> doorChannels;
@@ -129,8 +133,10 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
     private final CopyOnWriteArraySet<DynamicChannel> meatProbeChannels;
     private final CopyOnWriteArraySet<DynamicChannel> lightChannels;
     private final CopyOnWriteArraySet<DynamicChannel> meatProbePluggedChannels;
+    private final AtomicInteger maxCavityTemperature;
 
     private @Nullable ScheduledFuture<?> pollingFuture;
+    private long currentPollingIntervalSeconds;
 
     public HomeConnectDirectOvenHandler(Thing thing, ApplianceProfileService applianceProfileService,
             HomeConnectDirectDynamicCommandDescriptionProvider commandDescriptionProvider,
@@ -145,6 +151,7 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
         this.meatProbeChannels = new CopyOnWriteArraySet<>();
         this.lightChannels = new CopyOnWriteArraySet<>();
         this.meatProbePluggedChannels = new CopyOnWriteArraySet<>();
+        this.maxCavityTemperature = new AtomicInteger(0);
     }
 
     @Override
@@ -155,10 +162,7 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
     @Override
     protected void initializeFinished() {
         initializeAllStates();
-        if (STATE_RUN.equals(getKeyValueStore().get(OPERATION_STATE_KEY))
-                && hasTemperatureStatusWithoutNotifyOnChange()) {
-            scheduleValuesPolling();
-        }
+        updateValuesPolling();
     }
 
     @Override
@@ -268,13 +272,13 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
             case OVEN_SET_POINT_TEMPERATURE_KEY -> updateStateIfLinked(CHANNEL_OVEN_SET_POINT_TEMPERATURE,
                     () -> new QuantityType<>(value.getValueAsInt(), getTemperatureUnitOfOption(value.key())));
             case SELECTED_PROGRAM_KEY, ACTIVE_PROGRAM_KEY -> updateProgramCommandDescription();
-            case OPERATION_STATE_KEY -> {
-                if (STATE_RUN.equals(value.getValueAsString()) && hasTemperatureStatusWithoutNotifyOnChange()) {
-                    scheduleValuesPolling();
-                } else {
-                    stopValuesPolling();
-                }
-            }
+            case OPERATION_STATE_KEY -> updateValuesPolling();
+        }
+
+        // track current cavity temperature and re-evaluate polling
+        if (currentTemperatureChannels.stream().anyMatch(dc -> value.key().equals(dc.key()))) {
+            maxCavityTemperature.set(value.getValueAsInt());
+            updateValuesPolling();
         }
 
         // dynamic stuff
@@ -511,14 +515,61 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
                 .anyMatch(status -> !status.notifyOnChange());
     }
 
-    private synchronized void scheduleValuesPolling() {
+    /**
+     * Determines the required polling interval based on the current operation state and cavity temperature,
+     * then starts, adjusts, or stops polling accordingly.
+     *
+     * Polling rules:
+     * - Operation state "Run" and notifyOnChange is false: poll every 60 seconds
+     * - Not running, temperature > 50°C: poll every 60 seconds
+     * - Not running, temperature 30-50°C: poll every 5 minutes
+     * - Not running, temperature < 30°C: stop polling
+     */
+    private void updateValuesPolling() {
+        if (!hasTemperatureStatusWithoutNotifyOnChange()) {
+            stopValuesPolling();
+            return;
+        }
+
+        var operationState = getKeyValueStore().get(OPERATION_STATE_KEY);
+        if (STATE_RUN.equals(operationState)) {
+            scheduleValuesPolling(POLLING_INTERVAL_RUN_SECONDS);
+            return;
+        }
+
+        // after leaving "Run" state, keep polling based on the current cavity temperature
+        // to track the cool-down phase
+        var temperature = maxCavityTemperature.get();
+        if (temperature > TEMPERATURE_THRESHOLD_HIGH) {
+            scheduleValuesPolling(POLLING_INTERVAL_RUN_SECONDS);
+        } else if (temperature >= TEMPERATURE_THRESHOLD_LOW) {
+            scheduleValuesPolling(POLLING_INTERVAL_COOLDOWN_SECONDS);
+        } else if (isPollingActive()) {
+            // temperature is below threshold but polling was active, fetch one last time
+            // to make sure we have an up-to-date reading before stopping
+            stopValuesPolling();
+            sendGet(RO_ALL_MANDATORY_VALUES);
+        }
+    }
+
+    private synchronized void scheduleValuesPolling(long intervalSeconds) {
         var pollingFuture = this.pollingFuture;
 
+        // restart polling if interval changed
+        if (pollingFuture != null && !pollingFuture.isCancelled() && !pollingFuture.isDone()
+                && currentPollingIntervalSeconds != intervalSeconds) {
+            logger.debug("Polling interval changed from {} to {} second(s), rescheduling ({}).",
+                    currentPollingIntervalSeconds, intervalSeconds, getThing().getUID());
+            pollingFuture.cancel(false);
+            pollingFuture = null;
+        }
+
         if (pollingFuture == null || pollingFuture.isCancelled() || pollingFuture.isDone()) {
-            logger.debug("Schedule mandatory values polling every {} second(s) ({}).", POLLING_INTERVAL_SECONDS,
+            logger.debug("Schedule mandatory values polling every {} second(s) ({}).", intervalSeconds,
                     getThing().getUID());
+            currentPollingIntervalSeconds = intervalSeconds;
             this.pollingFuture = scheduler.scheduleWithFixedDelay(() -> sendGet(RO_ALL_MANDATORY_VALUES),
-                    POLLING_INTERVAL_SECONDS, POLLING_INTERVAL_SECONDS, TimeUnit.SECONDS);
+                    intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
         }
     }
 
@@ -529,6 +580,12 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
             logger.debug("Stop mandatory values polling ({}).", getThing().getUID());
             pollingFuture.cancel(true);
             this.pollingFuture = null;
+            currentPollingIntervalSeconds = 0;
         }
+    }
+
+    private synchronized boolean isPollingActive() {
+        var pollingFuture = this.pollingFuture;
+        return pollingFuture != null && !pollingFuture.isCancelled() && !pollingFuture.isDone();
     }
 }
