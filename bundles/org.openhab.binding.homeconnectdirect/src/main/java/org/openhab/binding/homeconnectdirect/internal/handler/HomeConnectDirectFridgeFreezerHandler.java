@@ -350,7 +350,7 @@ public class HomeConnectDirectFridgeFreezerHandler extends BaseHomeConnectDirect
             }
 
             // chiller preset
-            if (statusKeyExists(deviceDescriptionService, FRIDGE_CHILLER_PRESET_KEY)) {
+            if (settingKeyExists(deviceDescriptionService, FRIDGE_CHILLER_PRESET_KEY)) {
                 channelsChanged |= addChannelIfNotExist(thingBuilder, CHANNEL_FRIDGE_CHILLER_PRESET,
                         CHANNEL_TYPE_FRIDGE_CHILLER_PRESET, CoreItemFactory.STRING,
                         getTranslationProvider().getText(I18N_FRIDGE_CHILLER_PRESET));
