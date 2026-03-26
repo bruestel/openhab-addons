@@ -169,7 +169,7 @@ public class HomeConnectDirectFridgeFreezerHandler extends BaseHomeConnectDirect
                 sendTemperatureSetting(FRIDGE_CHILLER_SET_POINT_TEMPERATURE_KEY, command);
             }
         } else if (CHANNEL_FRIDGE_CHILLER_PRESET.equals(channelUID.getId()) && command instanceof StringType) {
-            sendEnumOptionIfAllowed(command, FRIDGE_CHILLER_PRESET_KEY);
+            sendEnumSettingIfAllowed(command, FRIDGE_CHILLER_PRESET_KEY);
         } else if (CHANNEL_FRIDGE_DISPENSER_ENABLED.equals(channelUID.getId()) && command instanceof OnOffType) {
             sendBooleanSettingIfAllowed(command, FRIDGE_DISPENSER_ENABLED_KEY);
         } else if (CHANNEL_FRIDGE_DISPENSER_PARTY_MODE.equals(channelUID.getId()) && command instanceof OnOffType) {

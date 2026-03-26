@@ -951,6 +951,26 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         });
     }
 
+    protected void sendEnumSettingIfAllowed(Command command, String settingKey) {
+        getDeviceDescriptionServiceOptional().ifPresent(deviceDescriptionService -> {
+            if (deviceDescriptionService.isSettingAvailableAndWritable(settingKey)) {
+                var setting = deviceDescriptionService.findSettingByKey(settingKey);
+                if (setting != null) {
+                    var enumerationTypeKey = setting.enumerationTypeKey();
+                    if (enumerationTypeKey != null) {
+                        mapEnumerationValueKey(enumerationTypeKey, command.toFullString())
+                                .ifPresent(enumValue -> send(Action.POST, RO_VALUES,
+                                        List.of(new ValueData(setting.uid(), enumValue)), null, 1));
+                    }
+                }
+            } else {
+                logger.info(
+                        "The enumeration setting '{}' is either unavailable or in read-only mode. Command '{}' cannot be processed.",
+                        settingKey, command.toFullString());
+            }
+        });
+    }
+
     protected void sendEnumOptionIfAllowed(Command command, String optionKey) {
         getDeviceDescriptionServiceOptional().ifPresent(deviceDescriptionService -> {
             if (deviceDescriptionService.isOptionAvailableAndWritable(optionKey)) {
