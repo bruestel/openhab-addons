@@ -124,6 +124,7 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
     private static final int DEFAULT_CAVITY_INDEX = 0;
     private static final long POLLING_INTERVAL_RUN_SECONDS = 60;
     private static final long POLLING_INTERVAL_COOLDOWN_SECONDS = 300;
+    private static final long POLLING_INTERVAL_IDLE_SECONDS = 900;
     private static final int TEMPERATURE_THRESHOLD_HIGH = 50;
     private static final int TEMPERATURE_THRESHOLD_LOW = 30;
 
@@ -544,11 +545,8 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
             scheduleValuesPolling(POLLING_INTERVAL_RUN_SECONDS);
         } else if (temperature >= TEMPERATURE_THRESHOLD_LOW) {
             scheduleValuesPolling(POLLING_INTERVAL_COOLDOWN_SECONDS);
-        } else if (isPollingActive()) {
-            // temperature is below threshold but polling was active, fetch one last time
-            // to make sure we have an up-to-date reading before stopping
-            stopValuesPolling();
-            sendGet(RO_ALL_MANDATORY_VALUES);
+        } else {
+            scheduleValuesPolling(POLLING_INTERVAL_IDLE_SECONDS);
         }
     }
 
@@ -582,10 +580,5 @@ public class HomeConnectDirectOvenHandler extends BaseHomeConnectDirectHandler {
             this.pollingFuture = null;
             currentPollingIntervalSeconds = 0;
         }
-    }
-
-    private synchronized boolean isPollingActive() {
-        var pollingFuture = this.pollingFuture;
-        return pollingFuture != null && !pollingFuture.isCancelled() && !pollingFuture.isDone();
     }
 }
