@@ -1113,61 +1113,63 @@ function app() {
                 .toLowerCase()
                 .replace(/[^a-z0-9-]/g, ''); // Remove invalid chars
 
-            this.configurationType = 'string';
+            this.configurationType = key.includes('Event') ? 'trigger' : 'string';
             this.configurationUnit = '';
 
-            if (contentType) {
-                switch (contentType) {
-                    case 'BOOLEAN':
-                    case 'boolean':
-                        this.configurationType = 'switch';
-                        break;
-                    case 'INTEGER':
-                    case 'FLOAT':
-                    case 'BIG_INTEGER':
-                    case 'BYTE_LENGTH':
-                    case 'DBM':
-                    case 'LIQUID_VOLUME':
-                    case 'WATER_HARDNESS':
-                    case 'RPM':
-                    case 'FLOW_RATE':
-                    case 'LENGTH':
-                    case 'AREA':
-                    case 'POWER':
-                    case 'ENERGY':
-                    case 'SPEED':
-                        this.configurationType = 'number';
-                        break;
-                    case 'PERCENT':
-                        this.configurationType = 'number';
-                        this.configurationUnit = '%%';
-                        break;
-                    case 'WEIGHT':
-                        this.configurationType = 'number';
-                        this.configurationUnit = 'g';
-                        break;
-                    case 'TEMPERATURE_CELSIUS':
-                        this.configurationType = 'number';
-                        this.configurationUnit = '°C';
-                        break;
-                    case 'TEMPERATURE_FAHRENHEIT':
-                        this.configurationType = 'number';
-                        this.configurationUnit = '°F';
-                        break;
-                    case 'TIME_SPAN':
-                        this.configurationType = 'number';
-                        this.configurationUnit = 's';
-                        break;
-                }
-            } else if (value !== null && value !== undefined) {
-                if (typeof value === 'number') {
-                    this.configurationType = 'number';
-                    if (key.includes('Time') || key.includes('Duration')) {
-                        this.configurationUnit = 's';
-                    } else if (key.includes('Progress')) {
-                        this.configurationUnit = '%%';
+            if (this.configurationType !== 'trigger') {
+                if (contentType) {
+                    switch (contentType) {
+                        case 'BOOLEAN':
+                        case 'boolean':
+                            this.configurationType = 'switch';
+                            break;
+                        case 'INTEGER':
+                        case 'FLOAT':
+                        case 'BIG_INTEGER':
+                        case 'BYTE_LENGTH':
+                        case 'DBM':
+                        case 'LIQUID_VOLUME':
+                        case 'WATER_HARDNESS':
+                        case 'RPM':
+                        case 'FLOW_RATE':
+                        case 'LENGTH':
+                        case 'AREA':
+                        case 'POWER':
+                        case 'ENERGY':
+                        case 'SPEED':
+                            this.configurationType = 'number';
+                            break;
+                        case 'PERCENT':
+                            this.configurationType = 'number';
+                            this.configurationUnit = '%%';
+                            break;
+                        case 'WEIGHT':
+                            this.configurationType = 'number';
+                            this.configurationUnit = 'g';
+                            break;
+                        case 'TEMPERATURE_CELSIUS':
+                            this.configurationType = 'number';
+                            this.configurationUnit = '°C';
+                            break;
+                        case 'TEMPERATURE_FAHRENHEIT':
+                            this.configurationType = 'number';
+                            this.configurationUnit = '°F';
+                            break;
+                        case 'TIME_SPAN':
+                            this.configurationType = 'number';
+                            this.configurationUnit = 's';
+                            break;
                     }
-                } else if (typeof value === 'boolean') this.configurationType = 'switch';
+                } else if (value !== null && value !== undefined) {
+                    if (typeof value === 'number') {
+                        this.configurationType = 'number';
+                        if (key.includes('Time') || key.includes('Duration')) {
+                            this.configurationUnit = 's';
+                        } else if (key.includes('Progress')) {
+                            this.configurationUnit = '%%';
+                        }
+                    } else if (typeof value === 'boolean') this.configurationType = 'switch';
+                }
             }
 
             this.updateConfigurationCode();
@@ -1271,7 +1273,7 @@ function app() {
                 }
             } else {
                 code = `    Type ${typeId} : ${this.configurationChannelId}`;
-                if (['number', 'string', 'boolean', 'switch'].includes(this.configurationType)) {
+                if (['number', 'string', 'boolean', 'switch', 'trigger'].includes(this.configurationType)) {
                     code += ` "${this.configurationLabel}"`;
                 }
                 if (this.configurationAttribute) {

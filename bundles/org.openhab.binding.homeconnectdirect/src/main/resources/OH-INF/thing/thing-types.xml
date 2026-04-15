@@ -6,7 +6,7 @@
 
 	<!-- Thing Types -->
 	<thing-type id="dishwasher"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Dishwasher</label>
 		<description>Dishwasher which supports Home Connect.</description>
 		<semantic-equipment-tag>Dishwasher</semantic-equipment-tag>
@@ -44,7 +44,7 @@
 	</thing-type>
 
 	<thing-type id="cookprocessor"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Cook Processor</label>
 		<description>Cook processor which supports Home Connect.</description>
 		<semantic-equipment-tag>FoodProcessor</semantic-equipment-tag>
@@ -66,7 +66,7 @@
 	</thing-type>
 
 	<thing-type id="washer"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Washer</label>
 		<description>Washer which supports Home Connect.</description>
 		<semantic-equipment-tag>WashingMachine</semantic-equipment-tag>
@@ -110,7 +110,7 @@
 	</thing-type>
 
 	<thing-type id="washerdryer"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Washer / Dryer combination</label>
 		<description>Washer / Dryer combination which supports Home Connect.</description>
 		<semantic-equipment-tag>WashingMachine</semantic-equipment-tag>
@@ -156,7 +156,7 @@
 	</thing-type>
 
 	<thing-type id="dryer"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Dryer</label>
 		<description>Dryer which supports Home Connect.</description>
 		<semantic-equipment-tag>Dryer</semantic-equipment-tag>
@@ -191,7 +191,7 @@
 	</thing-type>
 
 	<thing-type id="coffeemaker"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Coffee Maker</label>
 		<description>Coffee maker which supports Home Connect.</description>
 		<semantic-equipment-tag>CoffeeMaker</semantic-equipment-tag>
@@ -226,7 +226,7 @@
 	</thing-type>
 
 	<thing-type id="oven"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Oven</label>
 		<description>Oven which supports Home Connect.</description>
 		<semantic-equipment-tag>Oven</semantic-equipment-tag>
@@ -258,7 +258,7 @@
 	</thing-type>
 
 	<thing-type id="warmingdrawer"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Warming Drawer</label>
 		<description>Warming Drawer which supports Home Connect.</description>
 		<semantic-equipment-tag>Oven</semantic-equipment-tag>
@@ -288,7 +288,7 @@
 	</thing-type>
 
 	<thing-type id="hood"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Hood</label>
 		<description>Hood which supports Home Connect.</description>
 		<semantic-equipment-tag>KitchenHood</semantic-equipment-tag>
@@ -317,7 +317,7 @@
 	</thing-type>
 
 	<thing-type id="cooktop"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Cooktop</label>
 		<description>Cooktop which supports Home Connect.</description>
 		<semantic-equipment-tag>Cooktop</semantic-equipment-tag>
@@ -340,7 +340,7 @@
 	</thing-type>
 
 	<thing-type id="fridgefreezer"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Refrigerator / Freezer</label>
 		<description>Refrigerator / Freezer which supports Home Connect.</description>
 		<semantic-equipment-tag>Refrigerator</semantic-equipment-tag>
@@ -354,7 +354,7 @@
 	</thing-type>
 
 	<thing-type id="generic"
-		extensible="switch, string, number, device-description-switch, device-description-string, device-description-number">
+		extensible="switch, string, number, trigger, device-description-switch, device-description-string, device-description-number">
 		<label>Generic appliance</label>
 		<description>Appliance which supports Home Connect.</description>
 		<semantic-equipment-tag>WhiteGood</semantic-equipment-tag>
@@ -1142,6 +1142,12 @@
 		<state readOnly="false"/>
 		<autoUpdatePolicy>veto</autoUpdatePolicy>
 		<config-description-ref uri="thing-type:homeconnectdirect:dynamic-value-channel-number"/>
+	</channel-type>
+
+	<channel-type id="trigger">
+		<kind>trigger</kind>
+		<label>Trigger (Value)</label>
+		<config-description-ref uri="thing-type:homeconnectdirect:dynamic-value-channel-generic"/>
 	</channel-type>
 
 	<channel-type id="device-description-switch">

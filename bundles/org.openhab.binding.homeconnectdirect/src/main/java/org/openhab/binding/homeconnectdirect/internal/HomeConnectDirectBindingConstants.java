@@ -83,6 +83,7 @@ public class HomeConnectDirectBindingConstants {
     public static final ChannelTypeUID CHANNEL_TYPE_SWITCH_VALUE = new ChannelTypeUID(BINDING_ID, "switch");
     public static final ChannelTypeUID CHANNEL_TYPE_STRING_VALUE = new ChannelTypeUID(BINDING_ID, "string");
     public static final ChannelTypeUID CHANNEL_TYPE_NUMBER_VALUE = new ChannelTypeUID(BINDING_ID, "number");
+    public static final ChannelTypeUID CHANNEL_TYPE_TRIGGER_VALUE = new ChannelTypeUID(BINDING_ID, "trigger");
     public static final ChannelTypeUID CHANNEL_TYPE_SWITCH_DESCRIPTION = new ChannelTypeUID(BINDING_ID,
             "device-description-switch");
     public static final ChannelTypeUID CHANNEL_TYPE_STRING_DESCRIPTION = new ChannelTypeUID(BINDING_ID,

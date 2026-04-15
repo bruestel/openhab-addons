@@ -106,7 +106,8 @@ public class ApplianceRequestHandler {
                     String type = channelTypeUID.getId();
                     channelMap.put("type", type);
 
-                    if ("number".equals(type) || "string".equals(type) || "switch".equals(type)) {
+                    if ("number".equals(type) || "string".equals(type) || "switch".equals(type)
+                            || "trigger".equals(type)) {
                         var channelLabel = channel.getLabel();
                         if (channelLabel != null) {
                             channelMap.put("label", channelLabel);
@@ -160,7 +161,8 @@ public class ApplianceRequestHandler {
                 var channelTypeUID = channel.getChannelTypeUID();
                 if (channelTypeUID != null) {
                     var type = channelTypeUID.getId();
-                    if ("number".equals(type) || "string".equals(type) || "switch".equals(type)) {
+                    if ("number".equals(type) || "string".equals(type) || "switch".equals(type)
+                            || "trigger".equals(type)) {
                         dsl.append("    Type ").append(type).append(" : ").append(channel.getUID().getId());
 
                         if (channel.getLabel() != null) {

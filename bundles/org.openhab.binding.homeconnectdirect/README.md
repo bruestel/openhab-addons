@@ -78,7 +78,7 @@ These channels provide immediate access to common functions. Available channels 
 | `operation-state`              | String               | R      | Current state (e.g., Run, Ready, Finished).                                                                                                             | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood, Cooktop |
 | `remote-control-start-allowed` | Switch               | R      | Indicates if remote operation is enabled.                                                                                                               | Dishwasher, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood                          |
 | `child-lock`                   | Switch               | R/W    | The child lock state.                                                                                                                                   | Cook Processor, Washer, Washer/Dryer, Dryer, Oven, Cooktop                                                 |
-| `active-program`               | String               | R      | The program currently running.                                                                                                                          | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood, Cooktop |
+| `active-program`               | String               | R      | The program currently running. Changes to UNDEF when no program is active (e.g., when paused or idle).                                                  | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer, Hood, Cooktop |
 | `selected-program`             | String               | R/W    | The program currently selected on the device.                                                                                                           | Dishwasher, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer                                |
 | `remaining-program-time`       | Number:Time          | R      | Estimated time remaining.                                                                                                                               | Dishwasher, Washer, Washer/Dryer, Dryer, Oven, Warming Drawer                                              |
 | `program-progress`             | Number:Dimensionless | R      | Progress in percent (0-100%).                                                                                                                           | Dishwasher, Cook Processor, Washer, Washer/Dryer, Dryer, Coffee Maker, Oven, Warming Drawer                |
@@ -206,6 +206,7 @@ Examples: "How hot is the oven?", "Is the door open?", "Which program is running
 | `switch`        | Switch    | `valueKey`         | For boolean values (true/false).                          |
 | `string`        | String    | `valueKey`         | For text or enumeration values.                           |
 | `number`        | Number    | `valueKey`, `unit` | For numeric values. `unit` is optional (e.g., "°C", "%"). |
+| `trigger`       | —         | `valueKey`         | Trigger channel that fires events (e.g., for event keys). |
 
 #### 2. Device Description Channels
 
@@ -239,6 +240,7 @@ Thing homeconnectdirect:dishwasher:myDishwasher "Dishwasher" [ haId="BSH-DISHWAS
 Thing homeconnectdirect:oven:myOven "Oven" [ haId="BSH-OVEN-XXXX", address="192.168.1.51" ] {
     Channels:
         Type number : currentTemp "Internal Temp" [ valueKey="Cooking.Oven.Status.CurrentCavityTemperature", unit="°C" ]
+        Type trigger : programFinished "Program Finished" [ valueKey="BSH.Common.Event.ProgramFinished" ]
 }
 ```
 

@@ -40,6 +40,7 @@ import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBi
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_STRING_VALUE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_SWITCH_DESCRIPTION;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_SWITCH_VALUE;
+import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHANNEL_TYPE_TRIGGER_VALUE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.CHILD_LOCK_KEY;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_PAUSE;
 import static org.openhab.binding.homeconnectdirect.internal.HomeConnectDirectBindingConstants.COMMAND_RESUME;
@@ -783,10 +784,13 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
         getThing().getChannels().stream()
                 .filter(channel -> CHANNEL_TYPE_SWITCH_VALUE.equals(channel.getChannelTypeUID())
                         || CHANNEL_TYPE_STRING_VALUE.equals(channel.getChannelTypeUID())
-                        || CHANNEL_TYPE_NUMBER_VALUE.equals(channel.getChannelTypeUID()))
+                        || CHANNEL_TYPE_NUMBER_VALUE.equals(channel.getChannelTypeUID())
+                        || CHANNEL_TYPE_TRIGGER_VALUE.equals(channel.getChannelTypeUID()))
                 .filter(channel -> channel.getConfiguration().containsKey(CONFIGURATION_VALUE_KEY))
                 .filter(channel -> value.key().equals(channel.getConfiguration().get(CONFIGURATION_VALUE_KEY)))
-                .filter(channel -> isLinked(channel.getUID())).forEach(channel -> {
+                .filter(channel -> CHANNEL_TYPE_TRIGGER_VALUE.equals(channel.getChannelTypeUID())
+                        || isLinked(channel.getUID()))
+                .forEach(channel -> {
                     if (CHANNEL_TYPE_SWITCH_VALUE.equals(channel.getChannelTypeUID())) {
                         updateState(channel.getUID(), OnOffType.from(value.getValueAsBoolean()));
                     } else if (CHANNEL_TYPE_STRING_VALUE.equals(channel.getChannelTypeUID())) {
@@ -803,6 +807,8 @@ public class BaseHomeConnectDirectHandler extends BaseThingHandler implements We
                         } else {
                             updateState(channel.getUID(), new DecimalType(value.getValueAsString()));
                         }
+                    } else if (CHANNEL_TYPE_TRIGGER_VALUE.equals(channel.getChannelTypeUID())) {
+                        triggerChannel(channel.getUID(), value.getValueAsString());
                     }
                 });
     }
