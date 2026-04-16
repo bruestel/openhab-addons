@@ -572,7 +572,7 @@
                                                                     @click="copyToClipboard(value.key)"
                                                                     title="Copy key to clipboard"><img src="${assetPath}/img/clipboard-document-list.svg" alt="Copy"></button>
                                                             <button class="filter-action-btn btn-yaml"
-                                                                    @click="openConfigurationModal(value.key, value.value, value.contentType)"
+                                                                    @click="openConfigurationModal(value.key, value.value, value.contentType, value.type)"
                                                                     title="Generate openHAB configuration (YAML, DSL)"><img src="${assetPath}/favicon/favicon.svg" alt="YAML"></button>
                                                             <button class="filter-action-btn btn-add"
                                                                     x-show="!filter.valueKeys.includes(value.key)"

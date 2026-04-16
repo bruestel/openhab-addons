@@ -1101,7 +1101,7 @@ function app() {
             this.openDescriptionChangeConfigurationModal(this.selectedDescriptionKey, attribute);
         },
 
-        async openConfigurationModal(key, value, contentType) {
+        async openConfigurationModal(key, value, contentType, type) {
             this.configurationKey = key;
             this.configurationAttribute = null;
             const lastPart = key.includes('.') ? key.split('.').pop() : key;
@@ -1113,7 +1113,7 @@ function app() {
                 .toLowerCase()
                 .replace(/[^a-z0-9-]/g, ''); // Remove invalid chars
 
-            this.configurationType = key.includes('Event') ? 'trigger' : 'string';
+            this.configurationType = type === 'EVENT' ? 'trigger' : 'string';
             this.configurationUnit = '';
 
             if (this.configurationType !== 'trigger') {
