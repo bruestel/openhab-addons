@@ -18,15 +18,22 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.handler.model.Value;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.ContentType;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.DataType;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.DeviceDescriptionType;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.ProtocolType;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.ContentTypeProvider;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.DataTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.EnumerationTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.feature.model.FeatureMapping;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.Resource;
 import org.openhab.binding.homeconnectdirect.internal.service.websocket.model.data.ValueData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @NonNullByDefault
 public class DeviceDescriptionUtils {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DeviceDescriptionUtils.class);
 
     private DeviceDescriptionUtils() {
         // Utility class
@@ -45,11 +52,18 @@ public class DeviceDescriptionUtils {
                 // type
                 var type = valueDescription != null ? valueDescription.type() : DeviceDescriptionType.UNKNOWN;
 
-                // valueType
+                // contentType
                 ContentType contentType = null;
                 if (valueDescription != null
                         && valueDescription.object() instanceof ContentTypeProvider contentTypeProvider) {
                     contentType = contentTypeProvider.contentType();
+                }
+
+                // dataType
+                DataType dataType = null;
+                if (valueDescription != null
+                        && valueDescription.object() instanceof DataTypeProvider dataTypeProvider) {
+                    dataType = dataTypeProvider.dataType();
                 }
 
                 // value
@@ -77,7 +91,17 @@ public class DeviceDescriptionUtils {
                     }
                 }
 
-                return new Value(valueData.uid(), key, value, valueData.value(), type, contentType);
+                // Fixed-point scaling: when protocolType is FLOAT but wire encoding is a raw integer type,
+                // the value is a fixed-point integer that needs to be divided by 10
+                if (contentType != null && ProtocolType.FLOAT.equals(contentType.protocolType) && dataType != null
+                        && dataType.isRawInteger() && value instanceof Number number) {
+                    LOGGER.debug(
+                            "Fixed-point scaling applied: key={}, contentType={}, dataType={}, rawValue={}, scaledValue={}",
+                            key, contentType, dataType, number, number.doubleValue() / 10.0);
+                    value = number.doubleValue() / 10.0;
+                }
+
+                return new Value(valueData.uid(), key, value, valueData.value(), type, contentType, dataType);
             }).toList();
 
             if (!values.isEmpty()) {

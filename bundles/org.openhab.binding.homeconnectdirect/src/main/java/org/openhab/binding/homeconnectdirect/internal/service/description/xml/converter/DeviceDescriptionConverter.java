@@ -26,6 +26,7 @@ import org.openhab.binding.homeconnectdirect.internal.service.description.model.
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.Command;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.CommandList;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.ContentType;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.DataType;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.DeviceDescription;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.Enumeration;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.EnumerationType;
@@ -208,6 +209,7 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var uid = mapHexId(reader.getAttribute("uid")); // required
         var key = featureMapping.mapFeatureIdToKey(uid);
         var contentType = mapContentType(mapHexId(reader.getAttribute("refCID"))); // required
+        var dataType = mapDataType(reader.getAttribute("refDID"));
         var min = mapNumberNullable(reader.getAttribute("min"));
         var max = mapNumberNullable(reader.getAttribute("max"));
         var stepSize = mapNumberNullable(reader.getAttribute("stepSize"));
@@ -219,8 +221,8 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var notifyOnChange = mapBoolean(reader.getAttribute("notifyOnChange"), true);
         var passwordProtected = mapBoolean(reader.getAttribute("passwordProtected"), false);
 
-        return new Setting(uid, key, contentType, min, max, stepSize, available, access, initValue, enumerationType,
-                enumerationKey, notifyOnChange, passwordProtected);
+        return new Setting(uid, key, contentType, dataType, min, max, stepSize, available, access, initValue,
+                enumerationType, enumerationKey, notifyOnChange, passwordProtected);
     }
 
     private EventList readEventList(HierarchicalStreamReader reader, FeatureMapping featureMapping) {
@@ -250,12 +252,13 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var uid = mapHexId(reader.getAttribute("uid")); // required
         var key = featureMapping.mapFeatureIdToKey(uid);
         var contentType = mapContentType(mapHexId(reader.getAttribute("refCID"), 3)); // fixed "03"
+        var dataType = mapDataType(reader.getAttribute("refDID"));
         var handling = mapHandling(reader.getAttribute("handling")); // required
         var level = mapLevel(reader.getAttribute("level")); // required
         var enumerationType = mapHexId(reader.getAttribute("enumerationType"), 1); // fixed "0001"
         var enumerationKey = featureMapping.mapEnumIdToKey(enumerationType);
 
-        return new Event(uid, key, contentType, handling, level, enumerationType, enumerationKey);
+        return new Event(uid, key, contentType, dataType, handling, level, enumerationType, enumerationKey);
     }
 
     private StatusList readStatusList(HierarchicalStreamReader reader, FeatureMapping featureMapping) {
@@ -287,6 +290,7 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var uid = mapHexId(reader.getAttribute("uid")); // required
         var key = featureMapping.mapFeatureIdToKey(uid);
         var contentType = mapContentType(mapHexId(reader.getAttribute("refCID")));
+        var dataType = mapDataType(reader.getAttribute("refDID"));
         var min = mapNumberNullable(reader.getAttribute("min"));
         var max = mapNumberNullable(reader.getAttribute("max"));
         var stepSize = mapNumberNullable(reader.getAttribute("stepSize"));
@@ -297,8 +301,8 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var notifyOnChange = mapBoolean(reader.getAttribute("notifyOnChange"), true);
         var initValue = reader.getAttribute("initValue");
 
-        return new Status(uid, key, contentType, min, max, stepSize, enumerationType, enumerationKey, available, access,
-                notifyOnChange, initValue);
+        return new Status(uid, key, contentType, dataType, min, max, stepSize, enumerationType, enumerationKey,
+                available, access, notifyOnChange, initValue);
     }
 
     private CommandList readCommandList(HierarchicalStreamReader reader, FeatureMapping featureMapping) {
@@ -330,6 +334,7 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var uid = mapHexId(reader.getAttribute("uid")); // required
         var key = featureMapping.mapFeatureIdToKey(uid);
         var contentType = mapContentType(mapHexIdNullable(reader.getAttribute("refCID"))); // required
+        var dataType = mapDataType(reader.getAttribute("refDID"));
         var available = Boolean.parseBoolean(reader.getAttribute("available")); // required
         var access = mapAccess(reader.getAttribute("access")); // required
         var enumerationType = mapHexIdNullable(reader.getAttribute("enumerationType"));
@@ -340,8 +345,8 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var passwordProtected = mapBoolean(reader.getAttribute("passwordProtected"), false);
         var notifyOnChange = mapBoolean(reader.getAttribute("notifyOnChange"), false); // fixed "false"
 
-        return new Command(uid, key, contentType, available, access, enumerationType, enumerationKey, min, max,
-                stepSize, passwordProtected, notifyOnChange);
+        return new Command(uid, key, contentType, dataType, available, access, enumerationType, enumerationKey, min,
+                max, stepSize, passwordProtected, notifyOnChange);
     }
 
     private OptionList readOptionList(HierarchicalStreamReader reader, FeatureMapping featureMapping) {
@@ -373,6 +378,7 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var uid = mapHexId(reader.getAttribute("uid")); // required
         var key = featureMapping.mapFeatureIdToKey(uid);
         var contentType = mapContentType(mapHexIdNullable(reader.getAttribute("refCID"))); // required
+        var dataType = mapDataType(reader.getAttribute("refDID"));
         var min = mapNumberNullable(reader.getAttribute("min"));
         var max = mapNumberNullable(reader.getAttribute("max"));
         var stepSize = mapNumberNullable(reader.getAttribute("stepSize"));
@@ -385,7 +391,7 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
         var notifyOnChange = mapBoolean(reader.getAttribute("notifyOnChange"), true);
         var liveUpdate = mapBoolean(reader.getAttribute("liveUpdate"), false);
 
-        return new Option(uid, key, contentType, min, max, stepSize, defaultValue, initValue, enumerationType,
+        return new Option(uid, key, contentType, dataType, min, max, stepSize, defaultValue, initValue, enumerationType,
                 enumerationKey, available, access, notifyOnChange, liveUpdate);
     }
 
@@ -515,5 +521,18 @@ public class DeviceDescriptionConverter extends AbstractConverter<DeviceDescript
             }
         }
         return ContentType.UNKNOWN;
+    }
+
+    private @Nullable DataType mapDataType(@Nullable String hexIdString) {
+        var did = mapHexIdNullable(hexIdString);
+        if (did == null) {
+            return null;
+        }
+        for (DataType dataType : DataType.values()) {
+            if (dataType.id == did) {
+                return dataType;
+            }
+        }
+        return null;
     }
 }

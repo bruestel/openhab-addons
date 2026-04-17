@@ -17,16 +17,18 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.AccessProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.AvailableProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.ContentTypeProvider;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.DataTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.EnumerationTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.KeyProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.RangeProvider;
 
 /**
  * @param access possible values: WRITE_ONLY, NONE
+ * @param dataType the data type identifier (refDID) from the device description
  */
 @NonNullByDefault
-public record Command(int uid, String key, ContentType contentType, boolean available, Access access,
-        @Nullable Integer enumerationType, @Nullable String enumerationTypeKey, @Nullable Number min,
+public record Command(int uid, String key, ContentType contentType, @Nullable DataType dataType, boolean available,
+        Access access, @Nullable Integer enumerationType, @Nullable String enumerationTypeKey, @Nullable Number min,
         @Nullable Number max, @Nullable Number stepSize, boolean passwordProtected, boolean notifyOnChange)
         implements
             AccessProvider,
@@ -34,5 +36,6 @@ public record Command(int uid, String key, ContentType contentType, boolean avai
             RangeProvider,
             KeyProvider,
             EnumerationTypeProvider,
-            ContentTypeProvider {
+            ContentTypeProvider,
+            DataTypeProvider {
 }

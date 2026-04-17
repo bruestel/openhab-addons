@@ -15,11 +15,12 @@ package org.openhab.binding.homeconnectdirect.internal.handler.model;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.ContentType;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.DataType;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.DeviceDescriptionType;
 
 @NonNullByDefault
 public record Value(int uid, String key, Object value, Object rawValue, DeviceDescriptionType type,
-        @Nullable ContentType contentType) {
+        @Nullable ContentType contentType, @Nullable DataType dataType) {
 
     public int getValueAsInt() {
         try {

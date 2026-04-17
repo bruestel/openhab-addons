@@ -17,22 +17,26 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.AccessProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.AvailableProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.ContentTypeProvider;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.DataTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.EnumerationTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.KeyProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.RangeProvider;
 
 /**
  * @param access possible values: READ, READ_STATIC, NONE
+ * @param dataType the data type identifier (refDID) from the device description
  */
 @NonNullByDefault
-public record Status(int uid, String key, ContentType contentType, @Nullable Number min, @Nullable Number max,
-        @Nullable Number stepSize, @Nullable Integer enumerationType, @Nullable String enumerationTypeKey,
-        boolean available, Access access, boolean notifyOnChange, @Nullable String initValue)
+public record Status(int uid, String key, ContentType contentType, @Nullable DataType dataType, @Nullable Number min,
+        @Nullable Number max, @Nullable Number stepSize, @Nullable Integer enumerationType,
+        @Nullable String enumerationTypeKey, boolean available, Access access, boolean notifyOnChange,
+        @Nullable String initValue)
         implements
             AccessProvider,
             AvailableProvider,
             RangeProvider,
             KeyProvider,
             EnumerationTypeProvider,
-            ContentTypeProvider {
+            ContentTypeProvider,
+            DataTypeProvider {
 }

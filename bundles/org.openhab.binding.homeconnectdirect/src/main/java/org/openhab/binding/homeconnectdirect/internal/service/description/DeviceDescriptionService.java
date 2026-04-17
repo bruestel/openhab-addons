@@ -1350,7 +1350,7 @@ public class DeviceDescriptionService {
         var changedAccess = change.access();
         var changedAvailable = change.available();
 
-        return new Status(status.uid(), status.key(), status.contentType(),
+        return new Status(status.uid(), status.key(), status.contentType(), status.dataType(),
                 change.min() != null ? change.min() : status.min(), change.max() != null ? change.max() : status.max(),
                 change.stepSize() != null ? change.stepSize() : status.stepSize(),
                 change.enumType() != null ? change.enumType() : status.enumerationType(),
@@ -1372,7 +1372,7 @@ public class DeviceDescriptionService {
         var changedAccess = change.access();
         var changedAvailable = change.available();
 
-        return new Setting(setting.uid(), setting.key(), setting.contentType(),
+        return new Setting(setting.uid(), setting.key(), setting.contentType(), setting.dataType(),
                 change.min() != null ? change.min() : setting.min(),
                 change.max() != null ? change.max() : setting.max(),
                 change.stepSize() != null ? change.stepSize() : setting.stepSize(),
@@ -1394,7 +1394,8 @@ public class DeviceDescriptionService {
     private Event updateEvent(Event event, DescriptionChangeData change) {
         var changedEnumType = change.enumType();
         var changedKey = resolveEnumTypeKey(changedEnumType);
-        return new Event(event.uid(), event.key(), event.contentType(), event.handling(), event.level(),
+        return new Event(event.uid(), event.key(), event.contentType(), event.dataType(), event.handling(),
+                event.level(),
                 changedEnumType != null ? changedEnumType : Objects.requireNonNull(event.enumerationType()),
                 changedKey != null ? changedKey : event.enumerationTypeKey());
     }
@@ -1408,7 +1409,7 @@ public class DeviceDescriptionService {
         var changedAccess = change.access();
         var changedAvailable = change.available();
 
-        return new Command(command.uid(), command.key(), command.contentType(),
+        return new Command(command.uid(), command.key(), command.contentType(), command.dataType(),
                 changedAvailable != null ? changedAvailable : command.available(),
                 changedAccess != null ? mapAccess(changedAccess) : command.access(),
                 change.enumType() != null ? change.enumType() : command.enumerationType(),
@@ -1431,7 +1432,7 @@ public class DeviceDescriptionService {
         var changedAccess = change.access();
         var changedAvailable = change.available();
 
-        return new Option(option.uid(), option.key(), option.contentType(),
+        return new Option(option.uid(), option.key(), option.contentType(), option.dataType(),
                 change.min() != null ? change.min() : option.min(), change.max() != null ? change.max() : option.max(),
                 change.stepSize() != null ? change.stepSize() : option.stepSize(),
                 change.defaultValue() != null ? change.defaultValue() : option.defaultValue(), option.initValue(),

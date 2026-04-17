@@ -15,11 +15,16 @@ package org.openhab.binding.homeconnectdirect.internal.service.description.model
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.ContentTypeProvider;
+import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.DataTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.EnumerationTypeProvider;
 import org.openhab.binding.homeconnectdirect.internal.service.description.model.provider.KeyProvider;
 
 @NonNullByDefault
-public record Event(int uid, String key, ContentType contentType, Handling handling, Level level,
-        @Nullable Integer enumerationType,
-        String enumerationTypeKey) implements KeyProvider, ContentTypeProvider, EnumerationTypeProvider {
+public record Event(int uid, String key, ContentType contentType, @Nullable DataType dataType, Handling handling,
+        Level level, @Nullable Integer enumerationType, String enumerationTypeKey)
+        implements
+            KeyProvider,
+            ContentTypeProvider,
+            EnumerationTypeProvider,
+            DataTypeProvider {
 }
