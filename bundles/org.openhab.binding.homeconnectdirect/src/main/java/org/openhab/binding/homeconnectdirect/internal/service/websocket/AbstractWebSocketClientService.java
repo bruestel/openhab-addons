@@ -79,6 +79,7 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
                 webSocketClient.connect(this, applianceUri).get();
             }
         } catch (Exception ignored) {
+            // best-effort connect, errors are handled by the connection check mechanism
         }
     }
 
@@ -91,6 +92,7 @@ public abstract class AbstractWebSocketClientService implements WebSocketClientS
                 logger.debug("Stop web socket client ({}).", applianceUri);
                 webSocketClient.stop();
             } catch (Exception ignored) {
+                // best-effort stop during cleanup
             }
 
             logger.debug("Destroy web socket client ({}).", applianceUri);

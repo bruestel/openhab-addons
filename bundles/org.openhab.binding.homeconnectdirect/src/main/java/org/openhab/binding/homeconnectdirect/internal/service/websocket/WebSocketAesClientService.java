@@ -101,6 +101,7 @@ public class WebSocketAesClientService extends AbstractWebSocketClientService {
                             + "'<JAVA_HOME>/conf/security/java.security'. The unlimited policy is supported natively in your Java version.";
                 }
             } catch (NoSuchAlgorithmException ignored) {
+                // AES algorithm check failed, use original exception message
             }
             throw new WebSocketClientServiceException(message, e);
         }
