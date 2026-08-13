@@ -15,24 +15,24 @@ p { line-height: 1.5; }
 .lead { margin-top: 0; opacity: .8; }
 .card { background: #fff; border: 1px solid #dcdfe3; border-radius: .6rem; padding: 1.25rem; margin: 1rem 0; }
 @media (prefers-color-scheme: dark) { .card { background: #22262b; border-color: #383d43; } }
+.step { display: flex; align-items: baseline; gap: .6rem; }
+.step .num { flex: 0 0 1.6rem; height: 1.6rem; line-height: 1.6rem; text-align: center; border-radius: 50%; background: #1f6fd0; color: #fff; font-size: .85rem; font-weight: 600; }
 .head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .uid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; opacity: .7; }
 .badge { font-size: .75rem; padding: .15rem .5rem; border-radius: 1rem; border: 1px solid transparent; }
 .badge.ok { background: #e3f6e8; border-color: #7fc99a; color: #1d6b38; }
 .badge.pending { background: #fdf1dc; border-color: #e0b567; color: #7d5410; }
-ol { padding-left: 1.2rem; }
-li { margin: .75rem 0; }
 textarea { width: 100%; box-sizing: border-box; min-height: 4.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; padding: .5rem; border-radius: .4rem; border: 1px solid #c4c8cd; background: inherit; color: inherit; }
 button, .button { font: inherit; cursor: pointer; border-radius: .4rem; border: 1px solid #1f6fd0; background: #1f6fd0; color: #fff; padding: .45rem .9rem; text-decoration: none; display: inline-block; }
-button.secondary { background: transparent; color: inherit; border-color: #9aa0a6; }
+button.secondary, .button.secondary { background: transparent; color: inherit; border-color: #9aa0a6; }
 .message { padding: .7rem .9rem; border-radius: .4rem; margin: 1rem 0; }
 .message.ok { background: #e3f6e8; color: #1d6b38; }
 .message.error { background: #fbe3e3; color: #8c2020; }
 .empty { opacity: .8; }
-details.hint { border: 1px solid #dcdfe3; border-radius: .6rem; padding: .75rem 1rem; margin: 1rem 0; }
-@media (prefers-color-scheme: dark) { details.hint { border-color: #383d43; } }
-details.hint summary { cursor: pointer; font-weight: 600; }
-details.hint p { font-size: .92rem; }
+.url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; padding: .2rem .4rem; border-radius: .3rem; background: rgba(127,127,127,.15); }
+details.fallback { margin-top: 1rem; border-top: 1px solid #dcdfe3; padding-top: .75rem; }
+@media (prefers-color-scheme: dark) { details.fallback { border-color: #383d43; } }
+details.fallback summary { cursor: pointer; font-size: .92rem; opacity: .85; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
 </style>
 </head>
@@ -43,20 +43,34 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
 
 ${message}
 
-<p>Bosch only accepts <code>${redirectUri}</code> as the redirect address of the app, so the browser cannot return to
-openHAB directly. That address belongs to the My&nbsp;Home&nbsp;Assistant service, which forwards the login to whatever
-instance URL is stored in your browser. Copying the address back by hand always works, and setting that instance URL to
-this openHAB makes the forwarding land here automatically.</p>
+<section class="card">
+  <div class="step">
+    <span class="num">1</span>
+    <div>
+      <h2>Point My&nbsp;Home&nbsp;Assistant at this openHAB</h2>
+      <p>Bosch accepts only <code>${redirectUri}</code> as the return address for this client, so the login cannot come
+      back to openHAB directly. That address belongs to the My&nbsp;Home&nbsp;Assistant service, which forwards the
+      login to whatever instance URL is stored in your browser. Set it to this openHAB and the authorization completes
+      on its own.</p>
+      <p><span class="url" id="openhab-url">${openhabUrl}</span>
+         <button type="button" class="secondary" id="copy-url">Copy</button></p>
+      <p><a class="button secondary" href="${instanceSettingsUrl}" target="_blank" rel="noopener">Open the My&nbsp;Home&nbsp;Assistant settings</a></p>
+      <p><small>The value is stored only in this browser, no Home Assistant installation is involved. Needed once per
+      browser. Afterwards the login lands on <code>${callbackUrl}</code>, where this binding is listening.</small></p>
+    </div>
+  </div>
+</section>
 
-<details class="hint">
-<summary>Let the login return to openHAB automatically (optional, once per browser)</summary>
-<p>Open <a href="${instanceSettingsUrl}" target="_blank" rel="noopener">the My&nbsp;Home&nbsp;Assistant settings page</a>
-and change the instance URL to the address of this openHAB:</p>
-<p><code id="openhab-url">${openhabUrl}</code> <button type="button" class="secondary" id="copy-url">Copy</button></p>
-<p>The value is only stored in your browser, no Home Assistant installation is involved. After saving it, the login
-forwards to <code>${callbackUrl}</code> and the account is authorized without any copying. If that address is already
-taken by another add-on, use the field below instead.</p>
-</details>
+<section class="card">
+  <div class="step">
+    <span class="num">2</span>
+    <div>
+      <h2>Log in</h2>
+      <p>If you are already signed in with your Bosch SingleKey ID in this browser, no login form will appear &ndash;
+      you are forwarded straight through.</p>
+    </div>
+  </div>
+</section>
 
 ${accounts}
 </main>
@@ -64,7 +78,7 @@ ${accounts}
 var copyButton = document.getElementById("copy-url");
 if (copyButton && navigator.clipboard) {
   copyButton.addEventListener("click", function () {
-    navigator.clipboard.writeText(document.getElementById("openhab-url").textContent).then(function () {
+    navigator.clipboard.writeText(document.getElementById("openhab-url").textContent.trim()).then(function () {
       copyButton.textContent = "Copied";
       setTimeout(function () { copyButton.textContent = "Copy"; }, 2000);
     });

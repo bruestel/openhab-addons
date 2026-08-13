@@ -40,31 +40,23 @@ Such a refresh is skipped if the values were read less than 10 seconds ago, beca
 
 ## Authorization
 
-Bosch accepts exactly one redirect address for the app client, and that address does not point to openHAB.
-The browser can therefore not return to openHAB by itself and the authorization code has to be carried over manually, once per account:
+Bosch accepts exactly one return address for this client, `https://my.home-assistant.io/redirect/oauth`, and it does not point to openHAB.
+That address belongs to the My Home Assistant service, a static page that forwards the login to the instance URL stored in the browser and appends `/auth/external/callback`.
+The binding listens on that path, so pointing the instance URL at openHAB makes the authorization complete on its own.
 
 1. Add an `account` thing. It stays offline with the note that it is not authorized yet.
 1. Open `http://<youropenhab>:8080/boschsmartcam` in a browser.
-1. Click **Log in with Bosch SingleKey ID** and log in.
-1. The browser ends up on a page that may show an error. That is expected - the page only carries the authorization code.
-1. Copy the complete address of that page from the address bar, paste it into the field on the openHAB page and submit it.
+1. Follow step 1 on that page: open the My Home Assistant settings and set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`. The page shows the exact value and offers a button to copy it. This is stored only in that browser and is needed once.
+1. Click **Log in with Bosch SingleKey ID** and log in. If you are already signed in with your SingleKey ID in that browser, no login form appears and you are forwarded straight through.
+1. On the My Home Assistant page, click the button that opens the link to openHAB. The account thing goes online.
 
-The account thing goes online and the tokens are stored by openHAB.
+No Home Assistant installation is involved at any point - the instance URL is just a value in the browser's local storage.
+
+If the instance URL cannot be set, for example because the login happens on a phone or in a private window, the page offers a fallback: copy the complete address you were redirected to and paste it into the field under _The login did not return to openHAB?_.
+That page may show an error - it only carries the authorization code.
+
 From then on the binding refreshes the access token on its own, so this procedure is only needed again if the tokens are removed or revoked.
-
 The same page also lets you remove the stored tokens of an account, for example to authorize it with a different Bosch account.
-
-### Letting the login return automatically
-
-The fixed redirect address belongs to the My Home Assistant service, which forwards the login to the instance URL stored in the browser and appends `/auth/external/callback`.
-The binding listens on that path as well, so pointing that instance URL at openHAB removes the copy and paste step:
-
-1. Open [the My Home Assistant settings page](https://my.home-assistant.io/redirect/_change/?redirect=oauth).
-1. Set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`, and save it.
-1. Start the login as described above. The browser now ends up on the openHAB page with the account already authorized.
-
-The instance URL is only stored in that browser, no Home Assistant installation is needed.
-The authorization page shows the exact value to enter and offers a button to copy it.
 
 ## Channels
 

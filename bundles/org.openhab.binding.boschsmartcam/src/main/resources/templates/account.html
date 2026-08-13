@@ -4,19 +4,22 @@
     <span class="badge ${account.stateClass}">${account.stateText}</span>
   </div>
   <p class="uid">${account.uid}</p>
-  <ol>
-    <li>
-      <a class="button" href="${account.authorizationUrl}" target="_blank" rel="noopener">Log in with Bosch SingleKey ID</a>
-    </li>
-    <li>
-      <form class="authorize" method="post" action="${servletPath}">
-        <input type="hidden" name="thingUid" value="${account.uid}">
-        <label for="url-${account.uid}">Paste the address you were redirected to:</label>
-        <textarea id="url-${account.uid}" name="redirectUrl" spellcheck="false" placeholder="https://my.home-assistant.io/redirect/oauth?code=...&amp;state=..."></textarea>
-        <p><button type="submit">Complete authorization</button></p>
-      </form>
-    </li>
-  </ol>
+
+  <p><a class="button" href="${account.authorizationUrl}" target="_blank" rel="noopener">Log in with Bosch SingleKey ID</a></p>
+
+  <details class="fallback">
+    <summary>The login did not return to openHAB? Paste the address here</summary>
+    <p>Use this if step 1 was skipped, or if you authorized from another browser or device. After the login you land on
+    a page that may show an error &ndash; that is expected, it only carries the authorization code. Copy its complete
+    address from the address bar.</p>
+    <form class="authorize" method="post" action="${servletPath}">
+      <input type="hidden" name="thingUid" value="${account.uid}">
+      <label for="url-${account.uid}">Address you were redirected to:</label>
+      <textarea id="url-${account.uid}" name="redirectUrl" spellcheck="false" placeholder="https://my.home-assistant.io/redirect/oauth?code=...&amp;state=..."></textarea>
+      <p><button type="submit">Complete authorization</button></p>
+    </form>
+  </details>
+
   <form method="post" action="${servletPath}">
     <input type="hidden" name="thingUid" value="${account.uid}">
     <input type="hidden" name="action" value="deauthorize">
