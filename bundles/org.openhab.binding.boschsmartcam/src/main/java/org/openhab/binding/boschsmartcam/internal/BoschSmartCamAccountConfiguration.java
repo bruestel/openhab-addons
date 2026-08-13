@@ -23,9 +23,10 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public class BoschSmartCamAccountConfiguration {
 
     /**
-     * Interval in seconds the camera settings are polled from the Bosch cloud.
+     * Interval in seconds the camera settings are polled from the Bosch cloud. Changes made through openHAB are read
+     * back right away, so the poll only has to pick up changes made elsewhere, e.g. in the Bosch app.
      */
-    public int refreshInterval = 60;
+    public int refreshInterval = 300;
 
     /**
      * Optional override for the client secret compiled into the binding.

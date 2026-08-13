@@ -17,6 +17,8 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
@@ -61,6 +63,8 @@ import org.slf4j.LoggerFactory;
 public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         implements AccessTokenProvider, AccessTokenRefreshListener {
 
+    private static final long MIN_POLL_AGE_SECONDS = 10;
+
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamAccountHandler.class);
 
     private final OAuthFactory oAuthFactory;
@@ -74,6 +78,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
     private @Nullable PkceChallenge pkceChallenge;
 
     private volatile List<VideoInput> cameras = List.of();
+    private volatile Instant lastPoll = Instant.EPOCH;
 
     public BoschSmartCamAccountHandler(Bridge bridge, OAuthFactory oAuthFactory, HttpClient httpClient,
             BoschSmartCamAuthService authService) {
@@ -178,9 +183,21 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
     }
 
     /**
+     * Reads the camera settings from the cloud unless that just happened. Used for {@code REFRESH} commands, which
+     * openHAB sends per channel, so without the throttle a single item refresh would cause a burst of requests.
+     */
+    public void refreshFromCloud() {
+        if (Duration.between(lastPoll, Instant.now()).getSeconds() < MIN_POLL_AGE_SECONDS) {
+            return;
+        }
+        scheduler.execute(this::poll);
+    }
+
+    /**
      * Polls the camera settings and pushes them to the camera things.
      */
     public void poll() {
+        lastPoll = Instant.now();
         if (!isAuthorized()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
                     "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]");

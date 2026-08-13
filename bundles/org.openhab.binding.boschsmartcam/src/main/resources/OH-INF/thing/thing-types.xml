@@ -11,8 +11,9 @@
 		<config-description>
 			<parameter name="refreshInterval" type="integer" unit="s" min="30">
 				<label>Refresh Interval</label>
-				<description>Interval the camera settings are polled from the Bosch cloud in sec.</description>
-				<default>60</default>
+				<description>Interval the camera settings are polled from the Bosch cloud in sec. Only relevant for changes made
+					outside of openHAB.</description>
+				<default>300</default>
 			</parameter>
 			<parameter name="clientSecret" type="text">
 				<context>password</context>

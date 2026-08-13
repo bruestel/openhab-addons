@@ -24,8 +24,14 @@ Add an `account` thing, authorize it as described below, then start a scan for t
 
 | Name            | Type    | Description                                                              | Default | Required | Advanced |
 |-----------------|---------|--------------------------------------------------------------------------|---------|----------|----------|
-| refreshInterval | integer | Interval the camera settings are polled from the Bosch cloud in sec.      | 60      | no       | no       |
+| refreshInterval | integer | Interval the camera settings are polled from the Bosch cloud in sec.      | 300     | no       | no       |
 | clientSecret    | text    | Client secret of the Bosch app, only needed if it was not compiled in.    | N/A     | no       | yes      |
+
+Commands sent from openHAB are read back a few seconds later, so `refreshInterval` only determines how fast a change made elsewhere, for example in the Bosch app, shows up in openHAB.
+The minimum is 30 seconds.
+
+A `REFRESH` command on any channel of a camera reads the settings from the cloud as well, so a rule can pick up the current state without waiting for the next poll.
+Such a refresh is skipped if the values were read less than 10 seconds ago, because openHAB sends `REFRESH` per channel.
 
 ### `camera` Thing Configuration
 
@@ -76,7 +82,7 @@ After switching `privacy-mode` the camera needs a few seconds to apply the chang
 ### Thing Configuration
 
 ```java
-Bridge boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=60 ] {
+Bridge boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=300 ] {
     Thing camera garden "Garden" [ cameraId="21E99E8A-0000-0000-0000-000000000000" ]
 }
 ```

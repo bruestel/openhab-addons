@@ -80,7 +80,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         }
 
         if (command instanceof RefreshType) {
+            // show what is known right away, the fresh values from the cloud follow
             updateFromCameras(accountHandler.getCameras());
+            accountHandler.refreshFromCloud();
             return;
         }
 
