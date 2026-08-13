@@ -277,7 +277,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     private String url(String file) {
-        return openhabBaseUrl + SERVLET_PATH + "/" + file + "?" + PARAM_TOKEN + "=" + accessToken;
+        return openhabBaseUrl + SERVLET_PATH + "/" + accessToken + "/" + file;
     }
 
     /**

@@ -54,11 +54,6 @@ public class BoschSmartCamBindingConstants {
      */
     public static final String PROPERTY_ACCESS_TOKEN = "accessToken";
 
-    /**
-     * Query parameter carrying {@link #PROPERTY_ACCESS_TOKEN}.
-     */
-    public static final String PARAM_TOKEN = "token";
-
     // Bosch SingleKey ID (Keycloak) endpoints
     public static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
     public static final String OAUTH_AUTHORIZE_URL = AUTH_BASE_URL + "/auth";
@@ -87,7 +82,7 @@ public class BoschSmartCamBindingConstants {
     public static final String SERVLET_PATH = "/" + BINDING_ID;
 
     /**
-     * Last part of a snapshot URL, which reads {@code /boschsmartcam/snapshot.jpg?token=<token>}.
+     * Last part of a snapshot URL, which reads {@code /boschsmartcam/<token>/snapshot.jpg}.
      */
     public static final String SNAPSHOT_FILE = "snapshot.jpg";
 

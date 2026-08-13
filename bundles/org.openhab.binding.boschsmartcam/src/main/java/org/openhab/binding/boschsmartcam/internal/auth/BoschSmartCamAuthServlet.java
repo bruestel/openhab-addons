@@ -16,7 +16,6 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.ONVIF_PROBE_FILE;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.PARAM_TOKEN;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
@@ -164,12 +163,17 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (path == null) {
             return false;
         }
-        boolean probe = path.equals("/" + ONVIF_PROBE_FILE);
-        if (!probe && !path.equals("/" + SNAPSHOT_FILE)) {
+        // "/<token>/<file>" splits into an empty part, the token and the file
+        String[] parts = path.split("/");
+        if (parts.length != 3) {
+            return false;
+        }
+        boolean probe = ONVIF_PROBE_FILE.equals(parts[2]);
+        if (!probe && !SNAPSHOT_FILE.equals(parts[2])) {
             return false;
         }
 
-        Optional<BoschSmartCamCameraHandler> camera = authService.getCamera(request.getParameter(PARAM_TOKEN));
+        Optional<BoschSmartCamCameraHandler> camera = authService.getCamera(parts[1]);
         if (camera.isEmpty()) {
             // the same answer as for a forbidden network, so an unknown token cannot be told apart from a known one
             logger.debug("Snapshot requested with an unknown token from {}", request.getRemoteAddr());
