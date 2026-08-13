@@ -15,6 +15,8 @@ package org.openhab.binding.boschsmartcam.internal.auth;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.ONVIF_PROBE_FILE;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.PARAM_TOKEN;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
@@ -159,22 +161,31 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private boolean serveSnapshotIfRequested(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         String path = request.getPathInfo();
-        if (path == null || !path.endsWith("/" + SNAPSHOT_FILE)) {
+        if (path == null) {
             return false;
         }
-        String token = path.substring(0, path.length() - SNAPSHOT_FILE.length() - 1).replace("/", "");
+        boolean probe = path.equals("/" + ONVIF_PROBE_FILE);
+        if (!probe && !path.equals("/" + SNAPSHOT_FILE)) {
+            return false;
+        }
 
-        Optional<BoschSmartCamCameraHandler> camera = authService.getSnapshotProvider(token);
+        Optional<BoschSmartCamCameraHandler> camera = authService.getCamera(request.getParameter(PARAM_TOKEN));
         if (camera.isEmpty()) {
             // the same answer as for a forbidden network, so an unknown token cannot be told apart from a known one
             logger.debug("Snapshot requested with an unknown token from {}", request.getRemoteAddr());
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return true;
         }
-        if (!camera.get().isAllowedToFetchSnapshot(request.getRemoteAddr())) {
+        if (!camera.get().isAllowedFrom(request.getRemoteAddr())) {
             logger.warn("Refused a snapshot request from {}, it is not in the allowed networks",
                     request.getRemoteAddr());
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return true;
+        }
+
+        if (probe) {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().append(camera.get().probeOnvif()).close();
             return true;
         }
 

@@ -65,7 +65,7 @@ public class BoschSmartCamAuthService {
     private @NonNullByDefault({}) HttpService httpService;
     private @NonNullByDefault({}) BundleContext bundleContext;
     private final List<String> aliases = new CopyOnWriteArrayList<>();
-    private final Map<String, BoschSmartCamCameraHandler> snapshotProviders = new ConcurrentHashMap<>();
+    private final Map<String, BoschSmartCamCameraHandler> camerasByToken = new ConcurrentHashMap<>();
 
     @Activate
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
@@ -121,22 +121,22 @@ public class BoschSmartCamAuthService {
     }
 
     /**
-     * Registers a camera under the unguessable part of its snapshot URL.
+     * Registers a camera under the token that guards its URLs.
      */
-    public void addSnapshotProvider(String token, BoschSmartCamCameraHandler handler) {
-        snapshotProviders.put(token, handler);
+    public void addCamera(String token, BoschSmartCamCameraHandler handler) {
+        camerasByToken.put(token, handler);
     }
 
-    public void removeSnapshotProvider(String token) {
-        snapshotProviders.remove(token);
+    public void removeCamera(String token) {
+        camerasByToken.remove(token);
     }
 
     /**
      * @param token the token from the requested URL
      * @return the camera behind it, if the token belongs to one
      */
-    public Optional<BoschSmartCamCameraHandler> getSnapshotProvider(@Nullable String token) {
-        return token == null ? Optional.empty() : Optional.ofNullable(snapshotProviders.get(token));
+    public Optional<BoschSmartCamCameraHandler> getCamera(@Nullable String token) {
+        return token == null ? Optional.empty() : Optional.ofNullable(camerasByToken.get(token));
     }
 
     public void addAccountHandler(BoschSmartCamAccountHandler handler) {

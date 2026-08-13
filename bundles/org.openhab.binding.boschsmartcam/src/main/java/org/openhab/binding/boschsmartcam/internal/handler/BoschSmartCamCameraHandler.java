@@ -14,12 +14,11 @@ package org.openhab.binding.boschsmartcam.internal.handler;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.*;
 
-import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -29,6 +28,7 @@ import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraStatus;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
+import org.openhab.binding.boschsmartcam.internal.diagnostics.OnvifProbe;
 import org.openhab.binding.boschsmartcam.internal.snapshot.SnapshotFetcher;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
@@ -54,7 +54,6 @@ import org.slf4j.LoggerFactory;
 public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     private static final int MIN_SNAPSHOT_CACHE_SECONDS = 5;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamCameraHandler.class);
 
@@ -63,7 +62,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private final String openhabBaseUrl;
 
     private String cameraId = "";
-    private String snapshotToken = "";
+    private String accessToken = "";
     private Duration snapshotCache = Duration.ofSeconds(15);
     private @Nullable SnapshotFetcher snapshotFetcher;
 
@@ -86,10 +85,10 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         }
 
         snapshotCache = Duration.ofSeconds(Math.max(MIN_SNAPSHOT_CACHE_SECONDS, config.snapshotCacheSeconds));
-        snapshotToken = currentOrNewSnapshotToken();
+        accessToken = currentOrNewAccessToken();
         snapshotFetcher = new SnapshotFetcher(cameraHttpClient, cameraId,
                 () -> getRequiredAccountHandler().getApi().openLocalConnection(cameraId));
-        authService.addSnapshotProvider(snapshotToken, this);
+        authService.addCamera(accessToken, this);
 
         updateStatus(ThingStatus.UNKNOWN);
 
@@ -213,7 +212,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     @Override
     public void dispose() {
-        authService.removeSnapshotProvider(snapshotToken);
+        authService.removeCamera(accessToken);
         SnapshotFetcher fetcher = snapshotFetcher;
         if (fetcher != null) {
             fetcher.clear();
@@ -233,10 +232,39 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
+     * Collects what the camera says about ONVIF, read only. Diagnostic aid while it is still open whether the
+     * cameras can deliver events without the cloud.
+     */
+    public String probeOnvif() {
+        OnvifProbe probe = new OnvifProbe();
+        try {
+            probe.add("GET /v11/video_inputs/{id}/onvif_user",
+                    getRequiredAccountHandler().getApi().getOnvifUser(cameraId));
+        } catch (BoschSmartCamException e) {
+            probe.addFailure("GET /v11/video_inputs/{id}/onvif_user", e);
+        }
+
+        SnapshotFetcher fetcher = snapshotFetcher;
+        if (fetcher == null) {
+            probe.add("local", "the camera is not initialized");
+            return probe.toString();
+        }
+        for (String command : List.of(OnvifProbe.RCP_NETWORK_SERVICES, OnvifProbe.RCP_ONVIF_SCOPES)) {
+            String name = "RCP " + command;
+            try {
+                probe.add(name, OnvifProbe.describeRcp(fetcher.fetchFromCamera(OnvifProbe.rcpReadPath(command))));
+            } catch (BoschSmartCamException e) {
+                probe.addFailure(name, e);
+            }
+        }
+        return probe.toString();
+    }
+
+    /**
      * @param remoteAddress address the snapshot request came from
      * @return whether that address is in the networks the account allows
      */
-    public boolean isAllowedToFetchSnapshot(String remoteAddress) {
+    public boolean isAllowedFrom(String remoteAddress) {
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler == null) {
             return false;
@@ -245,7 +273,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     public String getSnapshotUrl() {
-        return openhabBaseUrl + SERVLET_PATH + "/" + snapshotToken + "/" + SNAPSHOT_FILE;
+        return url(SNAPSHOT_FILE);
+    }
+
+    private String url(String file) {
+        return openhabBaseUrl + SERVLET_PATH + "/" + file + "?" + PARAM_TOKEN + "=" + accessToken;
     }
 
     /**
@@ -260,18 +292,19 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Reuses the token of a previous run so links stay valid, and creates one when there is none yet.
+     * Reuses the token of a previous run so links stay valid, and creates one when there is none yet. Deleting the
+     * property is therefore how a link is revoked.
      */
-    private String currentOrNewSnapshotToken() {
-        String stored = getThing().getProperties().get(PROPERTY_SNAPSHOT_TOKEN);
+    private String currentOrNewAccessToken() {
+        String stored = getThing().getProperties().get(PROPERTY_ACCESS_TOKEN);
         if (stored != null && !stored.isBlank()) {
             return stored;
         }
-        byte[] random = new byte[24];
-        RANDOM.nextBytes(random);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+        String token = UUID.randomUUID().toString();
         Map<String, String> properties = new HashMap<>(editProperties());
-        properties.put(PROPERTY_SNAPSHOT_TOKEN, token);
+        properties.put(PROPERTY_ACCESS_TOKEN, token);
+        // a token of an earlier version of the binding, no longer used
+        properties.remove("snapshotToken");
         updateProperties(properties);
         return token;
     }

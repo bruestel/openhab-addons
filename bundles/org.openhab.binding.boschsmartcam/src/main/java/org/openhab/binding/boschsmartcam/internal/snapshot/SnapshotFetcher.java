@@ -84,7 +84,7 @@ public class SnapshotFetcher {
             return cached;
         }
 
-        byte[] fetched = fetch(currentConnection());
+        byte[] fetched = fetch(currentConnection(), SNAPSHOT_PATH);
         image = fetched;
         imageAt = Instant.now();
         return fetched;
@@ -111,7 +111,17 @@ public class SnapshotFetcher {
         return opened;
     }
 
-    private byte[] fetch(LocalConnection connection) throws BoschSmartCamException {
+    /**
+     * Fetches any resource from the camera with the credentials this fetcher already holds. Used by the diagnostics
+     * so they do not have to open a second connection.
+     *
+     * @param pathAndQuery path including the query, starting with a slash
+     */
+    public synchronized byte[] fetchFromCamera(String pathAndQuery) throws BoschSmartCamException {
+        return fetch(currentConnection(), pathAndQuery);
+    }
+
+    private byte[] fetch(LocalConnection connection, String pathAndQuery) throws BoschSmartCamException {
         String host = connection.host();
         String user = connection.user();
         String password = connection.password();
@@ -120,7 +130,7 @@ public class SnapshotFetcher {
         }
 
         String base = "https://" + host;
-        String url = base + SNAPSHOT_PATH;
+        String url = base + pathAndQuery;
         try {
             // the store is shared with the other cameras, but it is keyed by URI so only the rotating credentials of
             // this very camera have to be replaced
@@ -140,7 +150,7 @@ public class SnapshotFetcher {
                     // a rejected credential is worth retrying with a fresh one on the next call
                     this.connection = null;
                     throw new BoschSmartCamException(
-                            "The camera answered HTTP %d to the snapshot request".formatted(response.getStatus()),
+                            "The camera answered HTTP %d to %s".formatted(response.getStatus(), pathAndQuery),
                             response.getStatus());
                 }
                 return response.getContent();

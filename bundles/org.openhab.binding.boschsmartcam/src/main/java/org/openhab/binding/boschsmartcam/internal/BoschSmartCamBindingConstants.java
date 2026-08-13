@@ -49,10 +49,15 @@ public class BoschSmartCamBindingConstants {
     public static final String PROPERTY_GENERATION = "generation";
 
     /**
-     * Unguessable part of the snapshot URL of a camera. Kept as a property so it survives restarts, and so it can be
-     * looked up when a link has to be revoked.
+     * Unguessable token that guards the URLs of a camera. Kept as a property so links survive restarts, and so it can
+     * be looked up or deleted when a link has to be revoked.
      */
-    public static final String PROPERTY_SNAPSHOT_TOKEN = "snapshotToken";
+    public static final String PROPERTY_ACCESS_TOKEN = "accessToken";
+
+    /**
+     * Query parameter carrying {@link #PROPERTY_ACCESS_TOKEN}.
+     */
+    public static final String PARAM_TOKEN = "token";
 
     // Bosch SingleKey ID (Keycloak) endpoints
     public static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
@@ -82,9 +87,14 @@ public class BoschSmartCamBindingConstants {
     public static final String SERVLET_PATH = "/" + BINDING_ID;
 
     /**
-     * Last part of a snapshot URL, which reads {@code /boschsmartcam/<token>/snapshot.jpg}.
+     * Last part of a snapshot URL, which reads {@code /boschsmartcam/snapshot.jpg?token=<token>}.
      */
     public static final String SNAPSHOT_FILE = "snapshot.jpg";
+
+    /**
+     * Diagnostic counterpart of {@link #SNAPSHOT_FILE}, reachable the same way, answering in plain text.
+     */
+    public static final String ONVIF_PROBE_FILE = "onvif-probe.txt";
 
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the

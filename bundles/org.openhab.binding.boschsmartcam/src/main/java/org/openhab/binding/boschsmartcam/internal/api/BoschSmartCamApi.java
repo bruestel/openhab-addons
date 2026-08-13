@@ -144,6 +144,14 @@ public class BoschSmartCamApi {
     }
 
     /**
+     * Reads whatever the cloud knows about the ONVIF user of a camera. Diagnostic only - the endpoint exists but the
+     * app barely uses it, so neither its answer nor what it expects on a write is documented anywhere.
+     */
+    public String getOnvifUser(String cameraId) throws BoschSmartCamException {
+        return execute(HttpMethod.GET, "/v11/video_inputs/" + cameraId + "/onvif_user", null);
+    }
+
+    /**
      * Asks the cloud for the credentials to talk to the camera directly in the local network.
      */
     public LocalConnection openLocalConnection(String cameraId) throws BoschSmartCamException {

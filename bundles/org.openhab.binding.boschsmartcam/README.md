@@ -114,7 +114,7 @@ Discovery uses the product name in the suggested label as well, e.g. _Garden (Ey
 Each camera serves a still image at an address of its own:
 
 ```text
-http://<youropenhab>:8080/boschsmartcam/<token>/snapshot.jpg
+http://<youropenhab>:8080/boschsmartcam/snapshot.jpg?token=<token>
 ```
 
 The `snapshot-url` channel carries the ready made address, so linking a String item to it is the easiest way to get at it.
@@ -128,8 +128,8 @@ A fetch costs one request to the cloud for the credentials, which are cached for
 
 Two things guard the URL.
 
-The token is 24 random bytes and part of the path, so the address cannot be guessed.
-It is stored as the `snapshotToken` property of the camera and survives restarts.
+The token is a random UUID passed as a query parameter, so the address cannot be guessed.
+It is stored as the `accessToken` property of the camera and survives restarts.
 Deleting that property hands out a new one on the next start, which makes every previously shared link fail.
 
 On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` on the account bridge, which defaults to loopback and the private ranges of IPv4 and IPv6.
