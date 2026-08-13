@@ -50,13 +50,13 @@ ${message}
       <h2>Point My&nbsp;Home&nbsp;Assistant at this openHAB</h2>
       <p>Bosch accepts only <code>${redirectUri}</code> as the return address for this client, so the login cannot come
       back to openHAB directly. That address belongs to the My&nbsp;Home&nbsp;Assistant service, which forwards the
-      login to whatever instance URL is stored in your browser. Set it to the address of this page and the
-      authorization completes on its own.</p>
-      <p><span class="url" id="openhab-url">${instanceUrl}</span>
+      login to whatever instance URL is stored in your browser. Set it to this openHAB and the authorization completes
+      on its own.</p>
+      <p><span class="url" id="openhab-url">${openhabUrl}</span>
          <button type="button" class="secondary" id="copy-url">Copy</button></p>
       <p><a class="button secondary" href="${instanceSettingsUrl}" target="_blank" rel="noopener">Open the My&nbsp;Home&nbsp;Assistant settings</a></p>
       <p><small>The value is stored only in this browser, no Home Assistant installation is involved. Needed once per
-      browser. Afterwards the login lands on <code>${callbackUrl}</code>, which this binding serves.</small></p>
+      browser. Afterwards the login lands on <code>${callbackUrl}</code>, where this binding is listening.</small></p>
     </div>
   </div>
 </section>
