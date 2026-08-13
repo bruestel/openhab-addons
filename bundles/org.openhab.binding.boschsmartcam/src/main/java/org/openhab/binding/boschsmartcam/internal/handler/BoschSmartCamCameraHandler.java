@@ -146,10 +146,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         updateProperties(camera);
         updateState(CHANNEL_PRIVACY_MODE, OnOffType.from(camera.isPrivacyModeOn()));
         updateState(CHANNEL_NOTIFICATIONS, OnOffType.from(camera.areNotificationsEnabled()));
-
-        String notificationsStatus = camera.notificationsEnabledStatus();
-        updateState(CHANNEL_NOTIFICATIONS_STATUS,
-                notificationsStatus == null ? UnDefType.UNDEF : new StringType(notificationsStatus));
+        updateRawState(CHANNEL_PRIVACY_MODE_STATUS, camera.privacyMode());
+        updateRawState(CHANNEL_NOTIFICATIONS_STATUS, camera.notificationsEnabledStatus());
 
         if (withReachability) {
             updateReachability();
@@ -182,6 +180,13 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             // keep whatever the thing had rather than flapping on an inconclusive answer
             case UNKNOWN -> logger.debug("Neither endpoint told whether {} is reachable", cameraId);
         }
+    }
+
+    /**
+     * Puts a value on a channel as the cloud sent it, so states this binding does not interpret stay visible.
+     */
+    private void updateRawState(String channelId, @Nullable String value) {
+        updateState(channelId, value == null || value.isBlank() ? UnDefType.UNDEF : new StringType(value));
     }
 
     private void updateProperties(VideoInput camera) {
