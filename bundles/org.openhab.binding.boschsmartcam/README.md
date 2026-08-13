@@ -123,3 +123,16 @@ String Garden_Status       "Garden Camera [%s]"      { channel="boschsmartcam:ca
 
 The binding authorizes itself as `oss_residential_app`, the OAuth client Bosch provides for third party integrations - the same one the Home Assistant integration uses.
 Client id and client secret identify that client, not the user, and are the same for every installation, so nothing has to be configured for them.
+
+## Credits
+
+Bosch does not document this cloud API, so the binding is built on work others did first.
+
+The [Bosch Smart Home Camera integration for Home Assistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) by Thomas Mosandl and its API client [bosch-shc-camera-client](https://github.com/mosandlt/bosch-shc-camera-client), both MIT licensed, were the reference for several details that would have taken a lot of guessing otherwise:
+
+- that `oss_residential_app` is the OAuth client Bosch provides for third party integrations, and that its only registered redirect URI is the one of the My Home Assistant service
+- the model codes behind `hardwareVersion` and which hardware generation they are
+- the full set of values the notification state can take
+- that reachability has to be read from `/ping` and `/commissioned` rather than from the camera list
+
+Thanks for documenting all of it in the open.
