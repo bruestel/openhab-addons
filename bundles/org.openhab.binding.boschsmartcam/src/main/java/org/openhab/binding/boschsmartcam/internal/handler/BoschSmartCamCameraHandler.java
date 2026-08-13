@@ -68,10 +68,21 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
         updateStatus(ThingStatus.UNKNOWN);
 
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        if (accountHandler != null) {
-            updateFromCameras(accountHandler.getCameras());
-        }
+        // off the initializing thread: reading the reachability talks to the cloud, and without it the thing would
+        // stay UNKNOWN until the next poll of the bridge
+        scheduler.execute(() -> {
+            BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+            if (accountHandler == null) {
+                return;
+            }
+            List<VideoInput> cameras = accountHandler.getCameras();
+            if (cameras.isEmpty()) {
+                // nothing cached yet, the poll of the bridge pushes the settings to this thing as well
+                accountHandler.refreshFromCloud();
+            } else {
+                updateFromCameras(cameras, true);
+            }
+        });
     }
 
     @Override
