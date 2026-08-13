@@ -16,6 +16,7 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -36,6 +37,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
+import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,6 +104,10 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (request == null || response == null) {
             return;
         }
+        if (serveSnapshotIfRequested(request, response)) {
+            return;
+        }
+
         String code = request.getParameter("code");
         String error = request.getParameter("error");
         if (code == null && error == null) {
@@ -142,6 +148,48 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
                     : authorize(thingUid, redirectUrl.trim());
         }
         response.sendRedirect(SERVLET_PATH + "?" + outcome);
+    }
+
+    /**
+     * Serves {@code /<token>/snapshot.jpg}. The token is the only thing standing between a request and the image, so
+     * requests are additionally limited to the configured networks.
+     *
+     * @return whether the request was a snapshot request and is now answered
+     */
+    private boolean serveSnapshotIfRequested(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String path = request.getPathInfo();
+        if (path == null || !path.endsWith("/" + SNAPSHOT_FILE)) {
+            return false;
+        }
+        String token = path.substring(0, path.length() - SNAPSHOT_FILE.length() - 1).replace("/", "");
+
+        Optional<BoschSmartCamCameraHandler> camera = authService.getSnapshotProvider(token);
+        if (camera.isEmpty()) {
+            // the same answer as for a forbidden network, so an unknown token cannot be told apart from a known one
+            logger.debug("Snapshot requested with an unknown token from {}", request.getRemoteAddr());
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return true;
+        }
+        if (!camera.get().isAllowedToFetchSnapshot(request.getRemoteAddr())) {
+            logger.warn("Refused a snapshot request from {}, it is not in the allowed networks",
+                    request.getRemoteAddr());
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return true;
+        }
+
+        try {
+            byte[] image = camera.get().getSnapshot();
+            response.setContentType("image/jpeg");
+            response.setContentLength(image.length);
+            // the binding caches, the browser should not
+            response.setHeader("Cache-Control", "no-store");
+            response.getOutputStream().write(image);
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not serve a snapshot", e);
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        }
+        return true;
     }
 
     private String authorize(@Nullable String thingUid, String redirectUrl) {

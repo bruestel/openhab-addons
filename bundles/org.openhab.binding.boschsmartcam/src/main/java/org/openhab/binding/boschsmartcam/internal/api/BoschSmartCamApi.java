@@ -31,6 +31,7 @@ import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraStatus;
 import org.openhab.binding.boschsmartcam.internal.api.dto.Commissioned;
+import org.openhab.binding.boschsmartcam.internal.api.dto.LocalConnection;
 import org.openhab.binding.boschsmartcam.internal.api.dto.NotificationsRequest;
 import org.openhab.binding.boschsmartcam.internal.api.dto.PrivacyModeRequest;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
@@ -140,6 +141,23 @@ public class BoschSmartCamApi {
             throws BoschSmartCamException {
         execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/privacy",
                 gson.toJson(PrivacyModeRequest.of(privacyModeOn, durationInSeconds)));
+    }
+
+    /**
+     * Asks the cloud for the credentials to talk to the camera directly in the local network.
+     */
+    public LocalConnection openLocalConnection(String cameraId) throws BoschSmartCamException {
+        String content = execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/connection",
+                "{\"type\":\"LOCAL\",\"highQualityVideo\":true}");
+        try {
+            LocalConnection connection = gson.fromJson(content, LocalConnection.class);
+            if (connection == null || !connection.isUsable()) {
+                throw new BoschSmartCamException("The cloud did not hand out local credentials for " + cameraId);
+            }
+            return connection;
+        } catch (JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected answer when opening a local connection", e);
+        }
     }
 
     /**

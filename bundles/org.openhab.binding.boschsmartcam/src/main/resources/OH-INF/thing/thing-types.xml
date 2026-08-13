@@ -15,6 +15,14 @@
 					outside of openHAB.</description>
 				<default>300</default>
 			</parameter>
+			<parameter name="snapshotAllowedNetworks" type="text">
+				<label>Snapshot Networks</label>
+				<description>Networks that may fetch the snapshot URLs, as comma separated CIDR blocks. Defaults to loopback
+					and the
+					private ranges, so images stay in the local network even if a link leaks.</description>
+				<default>127.0.0.0/8, ::1/128, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10</default>
+				<advanced>true</advanced>
+			</parameter>
 		</config-description>
 	</bridge-type>
 
@@ -32,6 +40,7 @@
 			<channel id="notifications" typeId="notifications"/>
 			<channel id="notifications-status" typeId="notifications-status"/>
 			<channel id="status" typeId="status"/>
+			<channel id="snapshot-url" typeId="snapshot-url"/>
 		</channels>
 
 		<representation-property>cameraId</representation-property>
@@ -40,6 +49,14 @@
 			<parameter name="cameraId" type="text" required="true">
 				<label>Camera ID</label>
 				<description>ID of the camera as used by the Bosch cloud.</description>
+			</parameter>
+			<parameter name="snapshotCacheSeconds" type="integer" unit="s" min="5">
+				<label>Snapshot Cache</label>
+				<description>How long a fetched image is reused before the camera is asked again. The number of viewers does
+					not
+					matter, they all share it.</description>
+				<default>15</default>
+				<advanced>true</advanced>
 			</parameter>
 		</config-description>
 	</thing-type>
@@ -54,6 +71,13 @@
 		<item-type>Switch</item-type>
 		<label>Notifications</label>
 		<description>Push notifications of this camera to the Bosch app.</description>
+	</channel-type>
+
+	<channel-type id="snapshot-url">
+		<item-type>String</item-type>
+		<label>Snapshot URL</label>
+		<description>Address a still image of this camera can be fetched from. Contains a token, so treat it as a secret.</description>
+		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="privacy-mode-status">

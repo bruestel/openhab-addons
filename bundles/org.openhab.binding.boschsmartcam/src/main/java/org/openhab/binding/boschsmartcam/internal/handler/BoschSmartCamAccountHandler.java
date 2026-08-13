@@ -35,6 +35,7 @@ import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
 import org.openhab.binding.boschsmartcam.internal.auth.PkceChallenge;
 import org.openhab.binding.boschsmartcam.internal.discovery.BoschSmartCamDiscoveryService;
+import org.openhab.binding.boschsmartcam.internal.net.CidrMatcher;
 import org.openhab.core.auth.client.oauth2.AccessTokenRefreshListener;
 import org.openhab.core.auth.client.oauth2.AccessTokenResponse;
 import org.openhab.core.auth.client.oauth2.OAuthClientService;
@@ -79,6 +80,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
 
     private volatile List<VideoInput> cameras = List.of();
     private volatile Instant lastPoll = Instant.EPOCH;
+    private @Nullable CidrMatcher snapshotNetworks;
 
     public BoschSmartCamAccountHandler(Bridge bridge, OAuthFactory oAuthFactory, HttpClient httpClient,
             BoschSmartCamAuthService authService) {
@@ -96,6 +98,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
     @Override
     public void initialize() {
         config = getConfigAs(BoschSmartCamAccountConfiguration.class);
+        snapshotNetworks = null;
         authService.addAccountHandler(this);
 
         oAuthService = createOAuthService();
@@ -166,6 +169,18 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      */
     public List<VideoInput> getCameras() {
         return cameras;
+    }
+
+    /**
+     * @return the networks that may fetch snapshots of the cameras of this account
+     */
+    public CidrMatcher getSnapshotNetworks() {
+        CidrMatcher matcher = snapshotNetworks;
+        if (matcher == null) {
+            matcher = new CidrMatcher(config.snapshotAllowedNetworks);
+            snapshotNetworks = matcher;
+        }
+        return matcher;
     }
 
     public BoschSmartCamApi getApi() throws BoschSmartCamException {

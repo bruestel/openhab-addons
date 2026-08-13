@@ -6,8 +6,8 @@ The cameras are not reachable through the Bosch Smart Home Controller, they are 
 This binding uses the same cloud API as that app, so a Bosch SingleKey ID account is all that is needed.
 It is therefore unrelated to the Bosch Smart Home binding, which talks to the Smart Home Controller.
 
-The binding currently covers the camera settings.
-Snapshots and video streams are not part of it.
+The binding covers the camera settings and serves a still image per camera.
+Video streams are not part of it - use the `ipcamera` binding for those.
 
 ## Supported Things
 
@@ -71,6 +71,7 @@ The same page also lets you remove the stored tokens of an account, for example 
 | notifications  | Switch | RW         | Push notifications of this camera to the Bosch app.                                                  |
 | notifications-status | String | R    | The notification setting as the cloud reports it, e.g. `FOLLOW_CAMERA_SCHEDULE` or `ALWAYS_OFF`.      |
 | status         | String | R          | `ONLINE`, `OFFLINE`, `UPDATING` while a firmware update runs, or `SESSION_LIMIT`.                     |
+| snapshot-url   | String | R          | Address a still image can be fetched from. Contains a token, treat it as a secret.                    |
 
 After switching `privacy-mode` the camera needs a few seconds to apply the change, so the confirmed state arrives with a small delay.
 
@@ -110,6 +111,35 @@ The `camera` thing carries these properties, refreshed with every poll:
 | `HOME_Eyes_Outdoor` | Eyes Outdoor Camera II | 2          |
 
 Discovery uses the product name in the suggested label as well, e.g. _Garden (Eyes Outdoor Camera II)_.
+
+## Snapshots
+
+Each camera serves a still image at an address of its own:
+
+```text
+http://<youropenhab>:8080/boschsmartcam/<token>/snapshot.jpg
+```
+
+The `snapshot-url` channel carries the ready made address, so linking a String item to it is the easiest way to get at it.
+Put that URL into an Image widget instead of an Image item and the picture is only fetched while somebody is actually looking at it - openHAB has no way to tell whether an item is being viewed, a browser request is the only honest signal for that.
+
+Fetched images are reused for `snapshotCacheSeconds`, 15 by default and never below 5.
+Ten viewers therefore cause no more traffic than one, and nobody looking causes none at all.
+A fetch costs one request to the cloud for the credentials, which are cached for 45 seconds, and one to the camera in the local network.
+
+### Who may fetch them
+
+Two things guard the URL.
+
+The token is 24 random bytes and part of the path, so the address cannot be guessed.
+It is stored as the `snapshotToken` property of the camera and survives restarts.
+Deleting that property hands out a new one on the next start, which makes every previously shared link fail.
+
+On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` on the account bridge, which defaults to loopback and the private ranges of IPv4 and IPv6.
+The comparison works on the raw address bytes against the CIDR blocks, so `192.168.0.9` does not accidentally match `192.168.0.99`.
+Behind a reverse proxy openHAB sees the address of the proxy, so add that one rather than the address of the browser.
+
+Be aware of what such a URL is: whoever holds the link sees the picture, without logging in to openHAB.
 
 ## Full Example
 

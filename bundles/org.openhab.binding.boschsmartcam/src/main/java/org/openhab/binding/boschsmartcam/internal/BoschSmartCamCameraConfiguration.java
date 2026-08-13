@@ -26,4 +26,10 @@ public class BoschSmartCamCameraConfiguration {
      * The id of the video input as returned by the Bosch cloud API.
      */
     public String cameraId = "";
+
+    /**
+     * How long a fetched still image is reused before the camera is asked again. Whoever opens the snapshot URL is
+     * served from that cache, so the number of viewers does not matter.
+     */
+    public int snapshotCacheSeconds = 15;
 }

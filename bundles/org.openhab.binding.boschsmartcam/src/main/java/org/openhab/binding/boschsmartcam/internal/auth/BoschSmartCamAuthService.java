@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.servlet.ServletException;
@@ -32,6 +33,7 @@ import javax.servlet.http.HttpServlet;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
+import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.annotations.Activate;
@@ -63,6 +65,7 @@ public class BoschSmartCamAuthService {
     private @NonNullByDefault({}) HttpService httpService;
     private @NonNullByDefault({}) BundleContext bundleContext;
     private final List<String> aliases = new CopyOnWriteArrayList<>();
+    private final Map<String, BoschSmartCamCameraHandler> snapshotProviders = new ConcurrentHashMap<>();
 
     @Activate
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
@@ -115,6 +118,25 @@ public class BoschSmartCamAuthService {
             }
             return false;
         }
+    }
+
+    /**
+     * Registers a camera under the unguessable part of its snapshot URL.
+     */
+    public void addSnapshotProvider(String token, BoschSmartCamCameraHandler handler) {
+        snapshotProviders.put(token, handler);
+    }
+
+    public void removeSnapshotProvider(String token) {
+        snapshotProviders.remove(token);
+    }
+
+    /**
+     * @param token the token from the requested URL
+     * @return the camera behind it, if the token belongs to one
+     */
+    public Optional<BoschSmartCamCameraHandler> getSnapshotProvider(@Nullable String token) {
+        return token == null ? Optional.empty() : Optional.ofNullable(snapshotProviders.get(token));
     }
 
     public void addAccountHandler(BoschSmartCamAccountHandler handler) {

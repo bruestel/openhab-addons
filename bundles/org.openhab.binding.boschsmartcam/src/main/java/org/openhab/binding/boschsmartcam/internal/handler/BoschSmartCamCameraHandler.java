@@ -14,6 +14,9 @@ package org.openhab.binding.boschsmartcam.internal.handler;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.*;
 
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,8 @@ import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraStatus;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
+import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
+import org.openhab.binding.boschsmartcam.internal.snapshot.SnapshotFetcher;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.thing.Bridge;
@@ -48,12 +53,26 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
+    private static final int MIN_SNAPSHOT_CACHE_SECONDS = 5;
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamCameraHandler.class);
 
-    private String cameraId = "";
+    private final BoschSmartCamAuthService authService;
+    private final org.eclipse.jetty.client.HttpClient cameraHttpClient;
+    private final String openhabBaseUrl;
 
-    public BoschSmartCamCameraHandler(Thing thing) {
+    private String cameraId = "";
+    private String snapshotToken = "";
+    private Duration snapshotCache = Duration.ofSeconds(15);
+    private @Nullable SnapshotFetcher snapshotFetcher;
+
+    public BoschSmartCamCameraHandler(Thing thing, BoschSmartCamAuthService authService,
+            org.eclipse.jetty.client.HttpClient cameraHttpClient, String openhabBaseUrl) {
         super(thing);
+        this.authService = authService;
+        this.cameraHttpClient = cameraHttpClient;
+        this.openhabBaseUrl = openhabBaseUrl;
     }
 
     @Override
@@ -65,6 +84,13 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     "@text/offline.conf-error.no-camera-id");
             return;
         }
+
+        snapshotCache = Duration.ofSeconds(Math.max(MIN_SNAPSHOT_CACHE_SECONDS, config.snapshotCacheSeconds));
+        snapshotToken = currentOrNewSnapshotToken();
+        snapshotFetcher = new SnapshotFetcher(cameraHttpClient, cameraId,
+                () -> getRequiredAccountHandler().getApi().openLocalConnection(cameraId));
+        authService.addSnapshotProvider(snapshotToken, this);
+        updateState(CHANNEL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
 
         updateStatus(ThingStatus.UNKNOWN);
 
@@ -180,6 +206,71 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             // keep whatever the thing had rather than flapping on an inconclusive answer
             case UNKNOWN -> logger.debug("Neither endpoint told whether {} is reachable", cameraId);
         }
+    }
+
+    @Override
+    public void dispose() {
+        authService.removeSnapshotProvider(snapshotToken);
+        SnapshotFetcher fetcher = snapshotFetcher;
+        if (fetcher != null) {
+            fetcher.clear();
+            snapshotFetcher = null;
+        }
+    }
+
+    /**
+     * @return the current still image of the camera, reused from the cache while it is fresh enough
+     */
+    public byte[] getSnapshot() throws BoschSmartCamException {
+        SnapshotFetcher fetcher = snapshotFetcher;
+        if (fetcher == null) {
+            throw new BoschSmartCamException("The camera is not initialized");
+        }
+        return fetcher.getSnapshot(snapshotCache);
+    }
+
+    /**
+     * @param remoteAddress address the snapshot request came from
+     * @return whether that address is in the networks the account allows
+     */
+    public boolean isAllowedToFetchSnapshot(String remoteAddress) {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        if (accountHandler == null) {
+            return false;
+        }
+        return accountHandler.getSnapshotNetworks().matches(remoteAddress);
+    }
+
+    public String getSnapshotUrl() {
+        return openhabBaseUrl + SERVLET_PATH + "/" + snapshotToken + "/" + SNAPSHOT_FILE;
+    }
+
+    /**
+     * @return the account this camera belongs to, needed to talk to the cloud
+     */
+    private BoschSmartCamAccountHandler getRequiredAccountHandler() throws BoschSmartCamException {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        if (accountHandler == null) {
+            throw new BoschSmartCamException("The camera has no account bridge");
+        }
+        return accountHandler;
+    }
+
+    /**
+     * Reuses the token of a previous run so links stay valid, and creates one when there is none yet.
+     */
+    private String currentOrNewSnapshotToken() {
+        String stored = getThing().getProperties().get(PROPERTY_SNAPSHOT_TOKEN);
+        if (stored != null && !stored.isBlank()) {
+            return stored;
+        }
+        byte[] random = new byte[24];
+        RANDOM.nextBytes(random);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+        Map<String, String> properties = new HashMap<>(editProperties());
+        properties.put(PROPERTY_SNAPSHOT_TOKEN, token);
+        updateProperties(properties);
+        return token;
     }
 
     /**

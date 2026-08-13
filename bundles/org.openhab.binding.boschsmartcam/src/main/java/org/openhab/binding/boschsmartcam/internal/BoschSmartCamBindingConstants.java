@@ -40,6 +40,7 @@ public class BoschSmartCamBindingConstants {
     public static final String CHANNEL_NOTIFICATIONS = "notifications";
     public static final String CHANNEL_NOTIFICATIONS_STATUS = "notifications-status";
     public static final String CHANNEL_STATUS = "status";
+    public static final String CHANNEL_SNAPSHOT_URL = "snapshot-url";
 
     // Configuration parameters
     public static final String CONFIG_CAMERA_ID = "cameraId";
@@ -47,6 +48,12 @@ public class BoschSmartCamBindingConstants {
     // Thing properties beyond the ones openHAB defines itself
     public static final String PROPERTY_PRODUCT_NAME = "productName";
     public static final String PROPERTY_GENERATION = "generation";
+
+    /**
+     * Unguessable part of the snapshot URL of a camera. Kept as a property so it survives restarts, and so it can be
+     * looked up when a link has to be revoked.
+     */
+    public static final String PROPERTY_SNAPSHOT_TOKEN = "snapshotToken";
 
     // Bosch SingleKey ID (Keycloak) endpoints
     public static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
@@ -74,6 +81,11 @@ public class BoschSmartCamBindingConstants {
 
     // Authorization servlet
     public static final String SERVLET_PATH = "/" + BINDING_ID;
+
+    /**
+     * Last part of a snapshot URL, which reads {@code /boschsmartcam/<token>/snapshot.jpg}.
+     */
+    public static final String SNAPSHOT_FILE = "snapshot.jpg";
 
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
