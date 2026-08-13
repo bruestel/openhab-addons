@@ -204,7 +204,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
             for (Thing thing : getThing().getThings()) {
                 ThingHandler handler = thing.getHandler();
                 if (handler instanceof BoschSmartCamCameraHandler cameraHandler) {
-                    cameraHandler.updateFromCameras(videoInputs);
+                    cameraHandler.updateFromCameras(videoInputs, true);
                 }
             }
         } catch (BoschSmartCamException e) {

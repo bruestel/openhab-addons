@@ -56,7 +56,7 @@ public class BoschSmartCamDiscoveryService extends AbstractThingHandlerDiscovery
 
         ThingUID bridgeUid = accountHandler.getThing().getUID();
         for (VideoInput camera : accountHandler.getCameras()) {
-            String cameraId = camera.id;
+            String cameraId = camera.id();
             if (cameraId == null || cameraId.isBlank()) {
                 continue;
             }
@@ -64,12 +64,12 @@ public class BoschSmartCamDiscoveryService extends AbstractThingHandlerDiscovery
             Map<String, Object> properties = new HashMap<>();
             properties.put(CONFIG_CAMERA_ID, cameraId);
             properties.put(Thing.PROPERTY_VENDOR, "Bosch");
-            String hardwareVersion = camera.hardwareVersion;
+            String hardwareVersion = camera.hardwareVersion();
             if (hardwareVersion != null) {
                 properties.put(Thing.PROPERTY_MODEL_ID, hardwareVersion);
             }
 
-            CameraModel model = camera.getModel();
+            CameraModel model = camera.model();
             if (model != null) {
                 properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
                 properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
@@ -79,7 +79,7 @@ public class BoschSmartCamDiscoveryService extends AbstractThingHandlerDiscovery
             String thingId = cameraId.replaceAll("[^a-zA-Z0-9_]", "").toLowerCase(Locale.ROOT);
             ThingUID thingUid = new ThingUID(THING_TYPE_CAMERA, bridgeUid, thingId);
             thingDiscovered(DiscoveryResultBuilder.create(thingUid).withBridge(bridgeUid).withProperties(properties)
-                    .withRepresentationProperty(CONFIG_CAMERA_ID).withLabel(buildLabel(camera.title, model)).build());
+                    .withRepresentationProperty(CONFIG_CAMERA_ID).withLabel(buildLabel(camera.title(), model)).build());
         }
     }
 

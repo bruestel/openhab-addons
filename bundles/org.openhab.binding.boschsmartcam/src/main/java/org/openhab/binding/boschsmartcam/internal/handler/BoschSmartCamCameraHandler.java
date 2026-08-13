@@ -23,6 +23,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.BoschSmartCamCameraConfiguration;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CameraStatus;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
@@ -110,10 +111,20 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Updates the channels from the last poll of the account bridge.
+     * Applies the settings of the last poll without asking the cloud whether the camera is reachable.
      */
     public void updateFromCameras(List<VideoInput> cameras) {
-        VideoInput camera = cameras.stream().filter(input -> cameraId.equals(input.id)).findFirst().orElse(null);
+        updateFromCameras(cameras, false);
+    }
+
+    /**
+     * Applies the settings of the last poll.
+     *
+     * @param withReachability whether to ask the cloud whether the camera is reachable, which costs an extra request
+     *            per camera and must not be done while initializing
+     */
+    public void updateFromCameras(List<VideoInput> cameras, boolean withReachability) {
+        VideoInput camera = cameras.stream().filter(input -> cameraId.equals(input.id())).findFirst().orElse(null);
         if (camera == null) {
             if (!cameras.isEmpty()) {
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.GONE, "@text/offline.camera-not-in-account");
@@ -122,27 +133,50 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         }
 
         updateProperties(camera);
-
-        if (camera.isOnline()) {
-            updateStatus(ThingStatus.ONLINE);
-        } else {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.NONE, camera.status);
-        }
-
         updateState(CHANNEL_PRIVACY_MODE, OnOffType.from(camera.isPrivacyModeOn()));
         updateState(CHANNEL_NOTIFICATIONS, OnOffType.from(camera.areNotificationsEnabled()));
-        String status = camera.status;
-        updateState(CHANNEL_STATUS, status == null ? UnDefType.UNDEF : new StringType(status));
+
+        if (withReachability) {
+            updateReachability();
+        }
+    }
+
+    private void updateReachability() {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        if (accountHandler == null) {
+            return;
+        }
+
+        CameraStatus status;
+        try {
+            status = accountHandler.getApi().getCameraStatus(cameraId);
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not read the state of {}", cameraId, e);
+            return;
+        }
+
+        updateState(CHANNEL_STATUS, status == CameraStatus.UNKNOWN ? UnDefType.UNDEF : new StringType(status.name()));
+
+        switch (status) {
+            // a session limit says nothing about the camera, the settings keep working
+            case ONLINE, SESSION_LIMIT -> updateStatus(ThingStatus.ONLINE);
+            case OFFLINE -> updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "@text/offline.camera-not-reachable");
+            case UPDATING -> updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "@text/offline.camera-updating");
+            // keep whatever the thing had rather than flapping on an inconclusive answer
+            case UNKNOWN -> logger.debug("Neither endpoint told whether {} is reachable", cameraId);
+        }
     }
 
     private void updateProperties(VideoInput camera) {
         Map<String, String> properties = new HashMap<>(editProperties());
         properties.put(Thing.PROPERTY_VENDOR, "Bosch");
-        putIfPresent(properties, Thing.PROPERTY_MODEL_ID, camera.hardwareVersion);
-        putIfPresent(properties, Thing.PROPERTY_FIRMWARE_VERSION, camera.firmwareVersion);
-        putIfPresent(properties, CONFIG_CAMERA_ID, camera.id);
+        putIfPresent(properties, Thing.PROPERTY_MODEL_ID, camera.hardwareVersion());
+        putIfPresent(properties, Thing.PROPERTY_FIRMWARE_VERSION, camera.firmwareVersion());
+        putIfPresent(properties, CONFIG_CAMERA_ID, camera.id());
 
-        CameraModel model = camera.getModel();
+        CameraModel model = camera.model();
         if (model != null) {
             properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
             properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));

@@ -29,6 +29,8 @@ import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CameraStatus;
+import org.openhab.binding.boschsmartcam.internal.api.dto.Commissioned;
 import org.openhab.binding.boschsmartcam.internal.api.dto.NotificationsRequest;
 import org.openhab.binding.boschsmartcam.internal.api.dto.PrivacyModeRequest;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
@@ -49,6 +51,12 @@ import com.google.gson.reflect.TypeToken;
 public class BoschSmartCamApi {
 
     private static final String CONTENT_TYPE_JSON = "application/json";
+
+    /**
+     * Non standard status Bosch answers with when too many live sessions are open across all clients of the account.
+     */
+    private static final int HTTP_SESSION_LIMIT = 444;
+
     private static final long REQUEST_TIMEOUT_SECONDS = 30;
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamApi.class);
@@ -77,6 +85,51 @@ public class BoschSmartCamApi {
     }
 
     /**
+     * Determines whether a camera is reachable. The camera list does not carry a reliable state for this, so the
+     * dedicated {@code /ping} endpoint is asked, falling back to {@code /commissioned} when it does not answer.
+     */
+    public CameraStatus getCameraStatus(String cameraId) throws BoschSmartCamException {
+        try {
+            String ping = execute(HttpMethod.GET, "/v11/video_inputs/" + cameraId + "/ping", null).trim().replace("\"",
+                    "");
+            if (ping.startsWith("UPDATING")) {
+                return CameraStatus.UPDATING;
+            }
+            if (CameraStatus.ONLINE.name().equalsIgnoreCase(ping)) {
+                return CameraStatus.ONLINE;
+            }
+            if (CameraStatus.OFFLINE.name().equalsIgnoreCase(ping)) {
+                return CameraStatus.OFFLINE;
+            }
+            logger.debug("Unexpected answer of the ping endpoint: {}", ping);
+        } catch (BoschSmartCamException e) {
+            if (e.getHttpStatus() == HTTP_SESSION_LIMIT) {
+                logger.debug("Bosch refused the ping for {}, too many live sessions are open at once", cameraId);
+                return CameraStatus.SESSION_LIMIT;
+            }
+            logger.debug("Ping for {} failed, falling back to the commissioning state: {}", cameraId, e.getMessage());
+        }
+        return getCommissionedStatus(cameraId);
+    }
+
+    private CameraStatus getCommissionedStatus(String cameraId) {
+        try {
+            String content = execute(HttpMethod.GET, "/v11/video_inputs/" + cameraId + "/commissioned", null);
+            Commissioned commissioned = gson.fromJson(content, Commissioned.class);
+            if (commissioned == null) {
+                return CameraStatus.UNKNOWN;
+            }
+            if (commissioned.isReachable()) {
+                return CameraStatus.ONLINE;
+            }
+            return commissioned.isConfigured() ? CameraStatus.OFFLINE : CameraStatus.UNKNOWN;
+        } catch (BoschSmartCamException | JsonSyntaxException e) {
+            logger.debug("Could not read the commissioning state of {}: {}", cameraId, e.getMessage());
+            return CameraStatus.UNKNOWN;
+        }
+    }
+
+    /**
      * Switches a camera off (privacy mode on) or on again.
      *
      * @param cameraId id of the camera
@@ -86,7 +139,7 @@ public class BoschSmartCamApi {
     public void setPrivacyMode(String cameraId, boolean privacyModeOn, @Nullable Integer durationInSeconds)
             throws BoschSmartCamException {
         execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/privacy",
-                gson.toJson(new PrivacyModeRequest(privacyModeOn, durationInSeconds)));
+                gson.toJson(PrivacyModeRequest.of(privacyModeOn, durationInSeconds)));
     }
 
     /**
@@ -94,7 +147,7 @@ public class BoschSmartCamApi {
      */
     public void setNotifications(String cameraId, boolean enabled) throws BoschSmartCamException {
         execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/enable_notifications",
-                gson.toJson(new NotificationsRequest(enabled)));
+                gson.toJson(NotificationsRequest.of(enabled)));
     }
 
     private String execute(HttpMethod method, String path, @Nullable String body) throws BoschSmartCamException {

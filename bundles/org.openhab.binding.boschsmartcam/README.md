@@ -68,9 +68,14 @@ The same page also lets you remove the stored tokens of an account, for example 
 |----------------|--------|------------|-----------------------------------------------------------------------------------------------------|
 | privacy-mode   | Switch | RW         | `ON` switches the camera off. The 360° indoor camera closes its shutter, the Eyes camera stops the feed. |
 | notifications  | Switch | RW         | Push notifications of this camera to the Bosch app.                                                  |
-| status         | String | R          | Connection state the Bosch cloud reports, e.g. `ONLINE`.                                             |
+| status         | String | R          | `ONLINE`, `OFFLINE`, `UPDATING` while a firmware update runs, or `SESSION_LIMIT`.                     |
 
 After switching `privacy-mode` the camera needs a few seconds to apply the change, so the confirmed state arrives with a small delay.
+
+The reachability behind `status` is read from `/ping`, falling back to `/commissioned`, because the camera list does not carry a usable state for it.
+That costs one extra request per camera and poll.
+`SESSION_LIMIT` means Bosch refused the request because too many live sessions are open at once - counted across every client of the account, so the Bosch app can cause it.
+It says nothing about the camera, which is why the thing stays online in that case.
 
 ## Properties
 

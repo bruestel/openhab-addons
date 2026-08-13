@@ -20,38 +20,27 @@ import org.eclipse.jdt.annotation.Nullable;
 /**
  * A camera as returned by {@code GET /v11/video_inputs}.
  *
+ * Whether the camera is reachable is not taken from here - that is what {@link CameraStatus} and the {@code /ping}
+ * endpoint are for.
+ *
+ * @param id id of the camera, used in every other request
+ * @param title the name given to the camera in the Bosch app
+ * @param hardwareVersion model code rather than a version, see {@link CameraModel}
+ * @param firmwareVersion firmware currently on the camera
+ * @param privacyMode {@code ON} means the camera is switched off (shutter closed), {@code OFF} means it is recording
+ * @param notificationsEnabledStatus one of {@code FOLLOW_CAMERA_SCHEDULE}, {@code FOLLOW_SCHEDULE},
+ *            {@code ON_CAMERA_SCHEDULE}, {@code OFF_CAMERA_SCHEDULE} or {@code ALWAYS_OFF}
+ *
  * @author Jonas Brüstel - Initial contribution
  */
 @NonNullByDefault
-public class VideoInput {
-
-    public @Nullable String id;
-    public @Nullable String title;
-
-    /**
-     * Connection state of the camera, e.g. {@code ONLINE} or {@code OFFLINE}.
-     */
-    public @Nullable String status;
-
-    public @Nullable String hardwareVersion;
-    public @Nullable String firmwareVersion;
-
-    /**
-     * {@code ON} means the camera is switched off (shutter closed), {@code OFF} means it is recording.
-     */
-    public @Nullable String privacyMode;
-
-    /**
-     * The app knows {@code FOLLOW_CAMERA_SCHEDULE}, {@code FOLLOW_SCHEDULE}, {@code ON_CAMERA_SCHEDULE},
-     * {@code OFF_CAMERA_SCHEDULE} and {@code ALWAYS_OFF}. Everything starting with {@code OFF} means notifications
-     * are currently not delivered.
-     */
-    public @Nullable String notificationsEnabledStatus;
+public record VideoInput(@Nullable String id, @Nullable String title, @Nullable String hardwareVersion,
+        @Nullable String firmwareVersion, @Nullable String privacyMode, @Nullable String notificationsEnabledStatus) {
 
     /**
      * @return the model this camera is, or {@code null} if the binding does not know the {@code hardwareVersion}
      */
-    public @Nullable CameraModel getModel() {
+    public @Nullable CameraModel model() {
         return CameraModel.forHardwareVersion(hardwareVersion);
     }
 
@@ -59,13 +48,11 @@ public class VideoInput {
         return "ON".equalsIgnoreCase(privacyMode);
     }
 
+    /**
+     * @return whether notifications are currently delivered - everything starting with {@code OFF} means they are not
+     */
     public boolean areNotificationsEnabled() {
         String status = notificationsEnabledStatus;
-        return status != null && !status.toUpperCase(Locale.ROOT).startsWith("OFF")
-                && !"ALWAYS_OFF".equalsIgnoreCase(status);
-    }
-
-    public boolean isOnline() {
-        return "ONLINE".equalsIgnoreCase(status);
+        return status != null && !status.toUpperCase(Locale.ROOT).startsWith("OFF");
     }
 }

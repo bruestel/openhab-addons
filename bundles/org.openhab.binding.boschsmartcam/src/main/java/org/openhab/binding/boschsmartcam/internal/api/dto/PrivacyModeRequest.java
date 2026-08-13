@@ -18,21 +18,16 @@ import org.eclipse.jdt.annotation.Nullable;
 /**
  * Body of {@code PUT /v11/video_inputs/{id}/privacy}.
  *
+ * @param privacyMode {@code ON} switches the camera off, {@code OFF} switches it on
+ * @param durationInSeconds time after which the camera switches itself on again, {@code null} keeps privacy mode
+ *            until it is switched off, which is what the official app sends
+ *
  * @author Jonas Brüstel - Initial contribution
  */
 @NonNullByDefault
-public class PrivacyModeRequest {
+public record PrivacyModeRequest(String privacyMode, @Nullable Integer durationInSeconds) {
 
-    public String privacyMode;
-
-    /**
-     * Time after which the camera switches itself on again. {@code null} keeps privacy mode until it is switched off,
-     * which is what the official app sends.
-     */
-    public @Nullable Integer durationInSeconds;
-
-    public PrivacyModeRequest(boolean privacyModeOn, @Nullable Integer durationInSeconds) {
-        this.privacyMode = privacyModeOn ? "ON" : "OFF";
-        this.durationInSeconds = durationInSeconds;
+    public static PrivacyModeRequest of(boolean privacyModeOn, @Nullable Integer durationInSeconds) {
+        return new PrivacyModeRequest(privacyModeOn ? "ON" : "OFF", durationInSeconds);
     }
 }

@@ -13,17 +13,22 @@
 package org.openhab.binding.boschsmartcam.internal.api.dto;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * Body of {@code PUT /v11/video_inputs/{id}/enable_notifications}. Note that the field is named differently than the
- * one returned by {@code GET /v11/video_inputs}.
+ * Answer of {@code GET /v11/video_inputs/{id}/commissioned}, used to tell whether a camera is reachable when
+ * {@code /ping} does not answer.
  *
  * @author Jonas Brüstel - Initial contribution
  */
 @NonNullByDefault
-public record NotificationsRequest(String enabledNotificationsStatus) {
+public record Commissioned(@Nullable Boolean connected, @Nullable Boolean commissioned, @Nullable Boolean configured) {
 
-    public static NotificationsRequest of(boolean enabled) {
-        return new NotificationsRequest(enabled ? "FOLLOW_CAMERA_SCHEDULE" : "ALWAYS_OFF");
+    public boolean isReachable() {
+        return Boolean.TRUE.equals(connected) && Boolean.TRUE.equals(commissioned);
+    }
+
+    public boolean isConfigured() {
+        return Boolean.TRUE.equals(configured);
     }
 }
