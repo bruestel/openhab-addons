@@ -76,6 +76,12 @@ public class BoschSmartCamBindingConstants {
     public static final String CALLBACK_PATH = "/auth/external/callback";
 
     /**
+     * Path the forwarding page uses when the user declines. Handled as well so declining ends up on a page that says
+     * so instead of a 404.
+     */
+    public static final String DECLINE_PATH = "/_my_redirect/oauth";
+
+    /**
      * Page of {@code my.home-assistant.io} on which the instance URL used for the redirect can be changed.
      */
     public static final String INSTANCE_URL_SETTINGS = "https://my.home-assistant.io/redirect/_change/?redirect=oauth";

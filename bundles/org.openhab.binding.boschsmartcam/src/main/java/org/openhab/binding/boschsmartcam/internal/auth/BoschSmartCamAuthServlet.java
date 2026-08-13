@@ -93,11 +93,17 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (request == null || response == null) {
             return;
         }
-        // in case the browser was able to reach openHAB with the authorization code, accept it here as well
+        // the authorization code arrives here when the login was forwarded back to openHAB
         String code = request.getParameter("code");
         String state = request.getParameter("state");
+        String error = request.getParameter("error");
         String message = "";
-        if (code != null && state != null) {
+        if (error != null) {
+            // among others the "Decline" button of the forwarding page ends up here
+            String description = request.getParameter("error_description");
+            message = error("The login was not completed (" + error + (description == null ? "" : ": " + description)
+                    + "). Start it again and confirm the forwarding to openHAB.");
+        } else if (code != null && state != null) {
             message = authorize(state, request.getRequestURL() + "?" + request.getQueryString());
         }
         render(request, response, message);
