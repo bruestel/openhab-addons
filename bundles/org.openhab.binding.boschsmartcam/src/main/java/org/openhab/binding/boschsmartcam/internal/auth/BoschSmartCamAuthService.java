@@ -68,15 +68,15 @@ public class BoschSmartCamAuthService {
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         bundleContext = componentContext.getBundleContext();
         try {
-            HttpServlet servlet = createServlet();
-            httpService.registerServlet(SERVLET_PATH, servlet, null, httpService.createDefaultHttpContext());
+            httpService.registerServlet(SERVLET_PATH, createServlet(), null, httpService.createDefaultHttpContext());
             logger.debug("Registered the Bosch Smart Camera authorization servlet at {}", SERVLET_PATH);
-            // both are conveniences: the code can always be pasted into the page instead
-            registerAlias(CALLBACK_PATH, servlet);
-            registerAlias(DECLINE_PATH, servlet);
         } catch (NamespaceException | ServletException | IOException e) {
             logger.warn("Could not register the Bosch Smart Camera authorization servlet: {}", e.getMessage());
+            return;
         }
+        // both are conveniences: the code can always be pasted into the page instead
+        registerAlias(CALLBACK_PATH);
+        registerAlias(DECLINE_PATH);
     }
 
     @Deactivate
@@ -88,13 +88,18 @@ public class BoschSmartCamAuthService {
         extraAliases.clear();
     }
 
-    private void registerAlias(String alias, HttpServlet servlet) throws ServletException {
+    /**
+     * Registers a second entry point for the same page. Every alias needs its own servlet instance - the HTTP service
+     * rejects registering one instance twice - and a failure here is not fatal, the code can still be pasted into the
+     * page.
+     */
+    private void registerAlias(String alias) {
         try {
-            httpService.registerServlet(alias, servlet, null, httpService.createDefaultHttpContext());
+            httpService.registerServlet(alias, createServlet(), null, httpService.createDefaultHttpContext());
             extraAliases.add(alias);
             logger.debug("Registered the authorization servlet at {} as well", alias);
-        } catch (NamespaceException e) {
-            logger.debug("{} is already in use, the authorization code has to be pasted in", alias);
+        } catch (NamespaceException | ServletException | IOException e) {
+            logger.info("Could not serve {}, the authorization code has to be pasted in: {}", alias, e.getMessage());
         }
     }
 
