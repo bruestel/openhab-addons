@@ -68,7 +68,7 @@ public class BoschSmartCamDiscoveryService extends AbstractThingHandlerDiscovery
             ThingUID thingUid = new ThingUID(THING_TYPE_CAMERA, bridgeUid, cameraId.replaceAll("[^a-zA-Z0-9_]", ""));
             thingDiscovered(DiscoveryResultBuilder.create(thingUid).withBridge(bridgeUid).withProperties(properties)
                     .withRepresentationProperty(CONFIG_CAMERA_ID)
-                    .withLabel(title == null || title.isBlank() ? "Bosch Camera" : title).build());
+                    .withLabel(title == null || title.isBlank() ? "Bosch Smart Home Camera" : title).build());
         }
     }
 }
