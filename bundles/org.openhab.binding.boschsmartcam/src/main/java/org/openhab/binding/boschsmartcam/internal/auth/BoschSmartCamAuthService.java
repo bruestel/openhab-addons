@@ -62,44 +62,58 @@ public class BoschSmartCamAuthService {
 
     private @NonNullByDefault({}) HttpService httpService;
     private @NonNullByDefault({}) BundleContext bundleContext;
-    private final List<String> extraAliases = new CopyOnWriteArrayList<>();
+    private final List<String> aliases = new CopyOnWriteArrayList<>();
 
     @Activate
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         bundleContext = componentContext.getBundleContext();
+        String index;
+        String account;
         try {
-            httpService.registerServlet(SERVLET_PATH, createServlet(), null, httpService.createDefaultHttpContext());
-            logger.debug("Registered the Bosch Smart Camera authorization servlet at {}", SERVLET_PATH);
-        } catch (NamespaceException | ServletException | IOException e) {
-            logger.warn("Could not register the Bosch Smart Camera authorization servlet: {}", e.getMessage());
+            index = readTemplate(TEMPLATE_INDEX);
+            account = readTemplate(TEMPLATE_ACCOUNT);
+        } catch (IOException e) {
+            logger.warn("Could not read the templates of the authorization page: {}", e.getMessage());
+            return;
+        }
+
+        if (!register(SERVLET_PATH, new BoschSmartCamAuthServlet(this, index, account))) {
             return;
         }
         // both are conveniences: the code can always be pasted into the page instead
-        registerAlias(CALLBACK_PATH);
-        registerAlias(DECLINE_PATH);
+        register(CALLBACK_PATH, new BoschSmartCamAuthServlet.Callback(this, index, account));
+        register(DECLINE_PATH, new BoschSmartCamAuthServlet.Decline(this, index, account));
     }
 
     @Deactivate
     protected void deactivate(ComponentContext componentContext) {
-        httpService.unregister(SERVLET_PATH);
-        for (String alias : extraAliases) {
+        for (String alias : aliases) {
             httpService.unregister(alias);
         }
-        extraAliases.clear();
+        aliases.clear();
     }
 
     /**
-     * Registers a second entry point for the same page. Every alias needs its own servlet instance - the HTTP service
-     * rejects registering one instance twice - and a failure here is not fatal, the code can still be pasted into the
-     * page.
+     * Registers one entry point of the authorization page. Each alias needs its own servlet class, see
+     * {@link BoschSmartCamAuthServlet.Callback}.
+     *
+     * @return whether the alias is now served
      */
-    private void registerAlias(String alias) {
+    private boolean register(String alias, HttpServlet servlet) {
         try {
-            httpService.registerServlet(alias, createServlet(), null, httpService.createDefaultHttpContext());
-            extraAliases.add(alias);
-            logger.debug("Registered the authorization servlet at {} as well", alias);
-        } catch (NamespaceException | ServletException | IOException e) {
-            logger.info("Could not serve {}, the authorization code has to be pasted in: {}", alias, e.getMessage());
+            httpService.registerServlet(alias, servlet, null, httpService.createDefaultHttpContext());
+            aliases.add(alias);
+            logger.debug("Registered the authorization servlet at {}", alias);
+            return true;
+        } catch (NamespaceException | ServletException e) {
+            if (SERVLET_PATH.equals(alias)) {
+                logger.warn("Could not register the Bosch Smart Camera authorization page at {}: {}", alias,
+                        e.getMessage());
+            } else {
+                logger.info("Could not serve {}, the authorization code has to be pasted in: {}", alias,
+                        e.getMessage());
+            }
+            return false;
         }
     }
 
@@ -123,10 +137,6 @@ public class BoschSmartCamAuthService {
      */
     public Optional<BoschSmartCamAccountHandler> getAccountHandler(@Nullable String state) {
         return handlers.stream().filter(handler -> state != null && handler.matchesState(state)).findFirst();
-    }
-
-    private HttpServlet createServlet() throws IOException {
-        return new BoschSmartCamAuthServlet(this, readTemplate(TEMPLATE_INDEX), readTemplate(TEMPLATE_ACCOUNT));
     }
 
     private String readTemplate(String templateName) throws IOException {

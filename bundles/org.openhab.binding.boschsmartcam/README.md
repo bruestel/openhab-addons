@@ -48,7 +48,9 @@ The binding listens on that path, so pointing the instance URL at openHAB makes 
 1. Open `http://<youropenhab>:8080/boschsmartcam` in a browser.
 1. Follow step 1 on that page: open the My Home Assistant settings and set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`. The page shows the exact value and offers a button to copy it. This is stored only in that browser and is needed once.
 1. Click **Log in with Bosch SingleKey ID** and log in. If you are already signed in with your SingleKey ID in that browser, no login form appears and you are forwarded straight through.
-1. On the My Home Assistant page, click the button that opens the link to openHAB. The account thing goes online.
+1. You land on a page titled _Link account to Home Assistant?_. Click **Link account**, not _Decline_.
+   The wording is misleading: no Home Assistant is involved, the button only forwards to the instance URL shown at the bottom of that page, which is your openHAB.
+   The account thing goes online.
 
 No Home Assistant installation is involved at any point - the instance URL is just a value in the browser's local storage.
 It has to be the bare openHAB address without a path: the settings page keeps only protocol and host of what is entered and drops everything else, which is why the binding serves `/auth/external/callback` and `/_my_redirect/oauth` as global paths rather than below `/boschsmartcam`.

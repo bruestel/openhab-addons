@@ -228,4 +228,31 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         matcher.appendTail(result);
         return result.toString();
     }
+
+    /**
+     * The HTTP service derives the servlet name from the class name and requires it to be unique per context, so the
+     * additional entry points cannot reuse this class. They behave identically, only the name differs.
+     */
+    @NonNullByDefault
+    public static class Callback extends BoschSmartCamAuthServlet {
+
+        private static final long serialVersionUID = 1L;
+
+        public Callback(BoschSmartCamAuthService authService, String indexTemplate, String accountTemplate) {
+            super(authService, indexTemplate, accountTemplate);
+        }
+    }
+
+    /**
+     * @see Callback
+     */
+    @NonNullByDefault
+    public static class Decline extends BoschSmartCamAuthServlet {
+
+        private static final long serialVersionUID = 1L;
+
+        public Decline(BoschSmartCamAuthService authService, String indexTemplate, String accountTemplate) {
+            super(authService, indexTemplate, accountTemplate);
+        }
+    }
 }
