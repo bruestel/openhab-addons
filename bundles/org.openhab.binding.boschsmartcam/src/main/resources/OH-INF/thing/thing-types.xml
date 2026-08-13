@@ -5,7 +5,7 @@
 	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
 
 	<bridge-type id="account">
-		<label>Bosch Smart Camera Account</label>
+		<label>Bosch Smart Home Camera Account</label>
 		<description>A Bosch SingleKey ID account the cameras are registered with.</description>
 
 		<config-description>
@@ -23,7 +23,7 @@
 			<bridge-type-ref id="account"/>
 		</supported-bridge-type-refs>
 
-		<label>Bosch Camera</label>
+		<label>Bosch Smart Home Camera</label>
 		<description>A Bosch Smart Home Camera (Eyes outdoor camera, 360° indoor camera).</description>
 
 		<channels>

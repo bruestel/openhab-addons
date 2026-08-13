@@ -1,9 +1,10 @@
-# Bosch Smart Camera Binding
+# Bosch Smart Home Camera Binding
 
 This binding integrates the Bosch Smart Home Cameras (Eyes outdoor camera, 360° indoor camera) into openHAB.
 
 The cameras are not reachable through the Bosch Smart Home Controller, they are managed by a separate Bosch cloud service that the Bosch Smart Camera app talks to.
 This binding uses the same cloud API as that app, so a Bosch SingleKey ID account is all that is needed.
+It is therefore unrelated to the Bosch Smart Home binding, which talks to the Smart Home Controller.
 
 The binding currently covers the camera settings.
 Snapshots and video streams are not part of it.

@@ -4,8 +4,11 @@
 	xsi:schemaLocation="https://openhab.org/schemas/addon/v1.0.0 https://openhab.org/schemas/addon-1.0.0.xsd">
 
 	<type>binding</type>
-	<name>Bosch Smart Camera Binding</name>
-	<description>This is the binding for the Bosch Smart Home Cameras (Eyes outdoor camera, 360° indoor camera).</description>
+	<name>Bosch Smart Home Camera Binding</name>
+	<description>This is the binding for the Bosch Smart Home Cameras (Eyes outdoor camera, 360° indoor camera). They are
+		not connected through the Smart Home Controller but through Bosch's camera cloud, so this binding is separate from
+		the
+		Bosch Smart Home binding.</description>
 	<connection>cloud</connection>
 
 </addon:addon>

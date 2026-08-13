@@ -12,6 +12,6 @@
 
   <artifactId>org.openhab.binding.boschsmartcam</artifactId>
 
-  <name>openHAB Add-ons :: Bundles :: BoschSmartCam Binding</name>
+  <name>openHAB Add-ons :: Bundles :: Bosch Smart Home Camera Binding</name>
 
 </project>
