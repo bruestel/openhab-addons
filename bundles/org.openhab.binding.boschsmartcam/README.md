@@ -51,6 +51,7 @@ The binding listens on that path, so pointing the instance URL at openHAB makes 
 1. On the My Home Assistant page, click the button that opens the link to openHAB. The account thing goes online.
 
 No Home Assistant installation is involved at any point - the instance URL is just a value in the browser's local storage.
+It has to be the bare openHAB address without a path: the settings page keeps only protocol and host of what is entered and drops everything else, which is why the binding serves `/auth/external/callback` and `/_my_redirect/oauth` as global paths rather than below `/boschsmartcam`.
 
 If the instance URL cannot be set, for example because the login happens on a phone or in a private window, the page offers a fallback: copy the complete address you were redirected to and paste it into the field under _The login did not return to openHAB?_.
 That page may show an error - it only carries the authorization code.

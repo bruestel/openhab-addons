@@ -72,12 +72,16 @@ public class BoschSmartCamBindingConstants {
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
      * browser, so pointing that setting at openHAB makes the authorization code arrive here automatically.
+     *
+     * This has to be registered as a global path rather than below {@link #SERVLET_PATH}: the settings page of
+     * my.home-assistant.io keeps only protocol and host of whatever is entered
+     * ({@code localStorage.hassUrl = `${url.protocol}//${url.host}`}), a path is silently dropped.
      */
     public static final String CALLBACK_PATH = "/auth/external/callback";
 
     /**
      * Path the forwarding page uses when the user declines. Handled as well so declining ends up on a page that says
-     * so instead of a 404.
+     * so instead of a 404. Same global path constraint as {@link #CALLBACK_PATH}.
      */
     public static final String DECLINE_PATH = "/_my_redirect/oauth";
 
