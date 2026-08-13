@@ -90,13 +90,15 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         snapshotFetcher = new SnapshotFetcher(cameraHttpClient, cameraId,
                 () -> getRequiredAccountHandler().getApi().openLocalConnection(cameraId));
         authService.addSnapshotProvider(snapshotToken, this);
-        updateState(CHANNEL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
 
         updateStatus(ThingStatus.UNKNOWN);
 
         // off the initializing thread: reading the reachability talks to the cloud, and without it the thing would
         // stay UNKNOWN until the next poll of the bridge
         scheduler.execute(() -> {
+            // only after initializing: openHAB drops state updates of a handler that is still starting up
+            updateState(CHANNEL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+
             BoschSmartCamAccountHandler accountHandler = getAccountHandler();
             if (accountHandler == null) {
                 return;
@@ -161,6 +163,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      *            per camera and must not be done while initializing
      */
     public void updateFromCameras(List<VideoInput> cameras, boolean withReachability) {
+        updateState(CHANNEL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+
         VideoInput camera = cameras.stream().filter(input -> cameraId.equals(input.id())).findFirst().orElse(null);
         if (camera == null) {
             if (!cameras.isEmpty()) {
