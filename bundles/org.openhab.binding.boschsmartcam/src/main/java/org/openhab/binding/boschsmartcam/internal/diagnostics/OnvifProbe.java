@@ -40,6 +40,51 @@ public class OnvifProbe {
      */
     public static final String RCP_ONVIF_SCOPES = "0x0a98";
 
+    /**
+     * Where an ONVIF device usually answers.
+     */
+    public static final String DEVICE_SERVICE_PATH = "/onvif/device_service";
+
+    public static final String SOAP_CONTENT_TYPE = "application/soap+xml; charset=utf-8";
+
+    /**
+     * The one ONVIF call a device has to answer without any authentication, which makes it the only thing that can be
+     * tried while creating a user is not possible.
+     */
+    public static final String GET_SYSTEM_DATE_AND_TIME = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+              <s:Body xmlns:tds="http://www.onvif.org/ver10/device/wsdl">
+                <tds:GetSystemDateAndTime/>
+              </s:Body>
+            </s:Envelope>
+            """;
+
+    /**
+     * Needs authorization, unlike {@link #GET_SYSTEM_DATE_AND_TIME}. Tells whether the credentials the cloud hands
+     * out are enough for ONVIF, and which services the camera offers.
+     */
+    public static final String GET_SERVICES = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+              <s:Body xmlns:tds="http://www.onvif.org/ver10/device/wsdl">
+                <tds:GetServices><tds:IncludeCapability>true</tds:IncludeCapability></tds:GetServices>
+              </s:Body>
+            </s:Envelope>
+            """;
+
+    /**
+     * The topics a camera can raise events for - the whole point of the exercise.
+     */
+    public static final String GET_EVENT_PROPERTIES = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+              <s:Body xmlns:tev="http://www.onvif.org/ver10/events/wsdl">
+                <tev:GetEventProperties/>
+              </s:Body>
+            </s:Envelope>
+            """;
+
     private final Map<String, String> results = new LinkedHashMap<>();
 
     /**

@@ -14,8 +14,10 @@ package org.openhab.binding.boschsmartcam.internal.handler;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -257,6 +259,19 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 probe.addFailure(name, e);
             }
         }
+        Map<String, String> calls = new LinkedHashMap<>();
+        calls.put("GetSystemDateAndTime (no authorization needed)", OnvifProbe.GET_SYSTEM_DATE_AND_TIME);
+        calls.put("GetServices (needs authorization)", OnvifProbe.GET_SERVICES);
+        calls.put("GetEventProperties (needs authorization)", OnvifProbe.GET_EVENT_PROPERTIES);
+        calls.forEach((name, body) -> {
+            try {
+                byte[] answer = fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH, body,
+                        OnvifProbe.SOAP_CONTENT_TYPE);
+                probe.add(name, new String(answer, StandardCharsets.UTF_8));
+            } catch (BoschSmartCamException e) {
+                probe.addFailure(name, e);
+            }
+        });
         return probe.toString();
     }
 

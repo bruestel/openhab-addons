@@ -13,6 +13,7 @@
 package org.openhab.binding.boschsmartcam.internal.snapshot;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ExecutionException;
@@ -25,7 +26,10 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Authentication;
 import org.eclipse.jetty.client.api.AuthenticationStore;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.util.DigestAuthentication;
+import org.eclipse.jetty.client.util.StringContentProvider;
+import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.LocalConnection;
@@ -84,7 +88,7 @@ public class SnapshotFetcher {
             return cached;
         }
 
-        byte[] fetched = fetch(currentConnection(), SNAPSHOT_PATH);
+        byte[] fetched = fetch(currentConnection(), SNAPSHOT_PATH, null, null);
         image = fetched;
         imageAt = Instant.now();
         return fetched;
@@ -118,10 +122,19 @@ public class SnapshotFetcher {
      * @param pathAndQuery path including the query, starting with a slash
      */
     public synchronized byte[] fetchFromCamera(String pathAndQuery) throws BoschSmartCamException {
-        return fetch(currentConnection(), pathAndQuery);
+        return fetch(currentConnection(), pathAndQuery, null, null);
     }
 
-    private byte[] fetch(LocalConnection connection, String pathAndQuery) throws BoschSmartCamException {
+    /**
+     * Posts to the camera with the credentials this fetcher already holds.
+     */
+    public synchronized byte[] postToCamera(String pathAndQuery, String body, String contentType)
+            throws BoschSmartCamException {
+        return fetch(currentConnection(), pathAndQuery, body, contentType);
+    }
+
+    private byte[] fetch(LocalConnection connection, String pathAndQuery, @Nullable String body,
+            @Nullable String contentType) throws BoschSmartCamException {
         String host = connection.host();
         String user = connection.user();
         String password = connection.password();
@@ -144,8 +157,12 @@ public class SnapshotFetcher {
                 store.clearAuthenticationResults();
                 store.addAuthentication(new DigestAuthentication(uri, Authentication.ANY_REALM, user, password));
 
-                ContentResponse response = httpClient.newRequest(url).timeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                        .send();
+                Request request = httpClient.newRequest(url).timeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                if (body != null && contentType != null) {
+                    request.method(HttpMethod.POST)
+                            .content(new StringContentProvider(contentType, body, StandardCharsets.UTF_8));
+                }
+                ContentResponse response = request.send();
                 if (response.getStatus() != HttpStatus.OK_200) {
                     // a rejected credential is worth retrying with a fresh one on the next call
                     this.connection = null;
