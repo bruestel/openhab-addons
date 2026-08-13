@@ -61,7 +61,7 @@ public class BoschSmartCamBindingConstants {
      * authorization server, but it is not published by Bosch either, so it has to be supplied by the installation.
      * Either fill it in here at build time or set the {@code clientSecret} parameter on the account thing.
      */
-    public static final String OAUTH_CLIENT_SECRET = "";
+    public static final String OAUTH_CLIENT_SECRET = "F1jZzsG5Ntw7x2VVc8J6qgsnisMOfaZg";
 
     // Bosch cloud API
     public static final String API_HOST = "residential.cbs.boschsecurity.com";

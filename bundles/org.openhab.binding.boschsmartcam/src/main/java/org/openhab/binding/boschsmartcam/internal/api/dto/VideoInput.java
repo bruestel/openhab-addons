@@ -12,6 +12,8 @@
  */
 package org.openhab.binding.boschsmartcam.internal.api.dto;
 
+import java.util.Locale;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -40,8 +42,9 @@ public class VideoInput {
     public @Nullable String privacyMode;
 
     /**
-     * {@code FOLLOW_CAMERA_SCHEDULE} and {@code ON_CAMERA_SCHEDULE} mean notifications are on, {@code ALWAYS_OFF}
-     * means they are off.
+     * The app knows {@code FOLLOW_CAMERA_SCHEDULE}, {@code FOLLOW_SCHEDULE}, {@code ON_CAMERA_SCHEDULE},
+     * {@code OFF_CAMERA_SCHEDULE} and {@code ALWAYS_OFF}. Everything starting with {@code OFF} means notifications
+     * are currently not delivered.
      */
     public @Nullable String notificationsEnabledStatus;
 
@@ -51,7 +54,8 @@ public class VideoInput {
 
     public boolean areNotificationsEnabled() {
         String status = notificationsEnabledStatus;
-        return status != null && !"ALWAYS_OFF".equalsIgnoreCase(status);
+        return status != null && !status.toUpperCase(Locale.ROOT).startsWith("OFF")
+                && !"ALWAYS_OFF".equalsIgnoreCase(status);
     }
 
     public boolean isOnline() {

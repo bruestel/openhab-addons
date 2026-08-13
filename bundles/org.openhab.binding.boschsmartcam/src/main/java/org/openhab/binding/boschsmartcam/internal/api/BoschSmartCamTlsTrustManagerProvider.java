@@ -31,7 +31,7 @@ import org.osgi.service.component.annotations.Component;
 /**
  * The Bosch cloud API is not served with a publicly trusted certificate but with one issued by an internal Bosch CA.
  * This provider makes openHAB trust that CA - and only that CA - for the API host, so certificate renewals keep
- * working while the connection stays verified.
+ * working while the connection stays verified. The Bosch app ships the same certificates and pins them the same way.
  *
  * @author Jonas Brüstel - Initial contribution
  */
@@ -39,7 +39,12 @@ import org.osgi.service.component.annotations.Component;
 @NonNullByDefault
 public class BoschSmartCamTlsTrustManagerProvider implements TlsTrustManagerProvider {
 
-    private static final String CERTIFICATE_RESOURCE = "/cert/bosch-video-ca-2a.pem";
+    /**
+     * The root is what the API certificate ultimately chains up to and is valid until 2115, the issuing CA is added
+     * as well so the chain still validates if Bosch ever stops sending the intermediate.
+     */
+    private static final String[] CERTIFICATE_RESOURCES = { "/cert/bosch-st-root-ca.pem",
+            "/cert/bosch-video-ca-2a.pem" };
 
     private final X509ExtendedTrustManager trustManager;
 
@@ -58,17 +63,22 @@ public class BoschSmartCamTlsTrustManagerProvider implements TlsTrustManagerProv
     }
 
     private static X509ExtendedTrustManager createTrustManager() {
-        try (InputStream certificateStream = BoschSmartCamTlsTrustManagerProvider.class
-                .getResourceAsStream(CERTIFICATE_RESOURCE)) {
-            if (certificateStream == null) {
-                throw new IllegalStateException("Bundled certificate " + CERTIFICATE_RESOURCE + " not found");
-            }
-            X509Certificate certificate = (X509Certificate) CertificateFactory.getInstance("X.509")
-                    .generateCertificate(certificateStream);
-
+        try {
+            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
             KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
             keyStore.load(null, null);
-            keyStore.setCertificateEntry("bosch-video-ca", certificate);
+
+            for (String resource : CERTIFICATE_RESOURCES) {
+                try (InputStream certificateStream = BoschSmartCamTlsTrustManagerProvider.class
+                        .getResourceAsStream(resource)) {
+                    if (certificateStream == null) {
+                        throw new IllegalStateException("Bundled certificate " + resource + " not found");
+                    }
+                    X509Certificate certificate = (X509Certificate) certificateFactory
+                            .generateCertificate(certificateStream);
+                    keyStore.setCertificateEntry(resource, certificate);
+                }
+            }
 
             TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             factory.init(keyStore);
