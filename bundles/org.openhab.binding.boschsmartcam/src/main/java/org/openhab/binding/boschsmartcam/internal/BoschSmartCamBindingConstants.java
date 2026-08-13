@@ -70,16 +70,11 @@ public class BoschSmartCamBindingConstants {
     public static final String SERVLET_PATH = "/" + BINDING_ID;
 
     /**
-     * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
-     * browser, so pointing that setting at openHAB makes the authorization code arrive here automatically.
+     * Path {@code my.home-assistant.io} appends to the instance URL stored in the browser. Since that instance URL is
+     * the servlet itself, the callback lands below {@link #SERVLET_PATH} and is served by the same servlet - the
+     * OSGi HTTP service dispatches every sub path of an alias to it. Only used to show the resulting URL on the page.
      */
     public static final String CALLBACK_PATH = "/auth/external/callback";
-
-    /**
-     * Path the forwarding page uses when the user declines. Handled as well so declining ends up on a page that says
-     * so instead of a 404.
-     */
-    public static final String DECLINE_PATH = "/_my_redirect/oauth";
 
     /**
      * Page of {@code my.home-assistant.io} on which the instance URL used for the redirect can be changed.

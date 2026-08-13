@@ -12,8 +12,6 @@
  */
 package org.openhab.binding.boschsmartcam.internal.auth;
 
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.DECLINE_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 
 import java.io.FileNotFoundException;
@@ -62,18 +60,13 @@ public class BoschSmartCamAuthService {
 
     private @NonNullByDefault({}) HttpService httpService;
     private @NonNullByDefault({}) BundleContext bundleContext;
-    private final List<String> extraAliases = new CopyOnWriteArrayList<>();
 
     @Activate
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         bundleContext = componentContext.getBundleContext();
         try {
-            HttpServlet servlet = createServlet();
-            httpService.registerServlet(SERVLET_PATH, servlet, null, httpService.createDefaultHttpContext());
+            httpService.registerServlet(SERVLET_PATH, createServlet(), null, httpService.createDefaultHttpContext());
             logger.debug("Registered the Bosch Smart Camera authorization servlet at {}", SERVLET_PATH);
-            // both are conveniences: the code can always be pasted into the page instead
-            registerAlias(CALLBACK_PATH, servlet);
-            registerAlias(DECLINE_PATH, servlet);
         } catch (NamespaceException | ServletException | IOException e) {
             logger.warn("Could not register the Bosch Smart Camera authorization servlet: {}", e.getMessage());
         }
@@ -82,20 +75,6 @@ public class BoschSmartCamAuthService {
     @Deactivate
     protected void deactivate(ComponentContext componentContext) {
         httpService.unregister(SERVLET_PATH);
-        for (String alias : extraAliases) {
-            httpService.unregister(alias);
-        }
-        extraAliases.clear();
-    }
-
-    private void registerAlias(String alias, HttpServlet servlet) throws ServletException {
-        try {
-            httpService.registerServlet(alias, servlet, null, httpService.createDefaultHttpContext());
-            extraAliases.add(alias);
-            logger.debug("Registered the authorization servlet at {} as well", alias);
-        } catch (NamespaceException e) {
-            logger.debug("{} is already in use, the authorization code has to be pasted in", alias);
-        }
     }
 
     public void addAccountHandler(BoschSmartCamAccountHandler handler) {

@@ -41,16 +41,17 @@ Such a refresh is skipped if the values were read less than 10 seconds ago, beca
 ## Authorization
 
 Bosch accepts exactly one return address for this client, `https://my.home-assistant.io/redirect/oauth`, and it does not point to openHAB.
-That address belongs to the My Home Assistant service, a static page that forwards the login to the instance URL stored in the browser and appends `/auth/external/callback`.
-The binding listens on that path, so pointing the instance URL at openHAB makes the authorization complete on its own.
+That address belongs to the My Home Assistant service, a static page that forwards the login to the instance URL stored in the browser and appends `/auth/external/callback` to it.
+Setting that instance URL to the authorization page of this binding therefore makes the login return to the binding's own path, and the authorization completes on its own.
 
 1. Add an `account` thing. It stays offline with the note that it is not authorized yet.
 1. Open `http://<youropenhab>:8080/boschsmartcam` in a browser.
-1. Follow step 1 on that page: open the My Home Assistant settings and set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`. The page shows the exact value and offers a button to copy it. This is stored only in that browser and is needed once.
+1. Follow step 1 on that page: open the My Home Assistant settings and set the instance URL to the address of that very page, e.g. `http://192.168.178.80:8080/boschsmartcam`. The page shows the exact value and offers a button to copy it. This is stored only in that browser and is needed once.
 1. Click **Log in with Bosch SingleKey ID** and log in. If you are already signed in with your SingleKey ID in that browser, no login form appears and you are forwarded straight through.
 1. On the My Home Assistant page, click the button that opens the link to openHAB. The account thing goes online.
 
 No Home Assistant installation is involved at any point - the instance URL is just a value in the browser's local storage.
+Because it points at the binding's own path, the callback stays inside `/boschsmartcam` and the binding does not occupy any global path of the openHAB instance.
 
 If the instance URL cannot be set, for example because the login happens on a phone or in a private window, the page offers a fallback: copy the complete address you were redirected to and paste it into the field under _The login did not return to openHAB?_.
 That page may show an error - it only carries the authorization code.

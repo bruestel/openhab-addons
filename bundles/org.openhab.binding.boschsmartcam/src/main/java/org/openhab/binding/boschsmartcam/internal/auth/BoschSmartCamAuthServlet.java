@@ -64,7 +64,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private static final String KEY_ACCOUNTS = "accounts";
     private static final String KEY_REDIRECT_URI = "redirectUri";
     private static final String KEY_CALLBACK_URL = "callbackUrl";
-    private static final String KEY_OPENHAB_URL = "openhabUrl";
+    private static final String KEY_INSTANCE_URL = "instanceUrl";
     private static final String KEY_INSTANCE_SETTINGS = "instanceSettingsUrl";
     private static final String KEY_SERVLET_PATH = "servletPath";
     // keys used in account.html
@@ -151,12 +151,14 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     }
 
     private void render(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
-        String openhabUrl = getOpenhabUrl(request);
+        // the value to store as the My Home Assistant instance URL: this servlet, so the callback the forwarding page
+        // builds from it lands below our own alias instead of on a global path
+        String instanceUrl = getOpenhabUrl(request) + SERVLET_PATH;
         Map<String, String> replacements = new HashMap<>();
         replacements.put(KEY_MESSAGE, message);
         replacements.put(KEY_REDIRECT_URI, escape(OAUTH_REDIRECT_URI));
-        replacements.put(KEY_OPENHAB_URL, escape(openhabUrl));
-        replacements.put(KEY_CALLBACK_URL, escape(openhabUrl + CALLBACK_PATH));
+        replacements.put(KEY_INSTANCE_URL, escape(instanceUrl));
+        replacements.put(KEY_CALLBACK_URL, escape(instanceUrl + CALLBACK_PATH));
         replacements.put(KEY_INSTANCE_SETTINGS, escape(INSTANCE_URL_SETTINGS));
         replacements.put(KEY_SERVLET_PATH, escape(SERVLET_PATH));
         replacements.put(KEY_ACCOUNTS, formatAccounts());
