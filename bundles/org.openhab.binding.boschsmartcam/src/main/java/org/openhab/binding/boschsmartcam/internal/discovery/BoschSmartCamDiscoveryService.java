@@ -18,6 +18,7 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.THING_TYPE_CAMERA;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -74,7 +75,9 @@ public class BoschSmartCamDiscoveryService extends AbstractThingHandlerDiscovery
                 properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
             }
 
-            ThingUID thingUid = new ThingUID(THING_TYPE_CAMERA, bridgeUid, cameraId.replaceAll("[^a-zA-Z0-9_]", ""));
+            // a thing UID only allows alphanumeric characters and underscores, the id itself keeps its original form
+            String thingId = cameraId.replaceAll("[^a-zA-Z0-9_]", "").toLowerCase(Locale.ROOT);
+            ThingUID thingUid = new ThingUID(THING_TYPE_CAMERA, bridgeUid, thingId);
             thingDiscovered(DiscoveryResultBuilder.create(thingUid).withBridge(bridgeUid).withProperties(properties)
                     .withRepresentationProperty(CONFIG_CAMERA_ID).withLabel(buildLabel(camera.title, model)).build());
         }
