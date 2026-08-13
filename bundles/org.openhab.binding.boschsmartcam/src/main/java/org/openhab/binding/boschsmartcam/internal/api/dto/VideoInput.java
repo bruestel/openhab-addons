@@ -28,8 +28,11 @@ import org.eclipse.jdt.annotation.Nullable;
  * @param hardwareVersion model code rather than a version, see {@link CameraModel}
  * @param firmwareVersion firmware currently on the camera
  * @param privacyMode {@code ON} means the camera is switched off (shutter closed), {@code OFF} means it is recording
- * @param notificationsEnabledStatus one of {@code FOLLOW_CAMERA_SCHEDULE}, {@code FOLLOW_SCHEDULE},
- *            {@code ON_CAMERA_SCHEDULE}, {@code OFF_CAMERA_SCHEDULE} or {@code ALWAYS_OFF}
+ * @param notificationsEnabledStatus not a plain on/off: seen so far are {@code FOLLOW_CAMERA_SCHEDULE},
+ *            {@code FOLLOW_SCHEDULE}, {@code ON_CAMERA_SCHEDULE}, {@code OFF_CAMERA_SCHEDULE},
+ *            {@code OFF_OVERRIDE}, {@code OFF_UNTIL} and {@code ALWAYS_OFF}. Rather than listing them,
+ *            {@link #areNotificationsEnabled()} goes by the {@code OFF} prefix, which also covers values Bosch may
+ *            add later
  *
  * @author Jonas Brüstel - Initial contribution
  */

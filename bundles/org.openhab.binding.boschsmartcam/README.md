@@ -75,7 +75,8 @@ After switching `privacy-mode` the camera needs a few seconds to apply the chang
 
 The notification setting is not a plain on/off in the cloud: it can also follow a schedule.
 `notifications` therefore reads `ON` for everything that is not switched off, and writing `ON` always sets `FOLLOW_CAMERA_SCHEDULE`.
-Use `notifications-status` to see the exact setting.
+Use `notifications-status` to see the exact setting: `FOLLOW_CAMERA_SCHEDULE`, `FOLLOW_SCHEDULE`, `ON_CAMERA_SCHEDULE`, `OFF_CAMERA_SCHEDULE`, `OFF_OVERRIDE`, `OFF_UNTIL` or `ALWAYS_OFF`.
+Everything starting with `OFF` counts as switched off, so a value Bosch adds later is read correctly as well.
 
 The reachability behind `status` is read from `/ping`, falling back to `/commissioned`, because the camera list does not carry a usable state for it.
 Bosch answers `ONLINE`, `OFFLINE`, `UNREACHABLE` or one of `UPDATING_REGULAR`, `UPDATING_FORCED` and `UPDATING_APP0`; the binding folds these into the four values above.
