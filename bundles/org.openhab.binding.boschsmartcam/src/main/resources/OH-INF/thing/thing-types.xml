@@ -29,6 +29,7 @@
 		<channels>
 			<channel id="privacy-mode" typeId="privacy-mode"/>
 			<channel id="notifications" typeId="notifications"/>
+			<channel id="notifications-status" typeId="notifications-status"/>
 			<channel id="status" typeId="status"/>
 		</channels>
 
@@ -52,6 +53,13 @@
 		<item-type>Switch</item-type>
 		<label>Notifications</label>
 		<description>Push notifications of this camera to the Bosch app.</description>
+	</channel-type>
+
+	<channel-type id="notifications-status">
+		<item-type>String</item-type>
+		<label>Notifications Status</label>
+		<description>Notification setting as the cloud reports it, e.g. FOLLOW_CAMERA_SCHEDULE or ALWAYS_OFF.</description>
+		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="status">

@@ -68,9 +68,14 @@ The same page also lets you remove the stored tokens of an account, for example 
 |----------------|--------|------------|-----------------------------------------------------------------------------------------------------|
 | privacy-mode   | Switch | RW         | `ON` switches the camera off. The 360° indoor camera closes its shutter, the Eyes camera stops the feed. |
 | notifications  | Switch | RW         | Push notifications of this camera to the Bosch app.                                                  |
+| notifications-status | String | R    | The notification setting as the cloud reports it, e.g. `FOLLOW_CAMERA_SCHEDULE` or `ALWAYS_OFF`.      |
 | status         | String | R          | `ONLINE`, `OFFLINE`, `UPDATING` while a firmware update runs, or `SESSION_LIMIT`.                     |
 
 After switching `privacy-mode` the camera needs a few seconds to apply the change, so the confirmed state arrives with a small delay.
+
+The notification setting is not a plain on/off in the cloud: it can also follow a schedule.
+`notifications` therefore reads `ON` for everything that is not switched off, and writing `ON` always sets `FOLLOW_CAMERA_SCHEDULE`.
+Use `notifications-status` to see the exact setting.
 
 The reachability behind `status` is read from `/ping`, falling back to `/commissioned`, because the camera list does not carry a usable state for it.
 Bosch answers `ONLINE`, `OFFLINE`, `UNREACHABLE` or one of `UPDATING_REGULAR`, `UPDATING_FORCED` and `UPDATING_APP0`; the binding folds these into the four values above.

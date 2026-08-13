@@ -147,6 +147,10 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         updateState(CHANNEL_PRIVACY_MODE, OnOffType.from(camera.isPrivacyModeOn()));
         updateState(CHANNEL_NOTIFICATIONS, OnOffType.from(camera.areNotificationsEnabled()));
 
+        String notificationsStatus = camera.notificationsEnabledStatus();
+        updateState(CHANNEL_NOTIFICATIONS_STATUS,
+                notificationsStatus == null ? UnDefType.UNDEF : new StringType(notificationsStatus));
+
         if (withReachability) {
             updateReachability();
         }
