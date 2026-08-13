@@ -72,6 +72,30 @@ The same page also lets you remove the stored tokens of an account, for example 
 
 After switching `privacy-mode` the camera needs a few seconds to apply the change, so the confirmed state arrives with a small delay.
 
+## Properties
+
+The `camera` thing carries these properties, refreshed with every poll:
+
+| Property        | Description                                                                    |
+|-----------------|--------------------------------------------------------------------------------|
+| vendor          | Always `Bosch`.                                                                |
+| modelId         | Model code from the cloud, e.g. `HOME_Eyes_Outdoor`.                           |
+| productName     | The name Bosch sells that model under, e.g. `Eyes Außenkamera II`.             |
+| generation      | Hardware generation, `1` or `2`. The two differ in the endpoints they support. |
+| firmwareVersion | Firmware currently on the camera.                                              |
+| cameraId        | ID of the camera in the Bosch cloud.                                           |
+
+`productName` and `generation` are only set for models the binding knows:
+
+| modelId             | productName          | generation |
+|---------------------|----------------------|------------|
+| `INDOOR`            | 360° Innenkamera     | 1          |
+| `OUTDOOR`           | Eyes Außenkamera     | 1          |
+| `HOME_Eyes_Indoor`  | Eyes Innenkamera II  | 2          |
+| `HOME_Eyes_Outdoor` | Eyes Außenkamera II  | 2          |
+
+Discovery uses the product name in the suggested label as well, e.g. _Garden (Eyes Außenkamera II)_.
+
 ## Full Example
 
 ### Thing Configuration

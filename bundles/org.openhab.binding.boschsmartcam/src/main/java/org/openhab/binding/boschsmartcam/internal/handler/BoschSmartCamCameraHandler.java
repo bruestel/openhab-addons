@@ -22,6 +22,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.BoschSmartCamCameraConfiguration;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
@@ -140,6 +141,12 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         putIfPresent(properties, Thing.PROPERTY_MODEL_ID, camera.hardwareVersion);
         putIfPresent(properties, Thing.PROPERTY_FIRMWARE_VERSION, camera.firmwareVersion);
         putIfPresent(properties, CONFIG_CAMERA_ID, camera.id);
+
+        CameraModel model = camera.getModel();
+        if (model != null) {
+            properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
+            properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
+        }
         updateProperties(properties);
     }
 

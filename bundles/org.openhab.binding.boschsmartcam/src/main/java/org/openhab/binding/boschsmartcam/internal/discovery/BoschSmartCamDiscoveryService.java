@@ -13,6 +13,8 @@
 package org.openhab.binding.boschsmartcam.internal.discovery;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CONFIG_CAMERA_ID;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.PROPERTY_GENERATION;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.PROPERTY_PRODUCT_NAME;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.THING_TYPE_CAMERA;
 
 import java.util.HashMap;
@@ -20,6 +22,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.core.config.discovery.AbstractThingHandlerDiscoveryService;
@@ -64,11 +68,27 @@ public class BoschSmartCamDiscoveryService extends AbstractThingHandlerDiscovery
                 properties.put(Thing.PROPERTY_MODEL_ID, hardwareVersion);
             }
 
-            String title = camera.title;
+            CameraModel model = camera.getModel();
+            if (model != null) {
+                properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
+                properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
+            }
+
             ThingUID thingUid = new ThingUID(THING_TYPE_CAMERA, bridgeUid, cameraId.replaceAll("[^a-zA-Z0-9_]", ""));
             thingDiscovered(DiscoveryResultBuilder.create(thingUid).withBridge(bridgeUid).withProperties(properties)
-                    .withRepresentationProperty(CONFIG_CAMERA_ID)
-                    .withLabel(title == null || title.isBlank() ? "Bosch Smart Home Camera" : title).build());
+                    .withRepresentationProperty(CONFIG_CAMERA_ID).withLabel(buildLabel(camera.title, model)).build());
         }
+    }
+
+    /**
+     * @return the name the camera has in the Bosch app, followed by the product name in brackets so it is clear which
+     *         camera is which even when the names are similar
+     */
+    private static String buildLabel(@Nullable String title, @Nullable CameraModel model) {
+        String productName = model == null ? null : model.getProductName();
+        if (title == null || title.isBlank()) {
+            return productName == null ? "Bosch Smart Home Camera" : "Bosch " + productName;
+        }
+        return productName == null ? title : title + " (" + productName + ")";
     }
 }

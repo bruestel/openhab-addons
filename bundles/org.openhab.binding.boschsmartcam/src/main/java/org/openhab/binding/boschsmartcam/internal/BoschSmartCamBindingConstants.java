@@ -42,8 +42,12 @@ public class BoschSmartCamBindingConstants {
     // Configuration parameters
     public static final String CONFIG_CAMERA_ID = "cameraId";
 
+    // Thing properties beyond the ones openHAB defines itself
+    public static final String PROPERTY_PRODUCT_NAME = "productName";
+    public static final String PROPERTY_GENERATION = "generation";
+
     // Bosch SingleKey ID (Keycloak) endpoints
-    private static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
+    public static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
     public static final String OAUTH_AUTHORIZE_URL = AUTH_BASE_URL + "/auth";
     public static final String OAUTH_TOKEN_URL = AUTH_BASE_URL + "/token";
     public static final String OAUTH_CLIENT_ID = "oss_residential_app";

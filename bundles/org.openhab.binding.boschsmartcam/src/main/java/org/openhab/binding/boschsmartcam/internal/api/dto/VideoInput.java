@@ -48,6 +48,13 @@ public class VideoInput {
      */
     public @Nullable String notificationsEnabledStatus;
 
+    /**
+     * @return the model this camera is, or {@code null} if the binding does not know the {@code hardwareVersion}
+     */
+    public @Nullable CameraModel getModel() {
+        return CameraModel.forHardwareVersion(hardwareVersion);
+    }
+
     public boolean isPrivacyModeOn() {
         return "ON".equalsIgnoreCase(privacyMode);
     }
