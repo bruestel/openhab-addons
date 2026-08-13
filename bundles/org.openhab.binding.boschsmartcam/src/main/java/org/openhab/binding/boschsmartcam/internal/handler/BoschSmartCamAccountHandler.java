@@ -98,12 +98,6 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         config = getConfigAs(BoschSmartCamAccountConfiguration.class);
         authService.addAccountHandler(this);
 
-        if (getClientSecret().isBlank()) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                    "@text/offline.conf-error.no-client-secret");
-            return;
-        }
-
         oAuthService = createOAuthService();
         api = new BoschSmartCamApi(httpClient, this);
         updateStatus(ThingStatus.UNKNOWN);
@@ -325,14 +319,9 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         return getThing().getUID().getAsString();
     }
 
-    private String getClientSecret() {
-        String configured = config.clientSecret;
-        return configured.isBlank() ? OAUTH_CLIENT_SECRET : configured;
-    }
-
     private OAuthClientService createOAuthService() {
         OAuthClientService service = oAuthFactory.createOAuthClientService(getHandle(), OAUTH_TOKEN_URL,
-                OAUTH_AUTHORIZE_URL, OAUTH_CLIENT_ID, getClientSecret(), OAUTH_SCOPE, false);
+                OAUTH_AUTHORIZE_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_SCOPE, false);
         service.addAccessTokenRefreshListener(this);
         return service;
     }

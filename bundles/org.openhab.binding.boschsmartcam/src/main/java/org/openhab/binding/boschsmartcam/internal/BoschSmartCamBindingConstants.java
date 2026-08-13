@@ -57,9 +57,8 @@ public class BoschSmartCamBindingConstants {
     public static final String OAUTH_REDIRECT_URI = "https://my.home-assistant.io/redirect/oauth";
 
     /**
-     * Client secret of the residential app. This is not a user secret, it only identifies the app against the
-     * authorization server, but it is not published by Bosch either, so it has to be supplied by the installation.
-     * Either fill it in here at build time or set the {@code clientSecret} parameter on the account thing.
+     * Client secret of the open source client Bosch provides for third party integrations. It is not a user secret,
+     * it only identifies the client against the authorization server and is the same for every installation.
      */
     public static final String OAUTH_CLIENT_SECRET = "F1jZzsG5Ntw7x2VVc8J6qgsnisMOfaZg";
 

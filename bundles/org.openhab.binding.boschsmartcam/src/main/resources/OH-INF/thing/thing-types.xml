@@ -15,12 +15,6 @@
 					outside of openHAB.</description>
 				<default>300</default>
 			</parameter>
-			<parameter name="clientSecret" type="text">
-				<context>password</context>
-				<label>Client Secret</label>
-				<description>Client secret of the Bosch app. Only needed if the binding was built without it.</description>
-				<advanced>true</advanced>
-			</parameter>
 		</config-description>
 	</bridge-type>
 

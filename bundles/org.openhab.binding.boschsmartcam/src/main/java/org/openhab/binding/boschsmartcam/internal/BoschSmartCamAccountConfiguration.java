@@ -27,9 +27,4 @@ public class BoschSmartCamAccountConfiguration {
      * back right away, so the poll only has to pick up changes made elsewhere, e.g. in the Bosch app.
      */
     public int refreshInterval = 300;
-
-    /**
-     * Optional override for the client secret compiled into the binding.
-     */
-    public String clientSecret = "";
 }

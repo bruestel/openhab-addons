@@ -25,7 +25,6 @@ Add an `account` thing, authorize it as described below, then start a scan for t
 | Name            | Type    | Description                                                              | Default | Required | Advanced |
 |-----------------|---------|--------------------------------------------------------------------------|---------|----------|----------|
 | refreshInterval | integer | Interval the camera settings are polled from the Bosch cloud in sec.      | 300     | no       | no       |
-| clientSecret    | text    | Client secret of the Bosch app, only needed if it was not compiled in.    | N/A     | no       | yes      |
 
 Commands sent from openHAB are read back a few seconds later, so `refreshInterval` only determines how fast a change made elsewhere, for example in the Bosch app, shows up in openHAB.
 The minimum is 30 seconds.
@@ -95,8 +94,7 @@ Switch Garden_Notification "Garden Notifications"    { channel="boschsmartcam:ca
 String Garden_Status       "Garden Camera [%s]"      { channel="boschsmartcam:camera:home:garden:status" }
 ```
 
-## Building
+## Credentials
 
-The client secret of the Bosch app is not published by Bosch.
-Either put it into `OAUTH_CLIENT_SECRET` in `BoschSmartCamBindingConstants` before building, or set it as the advanced `clientSecret` parameter of the account thing.
-Without it the account thing stays offline with a configuration error.
+The binding authorizes itself as `oss_residential_app`, the OAuth client Bosch provides for third party integrations - the same one the Home Assistant integration uses.
+Client id and client secret identify that client, not the user, and are the same for every installation, so nothing has to be configured for them.
