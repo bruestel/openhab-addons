@@ -18,6 +18,8 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,13 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private static final String PARAM_THING_UID = "thingUid";
     private static final String PARAM_REDIRECT_URL = "redirectUrl";
     private static final String ACTION_DEAUTHORIZE = "deauthorize";
+    private static final String PARAM_RESULT = "result";
+    private static final String PARAM_DETAIL = "detail";
+
+    private static final String RESULT_AUTHORIZED = "authorized";
+    private static final String RESULT_REMOVED = "removed";
+    private static final String RESULT_DECLINED = "declined";
+    private static final String RESULT_FAILED = "failed";
 
     // keys used in index.html
     private static final String KEY_MESSAGE = "message";
@@ -93,20 +102,27 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (request == null || response == null) {
             return;
         }
-        // the authorization code arrives here when the login was forwarded back to openHAB
         String code = request.getParameter("code");
-        String state = request.getParameter("state");
         String error = request.getParameter("error");
-        String message = "";
+        if (code == null && error == null) {
+            render(request, response, messageFromResult(request));
+            return;
+        }
+
+        // the login was forwarded back to openHAB, possibly onto one of the callback paths - handle the outcome and
+        // send the browser on to the page itself, so the user does not end up on a callback URL and a reload does not
+        // try to redeem the code a second time
+        String outcome;
         if (error != null) {
             // among others the "Decline" button of the forwarding page ends up here
             String description = request.getParameter("error_description");
-            message = error("The login was not completed (" + error + (description == null ? "" : ": " + description)
-                    + "). Start it again and confirm the forwarding to openHAB.");
-        } else if (code != null && state != null) {
-            message = authorize(state, request.getRequestURL() + "?" + request.getQueryString());
+            logger.debug("Login was not completed: {} {}", error, description);
+            outcome = outcome(RESULT_DECLINED, description == null ? error : error + ": " + description);
+        } else {
+            outcome = authorize(request.getParameter("state"),
+                    request.getRequestURL() + "?" + request.getQueryString());
         }
-        render(request, response, message);
+        response.sendRedirect(SERVLET_PATH + "?" + outcome);
     }
 
     @Override
@@ -116,38 +132,61 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return;
         }
         String thingUid = request.getParameter(PARAM_THING_UID);
-        String message;
+        String outcome;
         if (ACTION_DEAUTHORIZE.equals(request.getParameter(PARAM_ACTION))) {
-            message = deauthorize(thingUid);
+            outcome = deauthorize(thingUid);
         } else {
             String redirectUrl = request.getParameter(PARAM_REDIRECT_URL);
-            message = redirectUrl == null || redirectUrl.isBlank()
-                    ? error("Please paste the URL of the page you were redirected to.")
+            outcome = redirectUrl == null || redirectUrl.isBlank()
+                    ? outcome(RESULT_FAILED, "Please paste the address you were redirected to.")
                     : authorize(thingUid, redirectUrl.trim());
         }
-        render(request, response, message);
+        response.sendRedirect(SERVLET_PATH + "?" + outcome);
     }
 
     private String authorize(@Nullable String thingUid, String redirectUrl) {
         Optional<BoschSmartCamAccountHandler> handler = authService.getAccountHandler(thingUid);
         if (handler.isEmpty()) {
-            return error("The account this login belongs to no longer exists. Please start the login again.");
+            return outcome(RESULT_FAILED, "The account this login belongs to no longer exists. Start it again.");
         }
         try {
-            return success("Account " + handler.get().authorize(redirectUrl) + " is now authorized.");
+            return outcome(RESULT_AUTHORIZED, handler.get().authorize(redirectUrl));
         } catch (BoschSmartCamException e) {
             logger.debug("Authorization of {} failed", thingUid, e);
-            return error(e.getMessage());
+            return outcome(RESULT_FAILED, e.getMessage());
         }
     }
 
     private String deauthorize(@Nullable String thingUid) {
         Optional<BoschSmartCamAccountHandler> handler = authService.getAccountHandler(thingUid);
         if (handler.isEmpty()) {
-            return error("Unknown account.");
+            return outcome(RESULT_FAILED, "Unknown account.");
         }
         handler.get().deauthorize();
-        return success("The stored tokens of " + handler.get().getLabel() + " were removed.");
+        return outcome(RESULT_REMOVED, handler.get().getLabel());
+    }
+
+    /**
+     * Builds the query string that carries the outcome of an action over the redirect to the page.
+     */
+    private static String outcome(String result, @Nullable String detail) {
+        return PARAM_RESULT + "=" + result
+                + (detail == null ? "" : "&" + PARAM_DETAIL + "=" + URLEncoder.encode(detail, StandardCharsets.UTF_8));
+    }
+
+    private String messageFromResult(HttpServletRequest request) {
+        String result = request.getParameter(PARAM_RESULT);
+        if (result == null) {
+            return "";
+        }
+        String detail = request.getParameter(PARAM_DETAIL);
+        return switch (result) {
+            case RESULT_AUTHORIZED -> success("Account " + detail + " is now authorized.");
+            case RESULT_REMOVED -> success("The stored tokens of " + detail + " were removed.");
+            case RESULT_DECLINED -> error(
+                    "The login was not completed (" + detail + "). Start it again and confirm with \"Link account\".");
+            default -> error(detail == null ? "Authorization failed." : detail);
+        };
     }
 
     private void render(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
