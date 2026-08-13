@@ -29,6 +29,10 @@ button.secondary { background: transparent; color: inherit; border-color: #9aa0a
 .message.ok { background: #e3f6e8; color: #1d6b38; }
 .message.error { background: #fbe3e3; color: #8c2020; }
 .empty { opacity: .8; }
+details.hint { border: 1px solid #dcdfe3; border-radius: .6rem; padding: .75rem 1rem; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { details.hint { border-color: #383d43; } }
+details.hint summary { cursor: pointer; font-weight: 600; }
+details.hint p { font-size: .92rem; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
 </style>
 </head>
@@ -40,12 +44,35 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
 ${message}
 
 <p>Bosch only accepts <code>${redirectUri}</code> as the redirect address of the app, so the browser cannot return to
-openHAB on its own. After logging in you will land on a page that may show an error &ndash; that is expected. Copy the
-complete address from the address bar of that page and paste it below.</p>
+openHAB directly. That address belongs to the My&nbsp;Home&nbsp;Assistant service, which forwards the login to whatever
+instance URL is stored in your browser. Copying the address back by hand always works, and setting that instance URL to
+this openHAB makes the forwarding land here automatically.</p>
+
+<details class="hint">
+<summary>Let the login return to openHAB automatically (optional, once per browser)</summary>
+<p>Open <a href="${instanceSettingsUrl}" target="_blank" rel="noopener">the My&nbsp;Home&nbsp;Assistant settings page</a>
+and change the instance URL to the address of this openHAB:</p>
+<p><code id="openhab-url">${openhabUrl}</code> <button type="button" class="secondary" id="copy-url">Copy</button></p>
+<p>The value is only stored in your browser, no Home Assistant installation is involved. After saving it, the login
+forwards to <code>${callbackUrl}</code> and the account is authorized without any copying. If that address is already
+taken by another add-on, use the field below instead.</p>
+</details>
 
 ${accounts}
 </main>
 <script>
+var copyButton = document.getElementById("copy-url");
+if (copyButton && navigator.clipboard) {
+  copyButton.addEventListener("click", function () {
+    navigator.clipboard.writeText(document.getElementById("openhab-url").textContent).then(function () {
+      copyButton.textContent = "Copied";
+      setTimeout(function () { copyButton.textContent = "Copy"; }, 2000);
+    });
+  });
+} else if (copyButton) {
+  copyButton.hidden = true;
+}
+
 document.querySelectorAll("form.authorize").forEach(function (form) {
   form.addEventListener("submit", function (event) {
     var field = form.querySelector("textarea");

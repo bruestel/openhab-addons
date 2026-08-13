@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.boschsmartcam.internal.auth;
 
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 
 import java.io.FileNotFoundException;
@@ -60,13 +61,23 @@ public class BoschSmartCamAuthService {
 
     private @NonNullByDefault({}) HttpService httpService;
     private @NonNullByDefault({}) BundleContext bundleContext;
+    private boolean callbackRegistered;
 
     @Activate
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         bundleContext = componentContext.getBundleContext();
         try {
-            httpService.registerServlet(SERVLET_PATH, createServlet(), null, httpService.createDefaultHttpContext());
+            HttpServlet servlet = createServlet();
+            httpService.registerServlet(SERVLET_PATH, servlet, null, httpService.createDefaultHttpContext());
             logger.debug("Registered the Bosch Smart Camera authorization servlet at {}", SERVLET_PATH);
+            try {
+                httpService.registerServlet(CALLBACK_PATH, servlet, null, httpService.createDefaultHttpContext());
+                callbackRegistered = true;
+                logger.debug("Registered the authorization callback at {}", CALLBACK_PATH);
+            } catch (NamespaceException e) {
+                // the callback is a convenience only, the code can always be pasted into the page
+                logger.debug("{} is already in use, the authorization code has to be pasted in", CALLBACK_PATH);
+            }
         } catch (NamespaceException | ServletException | IOException e) {
             logger.warn("Could not register the Bosch Smart Camera authorization servlet: {}", e.getMessage());
         }
@@ -75,6 +86,10 @@ public class BoschSmartCamAuthService {
     @Deactivate
     protected void deactivate(ComponentContext componentContext) {
         httpService.unregister(SERVLET_PATH);
+        if (callbackRegistered) {
+            httpService.unregister(CALLBACK_PATH);
+            callbackRegistered = false;
+        }
     }
 
     public void addAccountHandler(BoschSmartCamAccountHandler handler) {

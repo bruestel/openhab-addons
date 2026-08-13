@@ -70,6 +70,17 @@ public class BoschSmartCamBindingConstants {
     // Authorization servlet
     public static final String SERVLET_PATH = "/" + BINDING_ID;
 
+    /**
+     * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
+     * browser, so pointing that setting at openHAB makes the authorization code arrive here automatically.
+     */
+    public static final String CALLBACK_PATH = "/auth/external/callback";
+
+    /**
+     * Page of {@code my.home-assistant.io} on which the instance URL used for the redirect can be changed.
+     */
+    public static final String INSTANCE_URL_SETTINGS = "https://my.home-assistant.io/redirect/_change/?redirect=oauth";
+
     private BoschSmartCamBindingConstants() {
     }
 }

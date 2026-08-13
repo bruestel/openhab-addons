@@ -49,6 +49,18 @@ From then on the binding refreshes the access token on its own, so this procedur
 
 The same page also lets you remove the stored tokens of an account, for example to authorize it with a different Bosch account.
 
+### Letting the login return automatically
+
+The fixed redirect address belongs to the My Home Assistant service, which forwards the login to the instance URL stored in the browser and appends `/auth/external/callback`.
+The binding listens on that path as well, so pointing that instance URL at openHAB removes the copy and paste step:
+
+1. Open [the My Home Assistant settings page](https://my.home-assistant.io/redirect/_change/?redirect=oauth).
+1. Set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`, and save it.
+1. Start the login as described above. The browser now ends up on the openHAB page with the account already authorized.
+
+The instance URL is only stored in that browser, no Home Assistant installation is needed.
+The authorization page shows the exact value to enter and offers a button to copy it.
+
 ## Channels
 
 | Channel        | Type   | Read/Write | Description                                                                                         |

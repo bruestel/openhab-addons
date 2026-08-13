@@ -12,7 +12,10 @@
  */
 package org.openhab.binding.boschsmartcam.internal.auth;
 
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -60,6 +63,10 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private static final String KEY_MESSAGE = "message";
     private static final String KEY_ACCOUNTS = "accounts";
     private static final String KEY_REDIRECT_URI = "redirectUri";
+    private static final String KEY_CALLBACK_URL = "callbackUrl";
+    private static final String KEY_OPENHAB_URL = "openhabUrl";
+    private static final String KEY_INSTANCE_SETTINGS = "instanceSettingsUrl";
+    private static final String KEY_SERVLET_PATH = "servletPath";
     // keys used in account.html
     private static final String KEY_ACCOUNT_LABEL = "account.label";
     private static final String KEY_ACCOUNT_UID = "account.uid";
@@ -93,7 +100,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (code != null && state != null) {
             message = authorize(state, request.getRequestURL() + "?" + request.getQueryString());
         }
-        render(response, message);
+        render(request, response, message);
     }
 
     @Override
@@ -112,7 +119,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
                     ? error("Please paste the URL of the page you were redirected to.")
                     : authorize(thingUid, redirectUrl.trim());
         }
-        render(response, message);
+        render(request, response, message);
     }
 
     private String authorize(@Nullable String thingUid, String redirectUrl) {
@@ -137,15 +144,31 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         return success("The stored tokens of " + handler.get().getLabel() + " were removed.");
     }
 
-    private void render(HttpServletResponse response, String message) throws IOException {
+    private void render(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
+        String openhabUrl = getOpenhabUrl(request);
         Map<String, String> replacements = new HashMap<>();
         replacements.put(KEY_MESSAGE, message);
         replacements.put(KEY_REDIRECT_URI, escape(OAUTH_REDIRECT_URI));
+        replacements.put(KEY_OPENHAB_URL, escape(openhabUrl));
+        replacements.put(KEY_CALLBACK_URL, escape(openhabUrl + CALLBACK_PATH));
+        replacements.put(KEY_INSTANCE_SETTINGS, escape(INSTANCE_URL_SETTINGS));
+        replacements.put(KEY_SERVLET_PATH, escape(SERVLET_PATH));
         replacements.put(KEY_ACCOUNTS, formatAccounts());
 
         response.setContentType(CONTENT_TYPE);
         response.getWriter().append(replacePlaceholders(indexTemplate, replacements));
         response.getWriter().close();
+    }
+
+    /**
+     * @return the base URL openHAB was reached with, which is the value the instance URL of my.home-assistant.io has
+     *         to be set to
+     */
+    private static String getOpenhabUrl(HttpServletRequest request) {
+        String scheme = request.getScheme();
+        int port = request.getServerPort();
+        boolean defaultPort = ("http".equals(scheme) && port == 80) || ("https".equals(scheme) && port == 443);
+        return scheme + "://" + request.getServerName() + (defaultPort ? "" : ":" + port);
     }
 
     private String formatAccounts() {
@@ -159,6 +182,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private String formatAccount(BoschSmartCamAccountHandler handler) {
         boolean authorized = handler.isAuthorized();
         Map<String, String> replacements = new HashMap<>();
+        replacements.put(KEY_SERVLET_PATH, escape(SERVLET_PATH));
         replacements.put(KEY_ACCOUNT_LABEL, escape(handler.getLabel()));
         replacements.put(KEY_ACCOUNT_UID, escape(handler.getThing().getUID().getAsString()));
         replacements.put(KEY_ACCOUNT_STATE_CLASS, authorized ? "ok" : "pending");

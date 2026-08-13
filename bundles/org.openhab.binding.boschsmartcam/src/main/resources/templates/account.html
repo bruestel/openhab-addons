@@ -9,7 +9,7 @@
       <a class="button" href="${account.authorizationUrl}" target="_blank" rel="noopener">Log in with Bosch SingleKey ID</a>
     </li>
     <li>
-      <form class="authorize" method="post" action="">
+      <form class="authorize" method="post" action="${servletPath}">
         <input type="hidden" name="thingUid" value="${account.uid}">
         <label for="url-${account.uid}">Paste the address you were redirected to:</label>
         <textarea id="url-${account.uid}" name="redirectUrl" spellcheck="false" placeholder="https://my.home-assistant.io/redirect/oauth?code=...&amp;state=..."></textarea>
@@ -17,7 +17,7 @@
       </form>
     </li>
   </ol>
-  <form method="post" action="">
+  <form method="post" action="${servletPath}">
     <input type="hidden" name="thingUid" value="${account.uid}">
     <input type="hidden" name="action" value="deauthorize">
     <button type="submit" class="secondary">Remove stored tokens</button>
