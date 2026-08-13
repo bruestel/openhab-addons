@@ -27,10 +27,10 @@ import org.eclipse.jdt.annotation.Nullable;
 @NonNullByDefault
 public enum CameraModel {
 
-    INDOOR("INDOOR", "360° Innenkamera", 1),
-    OUTDOOR("OUTDOOR", "Eyes Außenkamera", 1),
-    EYES_INDOOR_II("HOME_Eyes_Indoor", "Eyes Innenkamera II", 2),
-    EYES_OUTDOOR_II("HOME_Eyes_Outdoor", "Eyes Außenkamera II", 2);
+    INDOOR("INDOOR", "360° Indoor Camera", 1),
+    OUTDOOR("OUTDOOR", "Eyes Outdoor Camera", 1),
+    EYES_INDOOR_II("HOME_Eyes_Indoor", "Eyes Indoor Camera II", 2),
+    EYES_OUTDOOR_II("HOME_Eyes_Outdoor", "Eyes Outdoor Camera II", 2);
 
     private final String hardwareVersion;
     private final String productName;

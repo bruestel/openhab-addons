@@ -80,7 +80,7 @@ The `camera` thing carries these properties, refreshed with every poll:
 |-----------------|--------------------------------------------------------------------------------|
 | vendor          | Always `Bosch`.                                                                |
 | modelId         | Model code from the cloud, e.g. `HOME_Eyes_Outdoor`.                           |
-| productName     | The name Bosch sells that model under, e.g. `Eyes Außenkamera II`.             |
+| productName     | The name Bosch sells that model under, e.g. `Eyes Outdoor Camera II`.          |
 | generation      | Hardware generation, `1` or `2`. The two differ in the endpoints they support. |
 | firmwareVersion | Firmware currently on the camera.                                              |
 | cameraId        | ID of the camera in the Bosch cloud.                                           |
@@ -89,12 +89,12 @@ The `camera` thing carries these properties, refreshed with every poll:
 
 | modelId             | productName          | generation |
 |---------------------|----------------------|------------|
-| `INDOOR`            | 360° Innenkamera     | 1          |
-| `OUTDOOR`           | Eyes Außenkamera     | 1          |
-| `HOME_Eyes_Indoor`  | Eyes Innenkamera II  | 2          |
-| `HOME_Eyes_Outdoor` | Eyes Außenkamera II  | 2          |
+| `INDOOR`            | 360° Indoor Camera     | 1          |
+| `OUTDOOR`           | Eyes Outdoor Camera    | 1          |
+| `HOME_Eyes_Indoor`  | Eyes Indoor Camera II  | 2          |
+| `HOME_Eyes_Outdoor` | Eyes Outdoor Camera II | 2          |
 
-Discovery uses the product name in the suggested label as well, e.g. _Garden (Eyes Außenkamera II)_.
+Discovery uses the product name in the suggested label as well, e.g. _Garden (Eyes Outdoor Camera II)_.
 
 ## Full Example
 
