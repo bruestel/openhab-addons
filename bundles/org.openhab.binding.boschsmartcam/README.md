@@ -73,6 +73,7 @@ The same page also lets you remove the stored tokens of an account, for example 
 After switching `privacy-mode` the camera needs a few seconds to apply the change, so the confirmed state arrives with a small delay.
 
 The reachability behind `status` is read from `/ping`, falling back to `/commissioned`, because the camera list does not carry a usable state for it.
+Bosch answers `ONLINE`, `OFFLINE`, `UNREACHABLE` or one of `UPDATING_REGULAR`, `UPDATING_FORCED` and `UPDATING_APP0`; the binding folds these into the four values above.
 That costs one extra request per camera and poll.
 `SESSION_LIMIT` means Bosch refused the request because too many live sessions are open at once - counted across every client of the account, so the Bosch app can cause it.
 It says nothing about the camera, which is why the thing stays online in that case.

@@ -23,10 +23,16 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public enum CameraStatus {
 
     ONLINE,
+
+    /**
+     * Not reachable. Bosch answers either {@code OFFLINE} or {@code UNREACHABLE}, both end up here.
+     */
     OFFLINE,
 
     /**
-     * The camera is installing a firmware update and is not reachable while it does.
+     * The camera is installing a firmware update and is not reachable while it does. Bosch distinguishes
+     * {@code UPDATING_REGULAR}, {@code UPDATING_FORCED} and {@code UPDATING_APP0}, which only differ in why the
+     * update runs.
      */
     UPDATING,
 

@@ -98,7 +98,7 @@ public class BoschSmartCamApi {
             if (CameraStatus.ONLINE.name().equalsIgnoreCase(ping)) {
                 return CameraStatus.ONLINE;
             }
-            if (CameraStatus.OFFLINE.name().equalsIgnoreCase(ping)) {
+            if (CameraStatus.OFFLINE.name().equalsIgnoreCase(ping) || "UNREACHABLE".equalsIgnoreCase(ping)) {
                 return CameraStatus.OFFLINE;
             }
             logger.debug("Unexpected answer of the ping endpoint: {}", ping);
