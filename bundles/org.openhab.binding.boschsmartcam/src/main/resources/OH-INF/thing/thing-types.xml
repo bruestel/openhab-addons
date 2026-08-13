@@ -36,7 +36,6 @@
 
 		<channels>
 			<channel id="privacy-mode" typeId="privacy-mode"/>
-			<channel id="privacy-mode-status" typeId="privacy-mode-status"/>
 			<channel id="notifications" typeId="notifications"/>
 			<channel id="notifications-status" typeId="notifications-status"/>
 			<channel id="status" typeId="status"/>
@@ -77,13 +76,6 @@
 		<item-type>String</item-type>
 		<label>Snapshot URL</label>
 		<description>Address a still image of this camera can be fetched from. Contains a token, so treat it as a secret.</description>
-		<state readOnly="true"/>
-	</channel-type>
-
-	<channel-type id="privacy-mode-status">
-		<item-type>String</item-type>
-		<label>Privacy Mode Status</label>
-		<description>Privacy mode as the cloud reports it, e.g. ON or OFF.</description>
 		<state readOnly="true"/>
 	</channel-type>
 

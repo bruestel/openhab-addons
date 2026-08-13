@@ -36,7 +36,6 @@ public class BoschSmartCamBindingConstants {
 
     // List of all Channel ids
     public static final String CHANNEL_PRIVACY_MODE = "privacy-mode";
-    public static final String CHANNEL_PRIVACY_MODE_STATUS = "privacy-mode-status";
     public static final String CHANNEL_NOTIFICATIONS = "notifications";
     public static final String CHANNEL_NOTIFICATIONS_STATUS = "notifications-status";
     public static final String CHANNEL_STATUS = "status";
