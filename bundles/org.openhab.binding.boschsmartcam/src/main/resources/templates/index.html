@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bosch Smart Camera Authorization</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 2rem 1rem; background: #f5f6f8; color: #22262b; }
+@media (prefers-color-scheme: dark) { body { background: #17191c; color: #e6e8ea; } }
+main { max-width: 46rem; margin: 0 auto; }
+h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+h2 { font-size: 1.1rem; margin: 0; }
+p { line-height: 1.5; }
+.lead { margin-top: 0; opacity: .8; }
+.card { background: #fff; border: 1px solid #dcdfe3; border-radius: .6rem; padding: 1.25rem; margin: 1rem 0; }
+@media (prefers-color-scheme: dark) { .card { background: #22262b; border-color: #383d43; } }
+.head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.uid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; opacity: .7; }
+.badge { font-size: .75rem; padding: .15rem .5rem; border-radius: 1rem; border: 1px solid transparent; }
+.badge.ok { background: #e3f6e8; border-color: #7fc99a; color: #1d6b38; }
+.badge.pending { background: #fdf1dc; border-color: #e0b567; color: #7d5410; }
+ol { padding-left: 1.2rem; }
+li { margin: .75rem 0; }
+textarea { width: 100%; box-sizing: border-box; min-height: 4.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; padding: .5rem; border-radius: .4rem; border: 1px solid #c4c8cd; background: inherit; color: inherit; }
+button, .button { font: inherit; cursor: pointer; border-radius: .4rem; border: 1px solid #1f6fd0; background: #1f6fd0; color: #fff; padding: .45rem .9rem; text-decoration: none; display: inline-block; }
+button.secondary { background: transparent; color: inherit; border-color: #9aa0a6; }
+.message { padding: .7rem .9rem; border-radius: .4rem; margin: 1rem 0; }
+.message.ok { background: #e3f6e8; color: #1d6b38; }
+.message.error { background: #fbe3e3; color: #8c2020; }
+.empty { opacity: .8; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Bosch Smart Camera</h1>
+<p class="lead">Authorize openHAB to use your Bosch SingleKey ID account.</p>
+
+${message}
+
+<p>Bosch only accepts <code>${redirectUri}</code> as the redirect address of the app, so the browser cannot return to
+openHAB on its own. After logging in you will land on a page that may show an error &ndash; that is expected. Copy the
+complete address from the address bar of that page and paste it below.</p>
+
+${accounts}
+</main>
+<script>
+document.querySelectorAll("form.authorize").forEach(function (form) {
+  form.addEventListener("submit", function (event) {
+    var field = form.querySelector("textarea");
+    var value = field.value.trim();
+    if (value.indexOf("code=") === -1) {
+      event.preventDefault();
+      field.setCustomValidity("This address does not contain a code parameter. Please copy the complete address.");
+      field.reportValidity();
+    }
+  });
+  form.querySelector("textarea").addEventListener("input", function (event) {
+    event.target.setCustomValidity("");
+  });
+});
+</script>
+</body>
+</html>

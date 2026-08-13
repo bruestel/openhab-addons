@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="boschsmartcam"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<bridge-type id="account">
+		<label>Bosch Smart Camera Account</label>
+		<description>A Bosch SingleKey ID account the cameras are registered with.</description>
+
+		<config-description>
+			<parameter name="refreshInterval" type="integer" unit="s" min="30">
+				<label>Refresh Interval</label>
+				<description>Interval the camera settings are polled from the Bosch cloud in sec.</description>
+				<default>60</default>
+			</parameter>
+			<parameter name="clientSecret" type="text">
+				<context>password</context>
+				<label>Client Secret</label>
+				<description>Client secret of the Bosch app. Only needed if the binding was built without it.</description>
+				<advanced>true</advanced>
+			</parameter>
+		</config-description>
+	</bridge-type>
+
+	<thing-type id="camera">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="account"/>
+		</supported-bridge-type-refs>
+
+		<label>Bosch Camera</label>
+		<description>A Bosch Smart Home Camera (Eyes outdoor camera, 360° indoor camera).</description>
+
+		<channels>
+			<channel id="privacy-mode" typeId="privacy-mode"/>
+			<channel id="notifications" typeId="notifications"/>
+			<channel id="status" typeId="status"/>
+		</channels>
+
+		<representation-property>cameraId</representation-property>
+
+		<config-description>
+			<parameter name="cameraId" type="text" required="true">
+				<label>Camera ID</label>
+				<description>ID of the camera as used by the Bosch cloud.</description>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<channel-type id="privacy-mode">
+		<item-type>Switch</item-type>
+		<label>Privacy Mode</label>
+		<description>ON switches the camera off, the 360° indoor camera closes its shutter.</description>
+	</channel-type>
+
+	<channel-type id="notifications">
+		<item-type>Switch</item-type>
+		<label>Notifications</label>
+		<description>Push notifications of this camera to the Bosch app.</description>
+	</channel-type>
+
+	<channel-type id="status">
+		<item-type>String</item-type>
+		<label>Connection Status</label>
+		<description>Connection state the Bosch cloud reports for this camera.</description>
+		<state readOnly="true"/>
+	</channel-type>
+</thing:thing-descriptions>
