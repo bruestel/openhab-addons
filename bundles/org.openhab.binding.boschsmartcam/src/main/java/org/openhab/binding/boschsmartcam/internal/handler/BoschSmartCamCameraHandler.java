@@ -263,6 +263,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         calls.put("GetSystemDateAndTime (no authorization needed)", OnvifProbe.GET_SYSTEM_DATE_AND_TIME);
         calls.put("GetServices (needs authorization)", OnvifProbe.GET_SERVICES);
         calls.put("GetEventProperties (needs authorization)", OnvifProbe.GET_EVENT_PROPERTIES);
+        calls.put("GetEventBrokers (already configured MQTT targets)", OnvifProbe.GET_EVENT_BROKERS);
         calls.forEach((name, body) -> {
             try {
                 byte[] answer = fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH, body,
@@ -273,6 +274,26 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             }
         });
         return probe.toString();
+    }
+
+    /**
+     * Dumps the event list as the cloud sends it. Diagnostic, so the fields can be seen before they are mapped onto
+     * channels.
+     */
+    public String dumpEvents() {
+        StringBuilder dump = new StringBuilder();
+        try {
+            dump.append("unread count\n------------\n")
+                    .append(getRequiredAccountHandler().getApi().getUnreadEventCountRaw(cameraId)).append("\n\n");
+        } catch (BoschSmartCamException e) {
+            dump.append("unread count failed: ").append(e.getMessage()).append("\n\n");
+        }
+        try {
+            dump.append("events\n------\n").append(getRequiredAccountHandler().getApi().getEventsRaw(cameraId, 3));
+        } catch (BoschSmartCamException e) {
+            dump.append("events failed: ").append(e.getMessage());
+        }
+        return dump.toString();
     }
 
     /**

@@ -144,6 +144,20 @@ public class BoschSmartCamApi {
     }
 
     /**
+     * Returns the event list of a camera as it comes, so the fields can be looked at before anything is mapped.
+     */
+    public String getEventsRaw(String cameraId, int limit) throws BoschSmartCamException {
+        return execute(HttpMethod.GET, "/v11/events?videoInputId=" + cameraId + "&limit=" + limit, null);
+    }
+
+    /**
+     * Number of events not marked as read yet.
+     */
+    public String getUnreadEventCountRaw(String cameraId) throws BoschSmartCamException {
+        return execute(HttpMethod.GET, "/v11/events/count?read=false&videoInputId=" + cameraId, null);
+    }
+
+    /**
      * Reads whatever the cloud knows about the ONVIF user of a camera. Diagnostic only - the endpoint exists but the
      * app barely uses it, so neither its answer nor what it expects on a write is documented anywhere.
      */

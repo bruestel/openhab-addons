@@ -85,6 +85,19 @@ public class OnvifProbe {
             </s:Envelope>
             """;
 
+    /**
+     * Lists the MQTT brokers the camera is already configured to publish to. Read only - tells whether the mechanism
+     * is unused or whether Bosch itself makes use of it.
+     */
+    public static final String GET_EVENT_BROKERS = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+              <s:Body xmlns:tev="http://www.onvif.org/ver10/events/wsdl">
+                <tev:GetEventBrokers/>
+              </s:Body>
+            </s:Envelope>
+            """;
+
     private final Map<String, String> results = new LinkedHashMap<>();
 
     /**

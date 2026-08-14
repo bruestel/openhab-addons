@@ -92,6 +92,11 @@ public class BoschSmartCamBindingConstants {
     public static final String ONVIF_PROBE_FILE = "onvif-probe.txt";
 
     /**
+     * Diagnostic dump of the event list.
+     */
+    public static final String EVENTS_FILE = "events.txt";
+
+    /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
      * browser, so pointing that setting at openHAB makes the authorization code arrive here automatically.
      *

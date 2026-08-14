@@ -13,6 +13,7 @@
 package org.openhab.binding.boschsmartcam.internal.auth;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.ONVIF_PROBE_FILE;
@@ -169,7 +170,8 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return false;
         }
         boolean probe = ONVIF_PROBE_FILE.equals(parts[2]);
-        if (!probe && !SNAPSHOT_FILE.equals(parts[2])) {
+        boolean events = EVENTS_FILE.equals(parts[2]);
+        if (!probe && !events && !SNAPSHOT_FILE.equals(parts[2])) {
             return false;
         }
 
@@ -187,9 +189,9 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return true;
         }
 
-        if (probe) {
+        if (probe || events) {
             response.setContentType("text/plain;charset=UTF-8");
-            response.getWriter().append(camera.get().probeOnvif()).close();
+            response.getWriter().append(probe ? camera.get().probeOnvif() : camera.get().dumpEvents()).close();
             return true;
         }
 
