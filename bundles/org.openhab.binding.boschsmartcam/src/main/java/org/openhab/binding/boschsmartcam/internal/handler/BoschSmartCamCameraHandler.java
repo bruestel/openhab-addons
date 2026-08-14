@@ -316,6 +316,16 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         } catch (BoschSmartCamException e) {
             probe.addFailure("GetEventBrokers afterwards", e);
         }
+
+        // second candidate: let the camera push to us instead of to a broker
+        String consumer = openhabBaseUrl + SERVLET_PATH + "/" + accessToken + "/" + NOTIFY_FILE;
+        String subscribe = "Subscribe with ConsumerReference " + consumer;
+        try {
+            probe.add(subscribe, new String(fetcher.postToCamera(OnvifProbe.EVENT_SERVICE_PATH,
+                    OnvifProbe.subscribe(consumer, 10), OnvifProbe.SOAP_CONTENT_TYPE), StandardCharsets.UTF_8));
+        } catch (BoschSmartCamException e) {
+            probe.addFailure(subscribe, e);
+        }
         return probe.toString();
     }
 

@@ -17,6 +17,7 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.MQTT_REMOVE_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.MQTT_SETUP_FILE;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.NOTIFY_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.ONVIF_PROBE_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
@@ -141,6 +142,10 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (request == null || response == null) {
             return;
         }
+        if (receiveNotificationIfSent(request, response)) {
+            return;
+        }
+
         String thingUid = request.getParameter(PARAM_THING_UID);
         String outcome;
         if (ACTION_DEAUTHORIZE.equals(request.getParameter(PARAM_ACTION))) {
@@ -152,6 +157,30 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
                     : authorize(thingUid, redirectUrl.trim());
         }
         response.sendRedirect(SERVLET_PATH + "?" + outcome);
+    }
+
+    /**
+     * Takes a notification a camera pushed to {@code /<token>/notify} and writes it to the log. Diagnostic for now -
+     * whether the cameras deliver anything this way is exactly what is being found out.
+     *
+     * @return whether the request was such a notification and is now answered
+     */
+    private boolean receiveNotificationIfSent(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String path = request.getPathInfo();
+        if (path == null || !path.endsWith("/" + NOTIFY_FILE)) {
+            return false;
+        }
+        String body = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        logger.info("A camera pushed a notification from {}: {}", request.getRemoteAddr(),
+                body.length() > 4000 ? body.substring(0, 4000) + "…" : body);
+
+        // the sender expects a SOAP answer, an empty one is enough to acknowledge
+        response.setContentType("application/soap+xml; charset=utf-8");
+        response.getWriter().append(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Body/></s:Envelope>")
+                .close();
+        return true;
     }
 
     /**

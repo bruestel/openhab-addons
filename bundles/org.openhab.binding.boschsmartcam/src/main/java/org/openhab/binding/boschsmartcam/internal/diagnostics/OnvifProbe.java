@@ -145,6 +145,31 @@ public class OnvifProbe {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
+    /**
+     * WS-BaseNotification: asks the camera to push its events to a URL of ours. The last candidate for local events
+     * after the event broker turned out to be a stub - a subscription expires by itself, so it is a smaller step than
+     * a stored broker configuration.
+     *
+     * @param consumerUrl where the camera should post the notifications to
+     * @param minutes how long the subscription should last before it has to be renewed
+     */
+    public static String subscribe(String consumerUrl, int minutes) {
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+                            xmlns:wsa="http://www.w3.org/2005/08/addressing">
+                  <s:Body xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2">
+                    <wsnt:Subscribe>
+                      <wsnt:ConsumerReference>
+                        <wsa:Address>%s</wsa:Address>
+                      </wsnt:ConsumerReference>
+                      <wsnt:InitialTerminationTime>PT%dM</wsnt:InitialTerminationTime>
+                    </wsnt:Subscribe>
+                  </s:Body>
+                </s:Envelope>
+                """.formatted(escape(consumerUrl), minutes);
+    }
+
     private final Map<String, String> results = new LinkedHashMap<>();
 
     /**
