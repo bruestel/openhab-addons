@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<update:update-descriptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:update="https://openhab.org/schemas/update-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/update-description/v1.0.0 https://openhab.org/schemas/update-description-1.0.0.xsd">
+
+	<thing-type uid="boschsmartcam:camera">
+		<instruction-set targetVersion="1">
+			<!-- the raw privacy mode only ever carried what the switch already says -->
+			<remove-channel id="privacy-mode-status"/>
+
+			<add-channel id="notifications-status">
+				<type>boschsmartcam:notifications-status</type>
+			</add-channel>
+
+			<add-channel id="snapshot-url">
+				<type>boschsmartcam:snapshot-url</type>
+			</add-channel>
+		</instruction-set>
+	</thing-type>
+</update:update-descriptions>

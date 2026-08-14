@@ -42,6 +42,10 @@
 			<channel id="snapshot-url" typeId="snapshot-url"/>
 		</channels>
 
+		<properties>
+			<property name="thingTypeVersion">1</property>
+		</properties>
+
 		<representation-property>cameraId</representation-property>
 
 		<config-description>
