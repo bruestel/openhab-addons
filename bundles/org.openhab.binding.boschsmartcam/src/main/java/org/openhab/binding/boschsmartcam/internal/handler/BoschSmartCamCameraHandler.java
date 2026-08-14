@@ -298,16 +298,20 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
         String body = remove ? OnvifProbe.deleteEventBroker(broker)
                 : OnvifProbe.setEventBroker(broker, config.mqttUser, config.mqttPassword, config.mqttTopicPrefix);
-        String name = (remove ? "DeleteEventBroker " : "SetEventBroker ") + broker;
-        try {
-            probe.add(name,
-                    new String(fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH, body, OnvifProbe.SOAP_CONTENT_TYPE),
-                            StandardCharsets.UTF_8));
-        } catch (BoschSmartCamException e) {
-            probe.addFailure(name, e);
+        String operation = remove ? "DeleteEventBroker " : "SetEventBroker ";
+        // which endpoint accepts this is not documented, so both get a turn
+        for (String path : List.of(OnvifProbe.EVENT_SERVICE_PATH, OnvifProbe.DEVICE_SERVICE_PATH)) {
+            String name = operation + broker + " via " + path;
+            try {
+                probe.add(name, new String(fetcher.postToCamera(path, body, OnvifProbe.SOAP_CONTENT_TYPE),
+                        StandardCharsets.UTF_8));
+                break;
+            } catch (BoschSmartCamException e) {
+                probe.addFailure(name, e);
+            }
         }
         try {
-            probe.add("GetEventBrokers afterwards", new String(fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH,
+            probe.add("GetEventBrokers afterwards", new String(fetcher.postToCamera(OnvifProbe.EVENT_SERVICE_PATH,
                     OnvifProbe.GET_EVENT_BROKERS, OnvifProbe.SOAP_CONTENT_TYPE), StandardCharsets.UTF_8));
         } catch (BoschSmartCamException e) {
             probe.addFailure("GetEventBrokers afterwards", e);

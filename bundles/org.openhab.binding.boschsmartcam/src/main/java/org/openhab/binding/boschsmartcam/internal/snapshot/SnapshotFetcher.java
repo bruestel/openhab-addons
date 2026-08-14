@@ -166,9 +166,10 @@ public class SnapshotFetcher {
                 if (response.getStatus() != HttpStatus.OK_200) {
                     // a rejected credential is worth retrying with a fresh one on the next call
                     this.connection = null;
-                    throw new BoschSmartCamException(
-                            "The camera answered HTTP %d to %s".formatted(response.getStatus(), pathAndQuery),
-                            response.getStatus());
+                    // the body carries the reason - a SOAP fault says which field the camera did not like
+                    String content = response.getContentAsString();
+                    throw new BoschSmartCamException("The camera answered HTTP %d to %s: %s"
+                            .formatted(response.getStatus(), pathAndQuery, abbreviate(content)), response.getStatus());
                 }
                 return response.getContent();
             }
@@ -180,6 +181,11 @@ public class SnapshotFetcher {
             throw new BoschSmartCamException("Could not fetch the image of %s: %s".formatted(cameraId, e.getMessage()),
                     e);
         }
+    }
+
+    private static String abbreviate(String content) {
+        String trimmed = content.strip();
+        return trimmed.length() <= 2000 ? trimmed : trimmed.substring(0, 2000) + "…";
     }
 
     /**

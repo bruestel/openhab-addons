@@ -45,6 +45,12 @@ public class OnvifProbe {
      */
     public static final String DEVICE_SERVICE_PATH = "/onvif/device_service";
 
+    /**
+     * Where the event service lives according to {@code GetServices}. The device service answers some event calls as
+     * well, but not all of them.
+     */
+    public static final String EVENT_SERVICE_PATH = "/onvif/event_service";
+
     public static final String SOAP_CONTENT_TYPE = "application/soap+xml; charset=utf-8";
 
     /**
