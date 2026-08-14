@@ -32,4 +32,19 @@ public class BoschSmartCamCameraConfiguration {
      * served from that cache, so the number of viewers does not matter.
      */
     public int snapshotCacheSeconds = 15;
+
+    /**
+     * MQTT broker the camera should publish its events to, as a URI, e.g. {@code mqtt://10.0.0.5:1883}. Empty leaves
+     * the camera alone.
+     */
+    public String mqttBroker = "";
+
+    public String mqttUser = "";
+
+    public String mqttPassword = "";
+
+    /**
+     * Prefix the camera puts in front of the topics it publishes.
+     */
+    public String mqttTopicPrefix = "boschsmartcam";
 }

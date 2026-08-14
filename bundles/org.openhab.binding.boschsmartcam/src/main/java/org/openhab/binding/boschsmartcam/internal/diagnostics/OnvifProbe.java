@@ -98,6 +98,47 @@ public class OnvifProbe {
             </s:Envelope>
             """;
 
+    /**
+     * Registers an MQTT broker the camera publishes its events to. The only writing call in here - it changes the
+     * configuration of the camera, and {@link #deleteEventBroker(String)} undoes it.
+     *
+     * The publish filter is left out on purpose for now: it is optional, and leaving it out is the least assuming
+     * first attempt. If the camera then publishes nothing, a filter is the next thing to try.
+     */
+    public static String setEventBroker(String address, String user, String password, String topicPrefix) {
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+                            xmlns:tt="http://www.onvif.org/ver10/schema">
+                  <s:Body xmlns:tev="http://www.onvif.org/ver10/events/wsdl">
+                    <tev:SetEventBroker>
+                      <tev:EventBroker>
+                        <tt:Address>%s</tt:Address>
+                        <tt:TopicPrefix>%s</tt:TopicPrefix>
+                        <tt:UserName>%s</tt:UserName>
+                        <tt:Password>%s</tt:Password>
+                      </tev:EventBroker>
+                    </tev:SetEventBroker>
+                  </s:Body>
+                </s:Envelope>
+                """.formatted(escape(address), escape(topicPrefix), escape(user), escape(password));
+    }
+
+    public static String deleteEventBroker(String address) {
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+                  <s:Body xmlns:tev="http://www.onvif.org/ver10/events/wsdl">
+                    <tev:DeleteEventBroker><tev:Address>%s</tev:Address></tev:DeleteEventBroker>
+                  </s:Body>
+                </s:Envelope>
+                """.formatted(escape(address));
+    }
+
+    private static String escape(String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+    }
+
     private final Map<String, String> results = new LinkedHashMap<>();
 
     /**

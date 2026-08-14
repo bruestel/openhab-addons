@@ -66,6 +66,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private String cameraId = "";
     private String accessToken = "";
     private Duration snapshotCache = Duration.ofSeconds(15);
+    private BoschSmartCamCameraConfiguration config = new BoschSmartCamCameraConfiguration();
     private @Nullable SnapshotFetcher snapshotFetcher;
 
     public BoschSmartCamCameraHandler(Thing thing, BoschSmartCamAuthService authService,
@@ -78,7 +79,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     @Override
     public void initialize() {
-        BoschSmartCamCameraConfiguration config = getConfigAs(BoschSmartCamCameraConfiguration.class);
+        config = getConfigAs(BoschSmartCamCameraConfiguration.class);
         cameraId = config.cameraId;
         if (cameraId.isBlank()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
@@ -273,6 +274,44 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 probe.addFailure(name, e);
             }
         });
+        return probe.toString();
+    }
+
+    /**
+     * Tells the camera to publish its events to the configured MQTT broker, or removes that again. This is the one
+     * call in this binding that changes the configuration of the camera itself.
+     *
+     * @param remove whether to delete the broker instead of setting it
+     */
+    public String configureEventBroker(boolean remove) {
+        OnvifProbe probe = new OnvifProbe();
+        SnapshotFetcher fetcher = snapshotFetcher;
+        if (fetcher == null) {
+            probe.add("state", "the camera is not initialized");
+            return probe.toString();
+        }
+        String broker = config.mqttBroker;
+        if (broker.isBlank()) {
+            probe.add("configuration", "no broker configured on this thing, nothing to do");
+            return probe.toString();
+        }
+
+        String body = remove ? OnvifProbe.deleteEventBroker(broker)
+                : OnvifProbe.setEventBroker(broker, config.mqttUser, config.mqttPassword, config.mqttTopicPrefix);
+        String name = (remove ? "DeleteEventBroker " : "SetEventBroker ") + broker;
+        try {
+            probe.add(name,
+                    new String(fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH, body, OnvifProbe.SOAP_CONTENT_TYPE),
+                            StandardCharsets.UTF_8));
+        } catch (BoschSmartCamException e) {
+            probe.addFailure(name, e);
+        }
+        try {
+            probe.add("GetEventBrokers afterwards", new String(fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH,
+                    OnvifProbe.GET_EVENT_BROKERS, OnvifProbe.SOAP_CONTENT_TYPE), StandardCharsets.UTF_8));
+        } catch (BoschSmartCamException e) {
+            probe.addFailure("GetEventBrokers afterwards", e);
+        }
         return probe.toString();
     }
 

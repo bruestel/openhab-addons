@@ -49,6 +49,30 @@
 				<label>Camera ID</label>
 				<description>ID of the camera as used by the Bosch cloud.</description>
 			</parameter>
+			<parameter name="mqttBroker" type="text">
+				<label>MQTT Broker</label>
+				<description>Broker the camera publishes its events to, as a URI, e.g. mqtt://10.0.0.5:1883. Leave empty to
+					leave the
+					camera alone. Writing this to the camera changes its configuration.</description>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="mqttUser" type="text">
+				<label>MQTT User</label>
+				<description>User the camera logs in to the broker with.</description>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="mqttPassword" type="text">
+				<context>password</context>
+				<label>MQTT Password</label>
+				<description>Password the camera logs in to the broker with.</description>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="mqttTopicPrefix" type="text">
+				<label>MQTT Topic Prefix</label>
+				<description>Prefix the camera puts in front of the topics it publishes.</description>
+				<default>boschsmartcam</default>
+				<advanced>true</advanced>
+			</parameter>
 			<parameter name="snapshotCacheSeconds" type="integer" unit="s" min="5">
 				<label>Snapshot Cache</label>
 				<description>How long a fetched image is reused before the camera is asked again. The number of viewers does

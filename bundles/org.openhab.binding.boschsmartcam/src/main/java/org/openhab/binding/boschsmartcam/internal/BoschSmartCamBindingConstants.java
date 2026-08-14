@@ -97,6 +97,12 @@ public class BoschSmartCamBindingConstants {
     public static final String EVENTS_FILE = "events.txt";
 
     /**
+     * Writes the configured MQTT broker to the camera. {@code mqtt-remove.txt} takes it back out.
+     */
+    public static final String MQTT_SETUP_FILE = "mqtt-setup.txt";
+    public static final String MQTT_REMOVE_FILE = "mqtt-remove.txt";
+
+    /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
      * browser, so pointing that setting at openHAB makes the authorization code arrive here automatically.
      *

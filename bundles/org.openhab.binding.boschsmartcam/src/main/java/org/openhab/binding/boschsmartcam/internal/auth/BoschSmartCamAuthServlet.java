@@ -15,6 +15,8 @@ package org.openhab.binding.boschsmartcam.internal.auth;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.MQTT_REMOVE_FILE;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.MQTT_SETUP_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.ONVIF_PROBE_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
@@ -171,7 +173,9 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         }
         boolean probe = ONVIF_PROBE_FILE.equals(parts[2]);
         boolean events = EVENTS_FILE.equals(parts[2]);
-        if (!probe && !events && !SNAPSHOT_FILE.equals(parts[2])) {
+        boolean mqttSetup = MQTT_SETUP_FILE.equals(parts[2]);
+        boolean mqttRemove = MQTT_REMOVE_FILE.equals(parts[2]);
+        if (!probe && !events && !mqttSetup && !mqttRemove && !SNAPSHOT_FILE.equals(parts[2])) {
             return false;
         }
 
@@ -189,9 +193,18 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return true;
         }
 
-        if (probe || events) {
+        if (probe || events || mqttSetup || mqttRemove) {
+            String answer;
+            if (probe) {
+                answer = camera.get().probeOnvif();
+            } else if (events) {
+                answer = camera.get().dumpEvents();
+            } else {
+                logger.info("Changing the event broker of a camera on request from {}", request.getRemoteAddr());
+                answer = camera.get().configureEventBroker(mqttRemove);
+            }
             response.setContentType("text/plain;charset=UTF-8");
-            response.getWriter().append(probe ? camera.get().probeOnvif() : camera.get().dumpEvents()).close();
+            response.getWriter().append(answer).close();
             return true;
         }
 
