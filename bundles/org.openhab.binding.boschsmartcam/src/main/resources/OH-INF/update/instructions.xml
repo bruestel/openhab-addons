@@ -5,16 +5,9 @@
 
 	<thing-type uid="boschsmartcam:camera">
 		<instruction-set targetVersion="1">
-			<!-- the raw privacy mode only ever carried what the switch already says -->
+			<!-- the raw privacy mode only ever carried what the switch already says. Nothing is added here on
+				purpose: an add-channel for a channel a thing already has aborts the whole instruction set. -->
 			<remove-channel id="privacy-mode-status"/>
-
-			<add-channel id="notifications-status">
-				<type>boschsmartcam:notifications-status</type>
-			</add-channel>
-
-			<add-channel id="snapshot-url">
-				<type>boschsmartcam:snapshot-url</type>
-			</add-channel>
 		</instruction-set>
 	</thing-type>
 </update:update-descriptions>
