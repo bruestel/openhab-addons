@@ -149,7 +149,7 @@ The camera reports that within a second.
 Brightness and color stay as set in the app.
 Like the buttons, switching off takes precedence over the ambient light: it stays off until the camera turns the ambient light on again, as Bosch describes it once a day.
 
-The camera reports when an alarm starts or stops, whatever started it, and the binding then reads whether the siren sounds; while it does, it asks again every 15 seconds.
+The camera reports when an alarm starts or stops, whatever started it, and the binding then reads whether the siren sounds.
 `motion-light` is not reported, so the binding reads it a few seconds after a command and with every poll of the account.
 
 ### `account` Channels

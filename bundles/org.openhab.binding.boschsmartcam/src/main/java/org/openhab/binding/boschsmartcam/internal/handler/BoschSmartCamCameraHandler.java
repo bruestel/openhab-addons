@@ -166,10 +166,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      */
     private static final int READ_BACK_SECONDS = 3;
     /**
-     * While an alarm sounds, the camera is asked this often whether it still does. It reports no end of its own.
-     */
-    private static final int ALARM_WATCH_SECONDS = 15;
-    /**
      * The camera reports the top and bottom LEDs one after the other, some 25 ms apart. Their common state waits this
      * long, so switching both off does not show ON in between.
      */
@@ -208,7 +204,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private volatile Instant latestLocalEvent = Instant.EPOCH;
     private volatile @Nullable String lastImageEventId;
     private volatile @Nullable String lastClipEventId;
-    private @Nullable ScheduledFuture<?> alarmWatch;
     // the top and bottom LEDs are switched together but reported apart
     private volatile int topBrightness;
     private volatile int bottomBrightness;
@@ -312,11 +307,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         cloudLookups.forEach(lookup -> lookup.cancel(true));
         cloudLookups.clear();
         synchronized (this) {
-            ScheduledFuture<?> watch = alarmWatch;
-            if (watch != null) {
-                watch.cancel(true);
-                alarmWatch = null;
-            }
             ScheduledFuture<?> pending = topBottomUpdate;
             if (pending != null) {
                 pending.cancel(true);
@@ -571,8 +561,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 Objects.requireNonNullElse(event.propertyOperation(), "event"), event.data());
         if (TOPIC_PRIVACY_MODE.equals(topic)) {
             updatePrivacyMode(event.isTrue(ITEM_STATE));
-        } else if (TOPIC_ALARM_MODE.equals(topic) && !OPERATION_INITIALIZED.equals(event.propertyOperation())) {
-            // what sounds is read from the camera rather than derived from the names of the modes
+        } else if (TOPIC_ALARM_MODE.equals(topic)) {
+            // reported when an alarm starts or stops, and after every new subscription, so nothing missed meanwhile
+            // stays; what sounds is read from the camera rather than derived from the names of the modes
             scheduler.execute(this::refreshAlarm);
         } else if (TOPIC_LIGHT_FRONT.equals(topic) || TOPIC_LIGHT_TOP.equals(topic)
                 || TOPIC_LIGHT_BOTTOM.equals(topic)) {
@@ -801,17 +792,12 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Reads whether an alarm sounds. The camera does not report when it stops, so while it sounds it is asked again.
+     * Reads whether an alarm sounds.
      */
-    private synchronized void refreshAlarm() {
+    private void refreshAlarm() {
         LocalCameraClient localClient = client;
         if (localClient == null) {
             return;
-        }
-        ScheduledFuture<?> watch = alarmWatch;
-        if (watch != null) {
-            watch.cancel(false);
-            alarmWatch = null;
         }
         AlarmStatus status;
         try {
@@ -823,9 +809,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         String type = status.alarmType();
         boolean sounding = type != null && !ALARM_NONE.equalsIgnoreCase(type);
         updateState(CHANNEL_ALARM_SIREN, OnOffType.from(sounding));
-        if (sounding) {
-            alarmWatch = scheduler.schedule(this::refreshAlarm, ALARM_WATCH_SECONDS, TimeUnit.SECONDS);
-        }
     }
 
     /**
