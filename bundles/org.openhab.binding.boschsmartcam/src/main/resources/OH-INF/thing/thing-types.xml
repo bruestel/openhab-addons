@@ -21,11 +21,9 @@
 		</config-description>
 	</bridge-type>
 
+	<!-- The account is optional: listing it as a supported bridge would make openHAB refuse cameras without one.
+		Discovery puts a camera under an account it belongs to, a file or the code view of the UI can do the same. -->
 	<thing-type id="camera">
-		<supported-bridge-type-refs>
-			<bridge-type-ref id="account"/>
-		</supported-bridge-type-refs>
-
 		<label>Bosch Smart Home Camera</label>
 		<description>A Bosch Smart Home Camera of the second generation, talked to directly through its local API. Put it
 			under an account to switch its privacy mode.</description>
