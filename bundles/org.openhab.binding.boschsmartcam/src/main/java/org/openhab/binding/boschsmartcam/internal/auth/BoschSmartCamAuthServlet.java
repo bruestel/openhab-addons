@@ -13,6 +13,7 @@
 package org.openhab.binding.boschsmartcam.internal.auth;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.DECLINE_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENT_CLIP_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENT_IMAGE_FILE;
@@ -21,8 +22,11 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
@@ -35,6 +39,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.servlet.Servlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -46,6 +51,11 @@ import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
+import org.osgi.framework.BundleContext;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.http.whiteboard.HttpWhiteboardConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +69,11 @@ import com.google.gson.Gson;
  *
  * @author Jonas Brüstel - Initial contribution
  */
+@Component(service = Servlet.class, property = {
+        HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_NAME + "=boschsmartcam",
+        HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN + "=" + SERVLET_PATH + "/*",
+        HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN + "=" + CALLBACK_PATH,
+        HttpWhiteboardConstants.HTTP_WHITEBOARD_SERVLET_PATTERN + "=" + DECLINE_PATH })
 @NonNullByDefault
 public class BoschSmartCamAuthServlet extends HttpServlet {
 
@@ -106,18 +121,43 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private final transient Logger logger = LoggerFactory.getLogger(BoschSmartCamAuthServlet.class);
     private final transient Gson gson = new Gson();
 
+    private static final String TEMPLATE_INDEX = "templates/index.html";
+    private static final String TEMPLATE_ACCOUNT = "templates/account.html";
+
     /**
      * The HTML templates of the pages.
      */
-    public record Templates(String index, String account) {
+    record Templates(String index, String account) {
     }
 
     private final transient BoschSmartCamAuthService authService;
     private final Templates templates;
 
-    public BoschSmartCamAuthServlet(BoschSmartCamAuthService authService, Templates templates) {
+    /**
+     * openHAB serves the servlet at the paths in its component properties as soon as it is registered, and drops it
+     * with it. The two paths besides {@link BoschSmartCamBindingConstants#SERVLET_PATH} are where a login comes back
+     * through my.home-assistant.io; without them the code can still be pasted into the page.
+     */
+    @Activate
+    public BoschSmartCamAuthServlet(@Reference BoschSmartCamAuthService authService, BundleContext bundleContext)
+            throws IOException {
+        this(authService, new Templates(readTemplate(bundleContext, TEMPLATE_INDEX),
+                readTemplate(bundleContext, TEMPLATE_ACCOUNT)));
+    }
+
+    BoschSmartCamAuthServlet(BoschSmartCamAuthService authService, Templates templates) {
         this.authService = authService;
         this.templates = templates;
+    }
+
+    private static String readTemplate(BundleContext bundleContext, String templateName) throws IOException {
+        URL template = bundleContext.getBundle().getEntry(templateName);
+        if (template == null) {
+            throw new FileNotFoundException("Cannot find " + templateName);
+        }
+        try (InputStream inputStream = template.openStream()) {
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     @Override
@@ -446,32 +486,5 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         }
         matcher.appendTail(result);
         return result.toString();
-    }
-
-    /**
-     * The HTTP service derives the servlet name from the class name and requires it to be unique per context, so the
-     * additional entry points cannot reuse this class. They behave identically, only the name differs.
-     */
-    @NonNullByDefault
-    public static class Callback extends BoschSmartCamAuthServlet {
-
-        private static final long serialVersionUID = 1L;
-
-        public Callback(BoschSmartCamAuthService authService, Templates templates) {
-            super(authService, templates);
-        }
-    }
-
-    /**
-     * @see Callback
-     */
-    @NonNullByDefault
-    public static class Decline extends BoschSmartCamAuthServlet {
-
-        private static final long serialVersionUID = 1L;
-
-        public Decline(BoschSmartCamAuthService authService, Templates templates) {
-            super(authService, templates);
-        }
     }
 }
