@@ -37,6 +37,7 @@ public class BoschSmartCamBindingConstants {
 
     // Channel groups: what a camera reports itself, and per camera on the account what belongs to the user
     public static final String GROUP_LOCAL = "local";
+    public static final String GROUP_CLOUD = "cloud";
     public static final ChannelGroupTypeUID GROUP_TYPE_NOTIFICATIONS = new ChannelGroupTypeUID(BINDING_ID,
             "notifications");
 
@@ -52,6 +53,9 @@ public class BoschSmartCamBindingConstants {
     public static final String CHANNEL_LAST_EVENT = "last-event";
     public static final String CHANNEL_LAST_EVENT_TIME = "last-event-time";
     public static final String CHANNEL_RECORDING = "recording";
+    public static final String CHANNEL_LAST_CLIP_SNAPSHOT_URL = "last-clip-snapshot-url";
+    public static final String CHANNEL_LAST_CLIP_URL = "last-clip-url";
+    public static final String CHANNEL_CLIP_READY = "clip-ready";
     public static final String CHANNEL_NOTIFICATIONS = "notifications";
     public static final String CHANNEL_NOTIFICATIONS_STATUS = "notifications-status";
 
@@ -99,6 +103,7 @@ public class BoschSmartCamBindingConstants {
      * be looked up or deleted when a link has to be revoked.
      */
     public static final String PROPERTY_ACCESS_TOKEN = "accessToken";
+    public static final String PROPERTY_EVENTS_API = "eventsApiUrl";
 
     // Bosch SingleKey ID (Keycloak) endpoints
     public static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
@@ -131,6 +136,9 @@ public class BoschSmartCamBindingConstants {
      * Last part of a snapshot URL, which reads {@code /boschsmartcam/<token>/snapshot.jpg}.
      */
     public static final String SNAPSHOT_FILE = "snapshot.jpg";
+    public static final String EVENTS_PATH = "events";
+    public static final String EVENT_IMAGE_FILE = "image.jpg";
+    public static final String EVENT_CLIP_FILE = "clip.mp4";
 
     /**
      * Page with the event log of a camera, and the stream it follows new events with. Same path and protection as

@@ -48,6 +48,7 @@ Only the password of the local API has to be entered when adding it.
 | user                 | text    | User of the local API, as shown in the Bosch Smart Camera app.                   | `localuser` | yes      | no       |
 | password             | text    | Password of the local API, as shown in the Bosch Smart Camera app.               | N/A         | yes      | no       |
 | snapshotCacheSeconds | integer | How long a fetched image is reused in sec.                          | 3           | no       | yes      |
+| publishEventsApi     | boolean | Offer the events the cloud keeps as a JSON API, see below. Needs an account. | false | no  | yes      |
 | trustAllCertificates | boolean | Accept any certificate instead of verifying it, see below.          | false       | no       | yes      |
 
 The binding verifies the certificate of the camera against the root Bosch publishes for the local API.
@@ -115,6 +116,9 @@ The same page also lets you remove the stored tokens of an account, for example 
 | local#rtsps-url       | String   | R          | Address of the video stream through openHAB over TLS, without password. Contains a token.       |
 | local#rtsps-substream-url | String | R         | The same for the small stream without sound.                                                    |
 | local#camera-rtsps-url | String  | R          | Address of the video stream directly at the camera, RTSP over TLS.                              |
+| cloud#last-clip-snapshot-url | String | R      | Address of the still image of the last clip, as the cloud keeps it. Needs an account, only served while linked. |
+| cloud#last-clip-url   | String   | R          | Address of the clip of the last event, once uploaded. Needs an account, only served while linked. |
+| cloud#clip-ready      | Trigger  |            | Fires when the clip of an event is in the cloud, with the kind of the event as payload.          |
 
 The camera reports what happens through an ONVIF PullPoint subscription that the binding keeps open.
 The connection goes out from openHAB, so nothing has to be reachable from the camera, and nothing is polled: the camera answers when something happens.
@@ -153,6 +157,8 @@ Everything starting with `OFF` counts as switched off, so a value Bosch adds lat
 | macAddress      | MAC address the camera uses on the network, read from its certificate.         |
 | serialNumber    | Serial number of the camera, read from its certificate.                        |
 | firmwareVersion | Firmware currently on the camera, written the way the Bosch Smart Camera app shows it.      |
+| rtspsCertificate | Certificate openHAB presents for `rtsps-url`, as PEM, see [Video Streams](#video-streams). |
+| rtspsCertificateSha256 | SHA-256 fingerprint of that certificate.                                 |
 
 With an account these are added:
 
@@ -162,6 +168,7 @@ With an account these are added:
 | modelId         | Model code from the cloud, e.g. `HOME_Eyes_Outdoor`.                           |
 | productName     | The name Bosch sells that model under, e.g. `Eyes Outdoor Camera II`.          |
 | generation      | Hardware generation, `1` or `2`.                                               |
+| eventsApiUrl    | Address of the events API, only while `publishEventsApi` is on.                |
 
 `productName` and `generation` are only set for models the binding knows:
 
@@ -261,6 +268,45 @@ The camera picks the stream by the query of the address, as documented by Bosch:
 `camera-rtsps-url` carries `?line=1&inst=1&enableaudio=1`; change the query in place.
 `rtsp-url` and `rtsps-url` have no query; append one and it replaces the default `?line=1&inst=1&enableaudio=1`, e.g. `rtsp://<openhab>:<port>/<token>?line=1&inst=2&enableaudio=0` for the low resolution without sound.
 The substream channels carry exactly that query.
+
+## Events in the Cloud
+
+The camera uploads an image and a clip of every event to the Bosch cloud.
+With an account the binding finds them for the events the camera reports locally: the cloud dates an event within a few hundred milliseconds of the camera, which is how the two are matched, as the cloud does not know the clip id of the camera.
+The cloud is only asked after a local event, so nothing is polled in between.
+
+The image is there once the camera has finished recording, some 15 seconds after the detection, and `last-clip-snapshot-url` points to it.
+The clip follows some 15 seconds later; then `last-clip-url` points to it and `clip-ready` fires.
+Both addresses lead to openHAB, which fetches the file from the cloud with the token of the account and passes it on without keeping it, so a viewer needs no Bosch login.
+Like the snapshot they carry the token of the camera, are limited to `snapshotAllowedNetworks` and are only served while their channel is linked.
+
+### Events API
+
+With `publishEventsApi` switched on, all events the cloud keeps for the camera are offered as JSON at the address in the `eventsApiUrl` property, e.g. for an app of your own:
+
+```text
+http://<youropenhab>:8080/boschsmartcam/<token>/events
+```
+
+| Parameter | Description                                                                    |
+|-----------|--------------------------------------------------------------------------------|
+| `limit`   | How many events, 1 to 100, 20 by default.                                      |
+| `before`  | Only events older than the one with this id, to page back.                     |
+| `since`   | Only events newer than the one with this id, for a client that has the others. |
+
+```json
+{"events": [
+  {"id": "3F2A9C1E-7B4D-4E8A-9C21-5D6E7F809A1B", "time": "2026-10-03T17:43:45.435+02:00", "kind": "PERSON",
+   "eventType": "MOVEMENT", "tags": ["PERSON"], "read": false, "clip": "READY",
+   "imageUrl": "events/3F2A9C1E-7B4D-4E8A-9C21-5D6E7F809A1B/image.jpg",
+   "clipUrl": "events/3F2A9C1E-7B4D-4E8A-9C21-5D6E7F809A1B/clip.mp4"}
+]}
+```
+
+`kind` names the event like the `event` channel does, `clip` is `READY`, `PENDING` while the camera still uploads it, or `NONE`.
+The links are relative to the list.
+The newest events are reused for 10 seconds, and fetched anew after a local event, so a client asking often does not reach the cloud every time.
+The API only reads: it neither marks events as read nor deletes them.
 
 ## Full Example
 

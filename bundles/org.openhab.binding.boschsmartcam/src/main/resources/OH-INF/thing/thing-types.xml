@@ -32,6 +32,7 @@
 
 		<channel-groups>
 			<channel-group id="local" typeId="local"/>
+			<channel-group id="cloud" typeId="cloud"/>
 		</channel-groups>
 
 		<representation-property>macAddress</representation-property>
@@ -62,6 +63,15 @@
 				<default>3</default>
 				<advanced>true</advanced>
 			</parameter>
+			<parameter name="publishEventsApi" type="boolean">
+				<label>Publish Events as API</label>
+				<description>Offer the events the Bosch cloud keeps for this camera, with their images and clips, as JSON at the
+					address in the eventsApiUrl property. Like the snapshot it is guarded by the token in the address and the
+					networks
+					of the binding. Needs an account.</description>
+				<default>false</default>
+				<advanced>true</advanced>
+			</parameter>
 			<parameter name="trustAllCertificates" type="boolean">
 				<label>Trust All Certificates</label>
 				<description>Accept any certificate instead of only those issued below the root Bosch publishes for the local
@@ -88,6 +98,16 @@
 			<channel id="rtsps-url" typeId="rtsps-url"/>
 			<channel id="rtsps-substream-url" typeId="rtsps-substream-url"/>
 			<channel id="camera-rtsps-url" typeId="camera-rtsps-url"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="cloud">
+		<label>Cloud</label>
+		<description>What the Bosch cloud keeps of the events of the camera. Needs an account.</description>
+		<channels>
+			<channel id="last-clip-snapshot-url" typeId="last-clip-snapshot-url"/>
+			<channel id="last-clip-url" typeId="last-clip-url"/>
+			<channel id="clip-ready" typeId="clip-ready"/>
 		</channels>
 	</channel-group-type>
 
@@ -219,6 +239,39 @@
 			the MAC address of the camera instead of its host, and logs in with the user and password of the
 			camera.</description>
 		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="last-clip-snapshot-url">
+		<item-type>String</item-type>
+		<label>Last Clip Snapshot URL</label>
+		<description>Address of the still image of the last clip, as the cloud keeps it, served through openHAB. Contains
+			the
+			token, so treat it as a secret. Only offered while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="last-clip-url">
+		<item-type>String</item-type>
+		<label>Last Clip URL</label>
+		<description>Address of the video clip of the last event, served through openHAB once the camera has uploaded it.
+			Contains the token, so treat it as a secret. Only offered while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="clip-ready">
+		<kind>trigger</kind>
+		<label>Clip Ready</label>
+		<description>Fires when the clip of an event is in the cloud, with the kind of the event as payload.</description>
+		<event>
+			<options>
+				<option value="PERSON">Person</option>
+				<option value="INTRUSION">Intrusion</option>
+				<option value="NOISE">Noise</option>
+				<option value="GLASSBREAK">Glass Break</option>
+				<option value="FIRE">Fire Alarm</option>
+				<option value="WATER">Water Alarm</option>
+			</options>
+		</event>
 	</channel-type>
 
 	<channel-type id="notifications">

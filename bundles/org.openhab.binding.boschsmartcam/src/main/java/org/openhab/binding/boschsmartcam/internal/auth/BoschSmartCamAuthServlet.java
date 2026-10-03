@@ -13,15 +13,21 @@
 package org.openhab.binding.boschsmartcam.internal.auth;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_PATH;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENT_CLIP_FILE;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENT_IMAGE_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,11 +41,15 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamApi;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 /**
  * Renders the page that lets the user authorize an account bridge against Bosch SingleKey ID.
@@ -85,7 +95,16 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private static final String KEY_ACCOUNT_STATE_TEXT = "account.stateText";
     private static final String KEY_ACCOUNT_AUTH_URL = "account.authorizationUrl";
 
+    private static final String PARAM_LIMIT = "limit";
+    private static final String PARAM_BEFORE = "before";
+    private static final String PARAM_SINCE = "since";
+    private static final int DEFAULT_LIMIT = 20;
+    private static final int MAX_LIMIT = 100;
+    private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9A-Fa-f-]{36}");
+    private static final String JSON_CONTENT_TYPE = "application/json;charset=UTF-8";
+
     private final transient Logger logger = LoggerFactory.getLogger(BoschSmartCamAuthServlet.class);
+    private final transient Gson gson = new Gson();
 
     /**
      * The HTML templates of the pages.
@@ -154,8 +173,9 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     }
 
     /**
-     * Serves the snapshot of a camera at {@code /<token>/snapshot.jpg}. The token is the only thing standing between a
-     * request and the camera, so requests are additionally limited to the configured networks.
+     * Serves what belongs to a camera below {@code /<token>/}: the snapshot, the events the cloud keeps and their
+     * images and clips. The token is the only thing standing between a request and the camera, so requests are
+     * additionally limited to the configured networks.
      *
      * @return whether the request was for a camera and is now answered
      */
@@ -165,13 +185,13 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (path == null) {
             return false;
         }
-        // "/<token>/<file>" splits into an empty part, the token and the file
+        // "/<token>/snapshot.jpg", "/<token>/events" and "/<token>/events/<id>/<file>" start with an empty part
         String[] parts = path.split("/");
-        if (parts.length != 3) {
-            return false;
-        }
-        String file = parts[2];
-        if (!SNAPSHOT_FILE.equals(file)) {
+        boolean snapshot = parts.length == 3 && SNAPSHOT_FILE.equals(parts[2]);
+        boolean eventList = parts.length == 3 && EVENTS_PATH.equals(parts[2]);
+        boolean eventMedia = parts.length == 5 && EVENTS_PATH.equals(parts[2])
+                && (EVENT_IMAGE_FILE.equals(parts[4]) || EVENT_CLIP_FILE.equals(parts[4]));
+        if (!snapshot && !eventList && !eventMedia) {
             return false;
         }
 
@@ -189,6 +209,14 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return true;
         }
 
+        if (eventList) {
+            serveEvents(camera.get(), request, response);
+            return true;
+        }
+        if (eventMedia) {
+            serveEventMedia(camera.get(), parts[3], EVENT_CLIP_FILE.equals(parts[4]), response);
+            return true;
+        }
         if (!camera.get().offersSnapshot()) {
             logger.debug("Refused a snapshot request from {}, the snapshot URL is not linked", request.getRemoteAddr());
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -206,6 +234,94 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         }
         return true;
+    }
+
+    /**
+     * Lists the events the cloud keeps for a camera, newest first, as JSON. The links to image and clip are relative to
+     * the list, so a client only needs to know its address.
+     */
+    private void serveEvents(BoschSmartCamCameraHandler camera, HttpServletRequest request,
+            HttpServletResponse response) throws IOException {
+        if (!camera.offersEventsApi()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        String before = request.getParameter(PARAM_BEFORE);
+        String since = request.getParameter(PARAM_SINCE);
+        if ((before != null && !EVENT_ID_PATTERN.matcher(before).matches())
+                || (since != null && !EVENT_ID_PATTERN.matcher(since).matches())) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+        int limit = DEFAULT_LIMIT;
+        String limitParameter = request.getParameter(PARAM_LIMIT);
+        if (limitParameter != null) {
+            try {
+                limit = Math.clamp(Integer.parseInt(limitParameter), 1, MAX_LIMIT);
+            } catch (NumberFormatException e) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+        }
+        List<CloudEvent> events;
+        try {
+            events = camera.getCloudEvents().list(limit, before, since);
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not list the events of {}: {}", camera.getLabel(), e.getMessage());
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            return;
+        }
+        List<Map<String, @Nullable Object>> entries = events.stream().map(BoschSmartCamAuthServlet::toEntry).toList();
+        response.setContentType(JSON_CONTENT_TYPE);
+        response.setHeader("Cache-Control", "no-store");
+        response.getWriter().append(gson.toJson(Map.of("events", entries))).close();
+    }
+
+    private static Map<String, @Nullable Object> toEntry(CloudEvent event) {
+        Map<String, @Nullable Object> entry = new LinkedHashMap<>();
+        String id = event.id();
+        entry.put("id", id);
+        ZonedDateTime time = event.time();
+        entry.put("time", time == null ? null : time.toOffsetDateTime().toString());
+        entry.put("kind", event.kind());
+        entry.put("eventType", event.eventType());
+        entry.put("tags", event.eventTags());
+        entry.put("read", event.isRead());
+        CloudEvent.ClipState clip = event.clipState();
+        entry.put("clip", clip.name());
+        if (event.imageUrl() != null) {
+            entry.put("imageUrl", EVENTS_PATH + "/" + id + "/" + EVENT_IMAGE_FILE);
+        }
+        if (clip == CloudEvent.ClipState.READY) {
+            entry.put("clipUrl", EVENTS_PATH + "/" + id + "/" + EVENT_CLIP_FILE);
+        }
+        return entry;
+    }
+
+    /**
+     * Passes the image or clip of an event on from the cloud as it arrives, without keeping it.
+     */
+    private void serveEventMedia(BoschSmartCamCameraHandler camera, String eventId, boolean clip,
+            HttpServletResponse response) throws IOException {
+        if (!EVENT_ID_PATTERN.matcher(eventId).matches() || !camera.offersEventMedia(eventId, clip)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        try (BoschSmartCamApi.Media media = camera.openEventMedia(eventId, clip)) {
+            String contentType = media.contentType();
+            response.setContentType(contentType != null ? contentType : clip ? "video/mp4" : "image/jpeg");
+            // what an event recorded does not change any more
+            response.setHeader("Cache-Control", "private, max-age=86400");
+            OutputStream out = response.getOutputStream();
+            media.content().transferTo(out);
+            out.flush();
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not serve the {} of event {}: {}", clip ? "clip" : "image", eventId, e.getMessage());
+            if (!response.isCommitted()) {
+                response.sendError(e.getHttpStatus() == 404 ? HttpServletResponse.SC_NOT_FOUND
+                        : HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            }
+        }
     }
 
     private String authorize(@Nullable String thingUid, String redirectUrl) {

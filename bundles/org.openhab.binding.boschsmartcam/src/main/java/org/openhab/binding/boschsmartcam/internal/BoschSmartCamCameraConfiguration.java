@@ -41,6 +41,12 @@ public class BoschSmartCamCameraConfiguration {
     public int snapshotCacheSeconds = 3;
 
     /**
+     * Offer the events the cloud keeps for this camera, with their images and clips, as a small JSON API below the
+     * snapshot address. Needs an account.
+     */
+    public boolean publishEventsApi = false;
+
+    /**
      * Accept any certificate instead of only those below the root Bosch publishes. A way out should a firmware update
      * ever bring a new root.
      */

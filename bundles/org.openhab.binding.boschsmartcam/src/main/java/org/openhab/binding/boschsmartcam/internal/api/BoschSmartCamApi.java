@@ -14,6 +14,9 @@ package org.openhab.binding.boschsmartcam.internal.api;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.API_BASE_URL;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -25,10 +28,13 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.api.Response;
+import org.eclipse.jetty.client.util.InputStreamResponseListener;
 import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
 import org.openhab.binding.boschsmartcam.internal.api.dto.NotificationsRequest;
 import org.openhab.binding.boschsmartcam.internal.api.dto.PrivacyModeRequest;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
@@ -41,8 +47,8 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 /**
- * Minimal client for the Bosch Smart Camera cloud API. It only covers the camera settings, video and images are
- * handled by the camera itself and are not part of this binding.
+ * Minimal client for the Bosch Smart Camera cloud API: the camera settings only the cloud can change, and the events
+ * the cloud keeps with their images and clips. Live video and snapshots come from the camera itself.
  *
  * @author Jonas Brüstel - Initial contribution
  */
@@ -113,6 +119,64 @@ public class BoschSmartCamApi {
     public void setNotifications(String cameraId, boolean enabled) throws BoschSmartCamException {
         execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/enable_notifications",
                 gson.toJson(NotificationsRequest.of(enabled)));
+    }
+
+    /**
+     * Returns events of a camera, newest first. The cloud ignores a {@code limit}, it pages instead.
+     *
+     * @param page the page, counted from 0
+     */
+    public List<CloudEvent> getEvents(String cameraId, int page, int pageSize) throws BoschSmartCamException {
+        String content = execute(HttpMethod.GET,
+                "/v11/events?page=" + page + "&pageSize=" + pageSize + "&videoInputId=" + cameraId, null);
+        try {
+            List<CloudEvent> events = gson.fromJson(content, new TypeToken<List<CloudEvent>>() {
+            }.getType());
+            return events == null ? List.of() : events;
+        } catch (JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected response for events", e);
+        }
+    }
+
+    /**
+     * An image or clip on its way from the cloud. Has to be closed.
+     */
+    public record Media(@Nullable String contentType, InputStream content) implements Closeable {
+        @Override
+        public void close() throws IOException {
+            content.close();
+        }
+    }
+
+    /**
+     * Opens the image or clip of an event. It is streamed rather than read whole, a clip is several megabytes.
+     *
+     * @param url the {@code imageUrl} or {@code videoClipUrl} of the event; only addresses of the cloud API are
+     *            followed, so the token of the account is never sent elsewhere
+     */
+    public Media openMedia(String url) throws BoschSmartCamException {
+        if (!url.startsWith(API_BASE_URL + "/")) {
+            throw new BoschSmartCamException("Refusing to fetch media outside the Bosch cloud: " + url);
+        }
+        InputStreamResponseListener listener = new InputStreamResponseListener();
+        httpClient.newRequest(url).method(HttpMethod.GET)
+                .header(HttpHeader.AUTHORIZATION, "Bearer " + tokenProvider.getAccessToken())
+                .timeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).send(listener);
+        try {
+            Response response = listener.get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            InputStream content = listener.getInputStream();
+            if (response.getStatus() != HttpStatus.OK_200) {
+                content.close();
+                throw new BoschSmartCamException("Fetching media failed with HTTP " + response.getStatus(),
+                        response.getStatus());
+            }
+            return new Media(response.getHeaders().get(HttpHeader.CONTENT_TYPE), content);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BoschSmartCamException("Fetching media was interrupted", e);
+        } catch (ExecutionException | TimeoutException | IOException e) {
+            throw new BoschSmartCamException("Fetching media failed: " + e.getMessage(), e);
+        }
     }
 
     private String execute(HttpMethod method, String path, @Nullable String body) throws BoschSmartCamException {

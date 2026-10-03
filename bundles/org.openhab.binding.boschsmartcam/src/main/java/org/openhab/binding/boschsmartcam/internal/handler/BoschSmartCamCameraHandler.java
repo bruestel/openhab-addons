@@ -32,7 +32,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntSupplier;
@@ -45,11 +47,14 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.boschsmartcam.internal.BoschSmartCamCameraConfiguration;
+import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamApi;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
 import org.openhab.binding.boschsmartcam.internal.events.CameraEvent;
+import org.openhab.binding.boschsmartcam.internal.events.CloudEventFeed;
 import org.openhab.binding.boschsmartcam.internal.events.EventLog;
 import org.openhab.binding.boschsmartcam.internal.local.CameraIdentity;
 import org.openhab.binding.boschsmartcam.internal.local.CameraTrust;
@@ -124,6 +129,20 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private static final String CHANNEL_LOCAL_LAST_EVENT = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT;
     private static final String CHANNEL_LOCAL_LAST_EVENT_TIME = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT_TIME;
     private static final String CHANNEL_LOCAL_RECORDING = GROUP_LOCAL + "#" + CHANNEL_RECORDING;
+    private static final String CHANNEL_CLOUD_LAST_CLIP_SNAPSHOT_URL = GROUP_CLOUD + "#"
+            + CHANNEL_LAST_CLIP_SNAPSHOT_URL;
+    private static final String CHANNEL_CLOUD_LAST_CLIP_URL = GROUP_CLOUD + "#" + CHANNEL_LAST_CLIP_URL;
+    private static final String CHANNEL_CLOUD_CLIP_READY = GROUP_CLOUD + "#" + CHANNEL_CLIP_READY;
+
+    /**
+     * How far apart the cloud and the camera may date the same event. Measured, they are some 50 ms apart.
+     */
+    private static final Duration CLOUD_MATCH_WINDOW = Duration.ofSeconds(3);
+    /**
+     * When the cloud is asked for an event after it was detected locally. The image is there once the camera has
+     * finished recording, some 15 seconds in, the clip usually another 15 seconds later.
+     */
+    private static final int[] CLOUD_LOOKUP_DELAYS_SECONDS = { 5, 10, 15, 15, 30, 60, 120 };
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamCameraHandler.class);
 
@@ -142,6 +161,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private @Nullable LocalCameraClient client;
     private @Nullable PullPointSubscriber subscriber;
     private final EventLog eventLog = new EventLog();
+    private final CloudEventFeed cloudEvents = new CloudEventFeed(this::fetchCloudEvents);
+    private final Set<ScheduledFuture<?>> cloudLookups = ConcurrentHashMap.newKeySet();
+    private volatile Instant latestLocalEvent = Instant.EPOCH;
+    private volatile @Nullable String lastImageEventId;
+    private volatile @Nullable String lastClipEventId;
     private @Nullable ScheduledFuture<?> connectJob;
     private Duration nextRetry = FIRST_RETRY;
 
@@ -231,6 +255,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             localSubscriber.stop();
             subscriber = null;
         }
+        cloudLookups.forEach(lookup -> lookup.cancel(true));
+        cloudLookups.clear();
         authService.removeCamera(accessToken);
         cameraTrust.release(config.host);
         client = null;
@@ -330,6 +356,18 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             case CHANNEL_LOCAL_RTSP_URL, CHANNEL_LOCAL_RTSP_SUBSTREAM_URL, CHANNEL_LOCAL_RTSPS_URL,
                     CHANNEL_LOCAL_RTSPS_SUBSTREAM_URL, CHANNEL_LOCAL_CAMERA_RTSPS_URL ->
                 updateRtspUrls();
+            case CHANNEL_CLOUD_LAST_CLIP_SNAPSHOT_URL -> {
+                String id = lastImageEventId;
+                if (id != null) {
+                    updateState(channelId, new StringType(getEventFileUrl(id, EVENT_IMAGE_FILE)));
+                }
+            }
+            case CHANNEL_CLOUD_LAST_CLIP_URL -> {
+                String id = lastClipEventId;
+                if (id != null) {
+                    updateState(channelId, new StringType(getEventFileUrl(id, EVENT_CLIP_FILE)));
+                }
+            }
             case CHANNEL_LOCAL_LAST_EVENT, CHANNEL_LOCAL_LAST_EVENT_TIME, CHANNEL_LOCAL_RECORDING -> {
                 List<CameraEvent> events = eventLog.list();
                 if (events.isEmpty()) {
@@ -422,6 +460,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     updateState(CHANNEL_LOCAL_RECORDING, OnOffType.ON);
                 }
                 eventLog.add(new CameraEvent(time.toInstant(), kind, withClip ? clipId : null, null));
+                followCloudEvent(time.toInstant(), kind);
             }
         }
     }
@@ -526,6 +565,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         // only now: openHAB drops state updates of a handler that is still initializing
         updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
         updateRtspUrls();
+        updateProperty(PROPERTY_EVENTS_API, config.publishEventsApi ? getUrl(EVENTS_PATH) : null);
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
             updateFromCloud(accountHandler.getCameras());
@@ -681,6 +721,124 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      */
     public boolean offersSnapshot() {
         return isLinked(CHANNEL_LOCAL_SNAPSHOT_URL);
+    }
+
+    /**
+     * Finds the event the cloud keeps for one detected locally, to offer its image and, once uploaded, its clip. Only
+     * done with an account and only for events, so the cloud is not polled otherwise. The channels follow the latest
+     * local event only; a lookup that a newer event overtook still fires {@code clip-ready}.
+     */
+    private void followCloudEvent(Instant localTime, String kind) {
+        if (getAccountHandler() == null) {
+            return;
+        }
+        latestLocalEvent = localTime;
+        cloudEvents.invalidate();
+        scheduleCloudLookup(localTime, kind, 0, false);
+    }
+
+    private void scheduleCloudLookup(Instant localTime, String kind, int attempt, boolean imagePublished) {
+        if (attempt >= CLOUD_LOOKUP_DELAYS_SECONDS.length || client == null) {
+            return;
+        }
+        ScheduledFuture<?>[] self = new ScheduledFuture<?>[1];
+        self[0] = scheduler.schedule(() -> {
+            cloudLookups.remove(self[0]);
+            lookUpCloudEvent(localTime, kind, attempt, imagePublished);
+        }, CLOUD_LOOKUP_DELAYS_SECONDS[attempt], TimeUnit.SECONDS);
+        cloudLookups.add(self[0]);
+    }
+
+    private void lookUpCloudEvent(Instant localTime, String kind, int attempt, boolean imagePublished) {
+        if (client == null) {
+            // disposed in the meantime
+            return;
+        }
+        CloudEvent event;
+        try {
+            event = cloudEvents.matching(localTime, CLOUD_MATCH_WINDOW);
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not look up the event of {} in the cloud: {}", getThing().getUID(), e.getMessage());
+            event = null;
+        }
+        String id = event == null ? null : event.id();
+        if (event == null || id == null) {
+            scheduleCloudLookup(localTime, kind, attempt + 1, imagePublished);
+            return;
+        }
+        boolean latest = latestLocalEvent.equals(localTime);
+        if (!imagePublished && latest && event.imageUrl() != null) {
+            lastImageEventId = id;
+            updateState(CHANNEL_CLOUD_LAST_CLIP_SNAPSHOT_URL, new StringType(getEventFileUrl(id, EVENT_IMAGE_FILE)));
+        }
+        if (event.clipState() == CloudEvent.ClipState.READY) {
+            logger.debug("The clip of the {} event of {} is in the cloud", kind, getThing().getUID());
+            if (latest) {
+                lastClipEventId = id;
+                updateState(CHANNEL_CLOUD_LAST_CLIP_URL, new StringType(getEventFileUrl(id, EVENT_CLIP_FILE)));
+            }
+            triggerChannel(CHANNEL_CLOUD_CLIP_READY, kind);
+            return;
+        }
+        if (event.clipState() == CloudEvent.ClipState.PENDING) {
+            scheduleCloudLookup(localTime, kind, attempt + 1, true);
+        }
+    }
+
+    private List<CloudEvent> fetchCloudEvents(int page, int pageSize) throws BoschSmartCamException {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        String id = accountHandler == null ? null : resolveCameraId(accountHandler);
+        if (accountHandler == null || id == null) {
+            throw new BoschSmartCamException("The events are kept in the cloud, that needs an account");
+        }
+        return accountHandler.getApi().getEvents(id, page, pageSize);
+    }
+
+    /**
+     * @return whether the events the cloud keeps are offered as an API, see {@link #getCloudEvents()}
+     */
+    public boolean offersEventsApi() {
+        return config.publishEventsApi;
+    }
+
+    public CloudEventFeed getCloudEvents() {
+        return cloudEvents;
+    }
+
+    /**
+     * Like the snapshot, the image or clip of an event is only offered while its address is linked to an item, and
+     * then only for the event the channel shows; the events API offers all of them.
+     *
+     * @param clip whether the clip is asked for, otherwise the image
+     */
+    public boolean offersEventMedia(String eventId, boolean clip) {
+        if (config.publishEventsApi) {
+            return true;
+        }
+        return clip ? isLinked(CHANNEL_CLOUD_LAST_CLIP_URL) && eventId.equals(lastClipEventId)
+                : isLinked(CHANNEL_CLOUD_LAST_CLIP_SNAPSHOT_URL) && eventId.equals(lastImageEventId);
+    }
+
+    /**
+     * Opens the image or clip of an event of this camera in the cloud.
+     *
+     * @throws BoschSmartCamException if the event is unknown, belongs to another camera or has no such file yet
+     */
+    public BoschSmartCamApi.Media openEventMedia(String eventId, boolean clip) throws BoschSmartCamException {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        if (accountHandler == null) {
+            throw new BoschSmartCamException("The events are kept in the cloud, that needs an account");
+        }
+        CloudEvent event = cloudEvents.find(eventId, clip);
+        String url = event == null ? null : clip ? event.videoClipUrl() : event.imageUrl();
+        if (url == null) {
+            throw new BoschSmartCamException("No " + (clip ? "clip" : "image") + " for event " + eventId, 404);
+        }
+        return accountHandler.getApi().openMedia(url);
+    }
+
+    private String getEventFileUrl(String eventId, String file) {
+        return getUrl(EVENTS_PATH + "/" + eventId + "/" + file);
     }
 
     public String getSnapshotUrl() {
