@@ -48,6 +48,7 @@ Only the password of the local API has to be entered when adding it.
 | user                 | text    | User of the local API, as shown in the Bosch app.                   | `localuser` | yes      | no       |
 | password             | text    | Password of the local API, as shown in the Bosch app.               | N/A         | yes      | no       |
 | snapshotCacheSeconds | integer | How long a fetched image is reused in sec.                          | 3           | no       | yes      |
+| streamAudio          | boolean | Whether the live stream carries the sound of the camera.            | true        | no       | yes      |
 | trustAllCertificates | boolean | Accept any certificate instead of verifying it, see below.          | false       | no       | yes      |
 
 The binding verifies the certificate of the camera against the root Bosch publishes for the local API.
@@ -107,6 +108,7 @@ The same page also lets you remove the stored tokens of an account, for example 
 | local#last-event-time | DateTime | R          | When the camera detected the last event.                                                        |
 | local#recording       | Switch   | R          | `ON` while the camera records the clip of an event.                                             |
 | local#snapshot-url    | String   | R          | Address a still image can be fetched from. Contains a token, treat it as a secret.              |
+| local#hls-url         | String   | R          | Address of the live stream as HLS, for a video widget. Contains a token, treat it as a secret.  |
 
 The camera reports what happens through an ONVIF PullPoint subscription that the binding keeps open.
 The connection goes out from openHAB, so nothing has to be reachable from the camera, and nothing is polled: the camera answers when something happens.
@@ -192,6 +194,27 @@ The comparison works on the raw address bytes against the CIDR blocks, so `192.1
 Behind a reverse proxy openHAB sees the address of the proxy, so add that one rather than the address of the browser.
 
 Be aware of what such a URL is: whoever holds the link sees the picture, without logging in to openHAB.
+
+## Live Video
+
+The binding turns the stream of a camera into HLS itself, without ffmpeg and without transcoding: the camera already sends H.264 and AAC, they are only put into fragmented MP4 segments of about two seconds.
+The `hls-url` channel carries the address of the playlist.
+
+The stream starts when the playlist is fetched, which takes a few seconds, and stops again 30 seconds after the last request.
+Nothing is received from the camera while nobody watches.
+
+Where it plays:
+
+- The video card of the main UI plays HLS in every current browser.
+- A `Video` element in a sitemap with `encoding="hls"` relies on the browser playing HLS itself, which Safari, current versions of Chrome and the openHAB apps for Android and iOS do. Basic UI hands the address to the browser as it is, so the browser has to reach openHAB directly.
+
+Browsers start a video with sound only after the user interacted with the page; set `streamAudio` to `false` for a stream that starts on its own everywhere.
+
+A sitemap requires a `url` for every `Video` element. With an item linked to `hls-url` the address in the item wins, so the `url` only has to be valid:
+
+```java
+Video item=FrontDoor_Live url="http://192.168.0.10:8080/boschsmartcam/<token>/live.m3u8" encoding="hls"
+```
 
 ## Full Example
 

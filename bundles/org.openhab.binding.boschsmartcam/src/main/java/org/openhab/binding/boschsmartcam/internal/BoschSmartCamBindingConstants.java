@@ -43,6 +43,7 @@ public class BoschSmartCamBindingConstants {
     // List of all Channel ids, without their group
     public static final String CHANNEL_PRIVACY_MODE = "privacy-mode";
     public static final String CHANNEL_SNAPSHOT_URL = "snapshot-url";
+    public static final String CHANNEL_HLS_URL = "hls-url";
     public static final String CHANNEL_EVENT = "event";
     public static final String CHANNEL_LAST_EVENT = "last-event";
     public static final String CHANNEL_LAST_EVENT_TIME = "last-event-time";
@@ -122,6 +123,11 @@ public class BoschSmartCamBindingConstants {
      */
     public static final String EVENTS_PAGE_FILE = "events.html";
     public static final String EVENTS_STREAM_FILE = "events.stream";
+
+    /**
+     * Ten seconds of raw H.264 of the camera. A check of the stream receiver while there is no HLS yet.
+     */
+    public static final String RAW_VIDEO_FILE = "stream.h264";
 
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the

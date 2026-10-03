@@ -45,4 +45,9 @@ public class BoschSmartCamCameraConfiguration {
      * ever bring a new root.
      */
     public boolean trustAllCertificates = false;
+
+    /**
+     * Whether the live stream carries the sound of the camera.
+     */
+    public boolean streamAudio = true;
 }

@@ -17,10 +17,12 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_STREAM_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.RAW_VIDEO_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,6 +52,10 @@ import org.openhab.binding.boschsmartcam.internal.events.CameraEvent;
 import org.openhab.binding.boschsmartcam.internal.events.EventLog;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
+import org.openhab.binding.boschsmartcam.internal.video.AacDepacketizer.AacFrame;
+import org.openhab.binding.boschsmartcam.internal.video.CameraStream;
+import org.openhab.binding.boschsmartcam.internal.video.H264Depacketizer.AccessUnit;
+import org.openhab.binding.boschsmartcam.internal.video.HlsStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,6 +115,11 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
      */
     private static final Duration EVENT_STREAM_DURATION = Duration.ofMinutes(10);
     private static final long KEEPALIVE_SECONDS = 15;
+
+    /**
+     * How long the first request of the playlist waits for the stream to have enough segments.
+     */
+    private static final Duration HLS_START_TIMEOUT = Duration.ofSeconds(15);
 
     // keys used in events.html
     private static final String KEY_LABEL = "label";
@@ -202,7 +214,10 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return false;
         }
         String file = parts[2];
-        if (!SNAPSHOT_FILE.equals(file) && !EVENTS_PAGE_FILE.equals(file) && !EVENTS_STREAM_FILE.equals(file)) {
+        boolean hlsFile = HlsStream.PLAYLIST_FILE.equals(file) || HlsStream.INIT_FILE.equals(file)
+                || (file.startsWith(HlsStream.SEGMENT_PREFIX) && file.endsWith(HlsStream.SEGMENT_SUFFIX));
+        if (!SNAPSHOT_FILE.equals(file) && !EVENTS_PAGE_FILE.equals(file) && !EVENTS_STREAM_FILE.equals(file)
+                && !RAW_VIDEO_FILE.equals(file) && !hlsFile) {
             return false;
         }
 
@@ -226,6 +241,15 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         }
         if (EVENTS_STREAM_FILE.equals(file)) {
             streamEvents(camera.get().getEventLog(), response);
+            return true;
+        }
+        if (RAW_VIDEO_FILE.equals(file)) {
+            streamRawVideo(camera.get(), response);
+            return true;
+        }
+        if (hlsFile) {
+            logger.debug("{} requested {} with {}", request.getRemoteAddr(), file, request.getHeader("User-Agent"));
+            serveHls(camera.get(), file, response);
             return true;
         }
 
@@ -299,6 +323,105 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             Thread.currentThread().interrupt();
         } finally {
             eventLog.removeListener(listener);
+        }
+    }
+
+    /**
+     * Serves the live stream as HLS. Fetching the playlist starts the stream; the first answer waits until enough
+     * segments exist for a player to start.
+     */
+    private void serveHls(BoschSmartCamCameraHandler camera, String file, HttpServletResponse response)
+            throws IOException {
+        if (HlsStream.PLAYLIST_FILE.equals(file)) {
+            HlsStream hls = camera.startHls();
+            try {
+                if (!hls.awaitReady(HLS_START_TIMEOUT)) {
+                    response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                    return;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                return;
+            }
+            response.setContentType("application/vnd.apple.mpegurl;charset=UTF-8");
+            response.setHeader("Cache-Control", "no-cache");
+            response.getWriter().append(hls.getPlaylist()).close();
+            return;
+        }
+
+        HlsStream hls = camera.getRunningHls();
+        byte[] data = null;
+        if (hls != null) {
+            if (HlsStream.INIT_FILE.equals(file)) {
+                data = hls.getInitSegment();
+            } else {
+                try {
+                    data = hls.getSegment(Integer.parseInt(file.substring(HlsStream.SEGMENT_PREFIX.length(),
+                            file.length() - HlsStream.SEGMENT_SUFFIX.length())));
+                } catch (NumberFormatException e) {
+                    data = null;
+                }
+            }
+        }
+        if (data == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        response.setContentType("video/mp4");
+        response.setContentLength(data.length);
+        response.getOutputStream().write(data);
+    }
+
+    /**
+     * Sends ten seconds of the live stream as raw H.264, as a check of the stream receiver.
+     */
+    private void streamRawVideo(BoschSmartCamCameraHandler camera, HttpServletResponse response) throws IOException {
+        BlockingQueue<byte[]> queue = new LinkedBlockingQueue<>(1000);
+        AtomicReference<CameraStream.@Nullable VideoConfig> video = new AtomicReference<>();
+        CameraStream stream = camera.openStream(new CameraStream.Sink() {
+            @Override
+            public void onStart(CameraStream.VideoConfig videoConfig, CameraStream.@Nullable AudioConfig audio) {
+                video.set(videoConfig);
+            }
+
+            @Override
+            public void onVideo(AccessUnit accessUnit) {
+                CameraStream.VideoConfig config = video.get();
+                if (config != null) {
+                    queue.offer(CameraStream.annexB(config, accessUnit));
+                }
+            }
+
+            @Override
+            public void onAudio(AacFrame frame) {
+            }
+
+            @Override
+            public void onFailure(IOException e) {
+                logger.debug("Raw stream failed: {}", e.getMessage());
+                // an empty chunk marks the end
+                queue.offer(new byte[0]);
+            }
+        });
+        try {
+            response.setContentType("video/h264");
+            OutputStream out = response.getOutputStream();
+            Instant until = Instant.now().plusSeconds(10);
+            while (Instant.now().isBefore(until)) {
+                byte[] chunk = queue.poll(1, TimeUnit.SECONDS);
+                if (chunk != null && chunk.length == 0) {
+                    break;
+                }
+                if (chunk != null) {
+                    out.write(chunk);
+                }
+            }
+            out.flush();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            stream.stop();
         }
     }
 

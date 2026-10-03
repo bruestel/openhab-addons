@@ -49,6 +49,8 @@ import org.openhab.binding.boschsmartcam.internal.local.LocalCameraClient;
 import org.openhab.binding.boschsmartcam.internal.local.OnvifEvent;
 import org.openhab.binding.boschsmartcam.internal.local.PullPointSubscriber;
 import org.openhab.binding.boschsmartcam.internal.net.CidrMatcher;
+import org.openhab.binding.boschsmartcam.internal.video.CameraStream;
+import org.openhab.binding.boschsmartcam.internal.video.HlsStream;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
@@ -105,6 +107,12 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     private static final String CHANNEL_LOCAL_PRIVACY_MODE = GROUP_LOCAL + "#" + CHANNEL_PRIVACY_MODE;
     private static final String CHANNEL_LOCAL_SNAPSHOT_URL = GROUP_LOCAL + "#" + CHANNEL_SNAPSHOT_URL;
+    private static final String CHANNEL_LOCAL_HLS_URL = GROUP_LOCAL + "#" + CHANNEL_HLS_URL;
+
+    /**
+     * The live stream stops when nobody fetched its playlist or a segment for this long.
+     */
+    private static final Duration HLS_IDLE_TIMEOUT = Duration.ofSeconds(30);
     private static final String CHANNEL_LOCAL_EVENT = GROUP_LOCAL + "#" + CHANNEL_EVENT;
     private static final String CHANNEL_LOCAL_LAST_EVENT = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT;
     private static final String CHANNEL_LOCAL_LAST_EVENT_TIME = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT_TIME;
@@ -125,6 +133,10 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private @Nullable LocalCameraClient client;
     private @Nullable PullPointSubscriber subscriber;
     private final EventLog eventLog = new EventLog();
+    private @Nullable HlsStream hls;
+    private @Nullable CameraStream hlsSource;
+    private @Nullable ScheduledFuture<?> hlsIdleJob;
+    private volatile Instant hlsLastAccess = Instant.EPOCH;
     private @Nullable ScheduledFuture<?> connectJob;
     private Duration nextRetry = FIRST_RETRY;
 
@@ -211,6 +223,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             localSubscriber.stop();
             subscriber = null;
         }
+        stopHls();
         authService.removeCamera(accessToken);
         cameraTrust.release(config.host);
         client = null;
@@ -305,6 +318,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             case CHANNEL_LOCAL_SNAPSHOT_URL -> {
                 if (identity != null) {
                     updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+                }
+            }
+            case CHANNEL_LOCAL_HLS_URL -> {
+                if (identity != null) {
+                    updateState(CHANNEL_LOCAL_HLS_URL, new StringType(getUrl(HlsStream.PLAYLIST_FILE)));
                 }
             }
             case CHANNEL_LOCAL_LAST_EVENT, CHANNEL_LOCAL_LAST_EVENT_TIME, CHANNEL_LOCAL_RECORDING -> {
@@ -502,6 +520,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
         // only now: openHAB drops state updates of a handler that is still initializing
         updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+        updateState(CHANNEL_LOCAL_HLS_URL, new StringType(getUrl(HlsStream.PLAYLIST_FILE)));
         updateProperty(PROPERTY_EVENTS_PAGE, getUrl(EVENTS_PAGE_FILE));
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
@@ -594,6 +613,66 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     private String getUrl(String file) {
         return openhabBaseUrl + SERVLET_PATH + "/" + accessToken + "/" + file;
+    }
+
+    /**
+     * Starts receiving the live stream of the camera. The caller has to stop it.
+     */
+    public CameraStream openStream(CameraStream.Sink sink) {
+        CameraStream stream = new CameraStream(cameraTrust, scheduler, config.host, config.user, config.password,
+                config.trustAllCertificates, 1, config.streamAudio, sink);
+        stream.start();
+        return stream;
+    }
+
+    /**
+     * @return the live stream as HLS, started if it is not running yet. It stops again on its own once nobody
+     *         fetches it for {@link #HLS_IDLE_TIMEOUT}.
+     */
+    public synchronized HlsStream startHls() {
+        HlsStream current = hls;
+        if (current == null || current.isFailed()) {
+            stopHls();
+            current = new HlsStream(getThing().getUID().getId());
+            hls = current;
+            hlsSource = openStream(current);
+            hlsIdleJob = scheduler.scheduleWithFixedDelay(this::stopIdleHls, 10, 10, TimeUnit.SECONDS);
+            logger.debug("Started the live stream of {}", getThing().getUID());
+        }
+        hlsLastAccess = Instant.now();
+        return current;
+    }
+
+    /**
+     * @return the running live stream, without starting one
+     */
+    public synchronized @Nullable HlsStream getRunningHls() {
+        HlsStream current = hls;
+        if (current != null) {
+            hlsLastAccess = Instant.now();
+        }
+        return current;
+    }
+
+    private synchronized void stopIdleHls() {
+        if (Duration.between(hlsLastAccess, Instant.now()).compareTo(HLS_IDLE_TIMEOUT) > 0) {
+            logger.debug("Nobody watches the live stream of {} any more", getThing().getUID());
+            stopHls();
+        }
+    }
+
+    private synchronized void stopHls() {
+        ScheduledFuture<?> job = hlsIdleJob;
+        if (job != null) {
+            job.cancel(false);
+            hlsIdleJob = null;
+        }
+        CameraStream source = hlsSource;
+        if (source != null) {
+            source.stop();
+            hlsSource = null;
+        }
+        hls = null;
     }
 
     public EventLog getEventLog() {
