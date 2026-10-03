@@ -13,6 +13,7 @@
 package org.openhab.binding.boschsmartcam.internal.local;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
@@ -27,6 +28,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants;
@@ -34,10 +38,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Offers the streams of all cameras as plain RTSP on one port of openHAB, without a password:
- * {@code rtsp://<openhab>:<port>/<token>} plays the camera the token belongs to.
+ * Offers the streams of all cameras on one port of openHAB, without a password:
+ * {@code rtsp://<openhab>:<port>/<token>} plays the camera the token belongs to. Given a certificate, the same port
+ * also speaks TLS, {@code rtsps://<openhab>:<port>/<token>}; the first byte of a connection tells the two apart.
  *
- * The player speaks plain RTSP with openHAB, openHAB speaks RTSP over TLS with the camera. The requests of the player
+ * The player speaks RTSP with openHAB, openHAB speaks RTSP over TLS with the camera. The requests of the player
  * are rewritten on the way: the address is replaced with the one of the camera, and openHAB logs in with the user
  * and password of the camera - whatever the player sends for that is dropped. When the camera asks for
  * authentication, its answer is caught and the request is sent again, logged in, so the player never notices.
@@ -54,7 +59,7 @@ import org.slf4j.LoggerFactory;
 public class RtspGateway {
 
     /**
-     * The camera a token stands for.
+     * The camera a token stands for. Each camera decides whether it offers its stream at all, plain or over TLS.
      *
      * @param allowedFrom whether a player at the given address may watch
      */
@@ -63,8 +68,12 @@ public class RtspGateway {
 
     @FunctionalInterface
     public interface TargetResolver {
+        /**
+         * @param secure whether the player came over TLS
+         * @return the camera, or {@code null} if the token is unknown or the camera offers no stream that way
+         */
         @Nullable
-        Target resolve(String token);
+        Target resolve(String token, boolean secure);
     }
 
     @FunctionalInterface
@@ -79,19 +88,26 @@ public class RtspGateway {
     static final String DEFAULT_QUERY = "?line=1&inst=1&enableaudio=1";
 
     private static final int MAX_SESSIONS = 16;
+    private static final int TLS_HANDSHAKE = 0x16;
+    private static final int HANDSHAKE_TIMEOUT_MILLIS = 10000;
 
     private final Logger logger = LoggerFactory.getLogger(RtspGateway.class);
 
     private final int port;
     private final TargetResolver resolver;
     private final CameraConnector connector;
+    private final @Nullable SSLContext tls;
     private final Set<Socket> sockets = ConcurrentHashMap.newKeySet();
     private volatile @Nullable ServerSocket serverSocket;
 
-    public RtspGateway(int port, TargetResolver resolver, CameraConnector connector) {
+    /**
+     * @param tls the certificate offered to players coming over TLS, {@code null} to offer plain RTSP only
+     */
+    public RtspGateway(int port, TargetResolver resolver, CameraConnector connector, @Nullable SSLContext tls) {
         this.port = port;
         this.resolver = resolver;
         this.connector = connector;
+        this.tls = tls;
     }
 
     /**
@@ -191,6 +207,8 @@ public class RtspGateway {
      */
     private class Session {
         private final Socket player;
+        // the player itself, or the TLS layered over it
+        private volatile Socket connection;
         private final Map<String, RtspMessage> pending = new ConcurrentHashMap<>();
         private final Set<String> retried = ConcurrentHashMap.newKeySet();
         private final Object cameraLock = new Object();
@@ -206,20 +224,42 @@ public class RtspGateway {
 
         Session(Socket player) {
             this.player = player;
+            this.connection = player;
         }
 
         void run() {
             String address = player.getInetAddress().getHostAddress();
             try {
-                InputStream fromPlayer = new BufferedInputStream(player.getInputStream());
-                OutputStream toPlayer = player.getOutputStream();
-                int first = fromPlayer.read();
+                // read unbuffered, so nothing beyond the first byte is taken from a TLS handshake
+                int first = player.getInputStream().read();
                 if (first < 0) {
                     return;
                 }
+                boolean secure = first == TLS_HANDSHAKE;
+                if (secure) {
+                    SSLContext context = tls;
+                    if (context == null) {
+                        logger.debug("Refused a TLS connection from {}, the gateway has no certificate", address);
+                        return;
+                    }
+                    SSLSocket ssl = (SSLSocket) context.getSocketFactory().createSocket(player,
+                            new ByteArrayInputStream(new byte[] { (byte) first }), true);
+                    connection = ssl;
+                    ssl.setSoTimeout(HANDSHAKE_TIMEOUT_MILLIS);
+                    ssl.startHandshake();
+                    ssl.setSoTimeout(0);
+                }
+                InputStream fromPlayer = new BufferedInputStream(connection.getInputStream());
+                OutputStream toPlayer = connection.getOutputStream();
+                if (secure) {
+                    first = fromPlayer.read();
+                    if (first < 0) {
+                        return;
+                    }
+                }
                 RtspMessage request = RtspMessage.read(fromPlayer, first);
                 String token = token(request.uri());
-                Target target = token == null ? null : resolver.resolve(token);
+                Target target = token == null ? null : resolver.resolve(token, secure);
                 if (token == null || target == null || !target.allowedFrom().test(address)) {
                     // the same answer for both, so a wrong token cannot be told apart from a forbidden network
                     logger.debug("Refused an RTSP request from {}", address);
@@ -233,7 +273,7 @@ public class RtspGateway {
                 Socket cameraSocket = connector.connect(target);
                 cameraSocket.setSoTimeout(0);
                 camera = cameraSocket;
-                sockets.add(player);
+                sockets.add(connection);
                 sockets.add(cameraSocket);
                 logger.debug("Relaying the stream of {} to {}", cameraHost, address);
 
@@ -364,8 +404,9 @@ public class RtspGateway {
             if (!ended.compareAndSet(false, true)) {
                 return;
             }
+            close(connection);
             close(player);
-            sockets.remove(player);
+            sockets.remove(connection);
             Socket current = camera;
             if (current != null) {
                 tearDown(current);

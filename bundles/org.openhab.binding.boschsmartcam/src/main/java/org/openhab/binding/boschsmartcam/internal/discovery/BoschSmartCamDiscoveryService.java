@@ -87,8 +87,8 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
     private static final int MAX_PREFIX_LENGTH = 22;
 
     /**
-     * A scan probes every address of the network, so in the background it only runs now and then. Cameras rarely
-     * appear, and an address that changed is noticed by the thing itself.
+     * A scan probes every address of the network and asks the online accounts for the cameras it did not find, so
+     * in the background it is off unless enabled, and then only runs now and then.
      */
     private static final long BACKGROUND_INTERVAL_MINUTES = 30;
     private static final long BACKGROUND_DELAY_MINUTES = 1;
@@ -110,7 +110,7 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
 
     @Activate
     public BoschSmartCamDiscoveryService(final @Reference BoschSmartCamAuthService authService) {
-        super(Set.of(THING_TYPE_CAMERA), SCAN_TIMEOUT_SECONDS, true);
+        super(Set.of(THING_TYPE_CAMERA), SCAN_TIMEOUT_SECONDS, false);
         this.authService = authService;
     }
 
@@ -330,7 +330,8 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
     }
 
     /**
-     * @return the name the camera has in the Bosch app, followed by the product name in brackets so it is clear which
+     * @return the name the camera has in the Bosch Smart Camera app, followed by the product name in brackets so it is
+     *         clear which
      *         camera is which even when the names are similar
      */
     private static String buildLabel(@Nullable String title, @Nullable CameraModel model) {

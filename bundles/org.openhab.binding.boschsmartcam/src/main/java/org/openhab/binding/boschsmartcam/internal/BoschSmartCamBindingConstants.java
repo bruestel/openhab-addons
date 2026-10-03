@@ -45,7 +45,8 @@ public class BoschSmartCamBindingConstants {
     public static final String CHANNEL_SNAPSHOT_URL = "snapshot-url";
     public static final String CHANNEL_RTSP_URL = "rtsp-url";
     public static final String CHANNEL_RTSP_SUBSTREAM_URL = "rtsp-substream-url";
-    public static final String CHANNEL_PROXY_RTSPS_URL = "proxy-rtsps-url";
+    public static final String CHANNEL_RTSPS_URL = "rtsps-url";
+    public static final String CHANNEL_RTSPS_SUBSTREAM_URL = "rtsps-substream-url";
     public static final String CHANNEL_CAMERA_RTSPS_URL = "camera-rtsps-url";
     public static final String CHANNEL_EVENT = "event";
     public static final String CHANNEL_LAST_EVENT = "last-event";
@@ -56,13 +57,14 @@ public class BoschSmartCamBindingConstants {
 
     // Thing properties beyond the ones openHAB defines itself
     public static final String PROPERTY_CAMERA_ID = "cameraId";
+    public static final String PROPERTY_RTSPS_CERTIFICATE = "rtspsCertificate";
+    public static final String PROPERTY_RTSPS_CERTIFICATE_SHA256 = "rtspsCertificateSha256";
     public static final String PROPERTY_PRODUCT_NAME = "productName";
     public static final String PROPERTY_GENERATION = "generation";
 
     /**
      * Address of the page with the event log of a camera.
      */
-    public static final String PROPERTY_EVENTS_PAGE = "eventsPage";
 
     /**
      * Name of the user the local API creates when it is enabled in the app.
@@ -134,8 +136,6 @@ public class BoschSmartCamBindingConstants {
      * Page with the event log of a camera, and the stream it follows new events with. Same path and protection as
      * {@link #SNAPSHOT_FILE}.
      */
-    public static final String EVENTS_PAGE_FILE = "events.html";
-    public static final String EVENTS_STREAM_FILE = "events.stream";
 
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the

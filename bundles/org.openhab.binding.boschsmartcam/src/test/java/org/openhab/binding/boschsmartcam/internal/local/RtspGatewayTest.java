@@ -21,8 +21,16 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -46,18 +54,25 @@ public class RtspGatewayTest {
     private static final byte[] MEDIA = { '$', 0, 0, 4, 1, 2, 3, 4 };
     private static final String SESSION = "8E1F2A3B";
 
+    private static final char[] KEYSTORE_PASSWORD = "testpass".toCharArray();
+
     private final List<RtspMessage> seenByCamera = new CopyOnWriteArrayList<>();
+    // whether the camera offers its stream plain and over TLS, as if those channels were linked
+    private volatile boolean plainOffered = true;
+    private volatile boolean tlsOffered = true;
     private @Nullable ServerSocket camera;
     private @Nullable RtspGateway gateway;
 
     @BeforeEach
-    public void setUp() throws IOException {
+    public void setUp() throws Exception {
         ServerSocket fakeCamera = new ServerSocket(0);
         camera = fakeCamera;
         Thread.ofVirtual().start(() -> serveCamera(fakeCamera));
         RtspGateway rtspGateway = new RtspGateway(0,
-                token -> TOKEN.equals(token) ? new RtspGateway.Target("cam", USER, PASSWORD, false, a -> true) : null,
-                target -> new Socket("127.0.0.1", fakeCamera.getLocalPort()));
+                (token, secure) -> TOKEN.equals(token) && (secure ? tlsOffered : plainOffered)
+                        ? new RtspGateway.Target("cam", USER, PASSWORD, false, a -> true)
+                        : null,
+                target -> new Socket("127.0.0.1", fakeCamera.getLocalPort()), serverTls());
         rtspGateway.start();
         gateway = rtspGateway;
     }
@@ -133,6 +148,37 @@ public class RtspGatewayTest {
     }
 
     @Test
+    public void playerOverTlsIsServedOnTheSamePort() throws Exception {
+        try (Socket player = connectOverTls()) {
+            InputStream in = new BufferedInputStream(player.getInputStream());
+            send(player.getOutputStream(),
+                    "DESCRIBE " + playerUrl().replace("rtsp:", "rtsps:") + " RTSP/1.0\r\nCSeq: 2\r\n\r\n");
+            RtspMessage describe = RtspMessage.read(in, in.read());
+            assertEquals(200, describe.status());
+        }
+        assertEquals("rtsp://cam:9554/rtsp_tunnel?line=1&inst=1&enableaudio=1", seenByCamera.get(0).uri());
+    }
+
+    @Test
+    public void streamIsOnlyOfferedTheWayItIsLinked() throws Exception {
+        plainOffered = false;
+        try (Socket player = connect()) {
+            InputStream in = new BufferedInputStream(player.getInputStream());
+            send(player.getOutputStream(), "DESCRIBE " + playerUrl() + " RTSP/1.0\r\nCSeq: 1\r\n\r\n");
+            assertEquals(404, RtspMessage.read(in, in.read()).status());
+        }
+        plainOffered = true;
+        tlsOffered = false;
+        try (Socket player = connectOverTls()) {
+            InputStream in = new BufferedInputStream(player.getInputStream());
+            send(player.getOutputStream(),
+                    "DESCRIBE " + playerUrl().replace("rtsp:", "rtsps:") + " RTSP/1.0\r\nCSeq: 1\r\n\r\n");
+            assertEquals(404, RtspMessage.read(in, in.read()).status());
+        }
+        assertTrue(seenByCamera.isEmpty());
+    }
+
+    @Test
     public void addressesAreMappedOntoTheCamera() {
         String base = "rtsp://openhab:8554/" + TOKEN;
         assertEquals("rtsp://cam:9554/rtsp_tunnel?line=1&inst=1&enableaudio=1",
@@ -159,6 +205,47 @@ public class RtspGatewayTest {
         Socket socket = new Socket("127.0.0.1", rtspGateway.getLocalPort());
         socket.setSoTimeout(5000);
         return socket;
+    }
+
+    private Socket connectOverTls() throws Exception {
+        RtspGateway rtspGateway = gateway;
+        assertNotNull(rtspGateway);
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(null, new TrustManager[] { new TrustAll() }, null);
+        SSLSocket socket = (SSLSocket) context.getSocketFactory().createSocket("127.0.0.1", rtspGateway.getLocalPort());
+        socket.setSoTimeout(5000);
+        socket.startHandshake();
+        return socket;
+    }
+
+    private static SSLContext serverTls() throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (InputStream in = RtspGatewayTest.class.getResourceAsStream("/tls/test-keystore.p12")) {
+            keyStore.load(in, KEYSTORE_PASSWORD);
+        }
+        KeyManagerFactory keyManagers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        keyManagers.init(keyStore, KEYSTORE_PASSWORD);
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(keyManagers.getKeyManagers(), null, null);
+        return context;
+    }
+
+    /**
+     * The test certificate is self-signed, as the one openHAB generates.
+     */
+    private static class TrustAll implements X509TrustManager {
+        @Override
+        public void checkClientTrusted(X509Certificate @Nullable [] chain, @Nullable String authType) {
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate @Nullable [] chain, @Nullable String authType) {
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
+        }
     }
 
     private String playerUrl() {

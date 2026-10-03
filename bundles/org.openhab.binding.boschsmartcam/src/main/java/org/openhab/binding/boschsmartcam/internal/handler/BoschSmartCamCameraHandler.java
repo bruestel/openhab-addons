@@ -16,11 +16,17 @@ import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingCon
 
 import java.io.IOException;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -51,7 +57,6 @@ import org.openhab.binding.boschsmartcam.internal.local.LocalCameraClient;
 import org.openhab.binding.boschsmartcam.internal.local.OnvifEvent;
 import org.openhab.binding.boschsmartcam.internal.local.PullPointSubscriber;
 import org.openhab.binding.boschsmartcam.internal.local.RtspGateway;
-import org.openhab.binding.boschsmartcam.internal.local.RtspPassthrough;
 import org.openhab.binding.boschsmartcam.internal.net.CidrMatcher;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.OnOffType;
@@ -112,7 +117,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private static final String CHANNEL_LOCAL_SNAPSHOT_URL = GROUP_LOCAL + "#" + CHANNEL_SNAPSHOT_URL;
     private static final String CHANNEL_LOCAL_RTSP_URL = GROUP_LOCAL + "#" + CHANNEL_RTSP_URL;
     private static final String CHANNEL_LOCAL_RTSP_SUBSTREAM_URL = GROUP_LOCAL + "#" + CHANNEL_RTSP_SUBSTREAM_URL;
-    private static final String CHANNEL_LOCAL_PROXY_RTSPS_URL = GROUP_LOCAL + "#" + CHANNEL_PROXY_RTSPS_URL;
+    private static final String CHANNEL_LOCAL_RTSPS_URL = GROUP_LOCAL + "#" + CHANNEL_RTSPS_URL;
+    private static final String CHANNEL_LOCAL_RTSPS_SUBSTREAM_URL = GROUP_LOCAL + "#" + CHANNEL_RTSPS_SUBSTREAM_URL;
     private static final String CHANNEL_LOCAL_CAMERA_RTSPS_URL = GROUP_LOCAL + "#" + CHANNEL_CAMERA_RTSPS_URL;
     private static final String CHANNEL_LOCAL_EVENT = GROUP_LOCAL + "#" + CHANNEL_EVENT;
     private static final String CHANNEL_LOCAL_LAST_EVENT = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT;
@@ -127,6 +133,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private final CameraTrust cameraTrust;
     private final Supplier<CidrMatcher> snapshotNetworks;
     private final IntSupplier rtspGatewayPort;
+    private final Supplier<@Nullable X509Certificate> rtspGatewayCertificate;
     private final String openhabBaseUrl;
 
     private BoschSmartCamCameraConfiguration config = new BoschSmartCamCameraConfiguration();
@@ -134,7 +141,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private Duration snapshotCache = Duration.ofSeconds(3);
     private @Nullable LocalCameraClient client;
     private @Nullable PullPointSubscriber subscriber;
-    private @Nullable RtspPassthrough rtspPassthrough;
     private final EventLog eventLog = new EventLog();
     private @Nullable ScheduledFuture<?> connectJob;
     private Duration nextRetry = FIRST_RETRY;
@@ -168,9 +174,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     public BoschSmartCamCameraHandler(Thing thing, BoschSmartCamAuthService authService, HttpClient cameraHttpClient,
             Supplier<HttpClient> trustAllHttpClient, CameraTrust cameraTrust, Supplier<CidrMatcher> snapshotNetworks,
-            IntSupplier rtspGatewayPort, String openhabBaseUrl) {
+            IntSupplier rtspGatewayPort, Supplier<@Nullable X509Certificate> rtspGatewayCertificate,
+            String openhabBaseUrl) {
         super(thing);
         this.rtspGatewayPort = rtspGatewayPort;
+        this.rtspGatewayCertificate = rtspGatewayCertificate;
         this.authService = authService;
         this.cameraHttpClient = cameraHttpClient;
         this.trustAllHttpClient = trustAllHttpClient;
@@ -206,7 +214,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 LocalCameraClient.basicAuthorization(config.user, config.password), new EventListener());
         authService.addCamera(accessToken, this);
 
-        rtspPassthrough = startPassthrough();
         updateStatus(ThingStatus.UNKNOWN);
         nextRetry = FIRST_RETRY;
         connectJob = scheduler.schedule(this::connect, 0, TimeUnit.SECONDS);
@@ -223,11 +230,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         if (localSubscriber != null) {
             localSubscriber.stop();
             subscriber = null;
-        }
-        RtspPassthrough passthrough = rtspPassthrough;
-        if (passthrough != null) {
-            passthrough.stop();
-            rtspPassthrough = null;
         }
         authService.removeCamera(accessToken);
         cameraTrust.release(config.host);
@@ -325,8 +327,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
                 }
             }
-            case CHANNEL_LOCAL_RTSP_URL, CHANNEL_LOCAL_RTSP_SUBSTREAM_URL, CHANNEL_LOCAL_PROXY_RTSPS_URL,
-                    CHANNEL_LOCAL_CAMERA_RTSPS_URL ->
+            case CHANNEL_LOCAL_RTSP_URL, CHANNEL_LOCAL_RTSP_SUBSTREAM_URL, CHANNEL_LOCAL_RTSPS_URL,
+                    CHANNEL_LOCAL_RTSPS_SUBSTREAM_URL, CHANNEL_LOCAL_CAMERA_RTSPS_URL ->
                 updateRtspUrls();
             case CHANNEL_LOCAL_LAST_EVENT, CHANNEL_LOCAL_LAST_EVENT_TIME, CHANNEL_LOCAL_RECORDING -> {
                 List<CameraEvent> events = eventLog.list();
@@ -524,7 +526,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         // only now: openHAB drops state updates of a handler that is still initializing
         updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
         updateRtspUrls();
-        updateProperty(PROPERTY_EVENTS_PAGE, getUrl(EVENTS_PAGE_FILE));
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
             updateFromCloud(accountHandler.getCameras());
@@ -611,51 +612,75 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Passes the RTSP tunnel of the camera through the configured port. A port that cannot be opened is reported in
-     * the log; the camera itself works on regardless.
-     *
-     * @return the running passthrough, or {@code null} if none is configured or the port could not be opened
-     */
-    private @Nullable RtspPassthrough startPassthrough() {
-        if (config.rtspsPort <= 0) {
-            return null;
-        }
-        RtspPassthrough passthrough = new RtspPassthrough(config.host, RTSP_PORT, config.rtspsPort,
-                this::isAllowedFrom);
-        try {
-            passthrough.start();
-            return passthrough;
-        } catch (IOException e) {
-            logger.warn("Could not pass the stream of {} through port {}: {}", getThing().getUID(), config.rtspsPort,
-                    e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * None of the addresses carries user or password. Through the gateway none is needed, the token in the address
-     * stands in for them; the other two ask for the ones of the camera.
+     * None of the addresses carries user or password. Through the gateway none is needed, plain or over TLS, the token
+     * in the address stands in for them; the one directly at the camera asks for the ones of the camera.
      */
     private void updateRtspUrls() {
         updateState(CHANNEL_LOCAL_CAMERA_RTSPS_URL,
                 new StringType("rtsps://" + config.host + ":" + RTSP_PORT + RTSP_PATH));
         String openhabHost = URI.create(openhabBaseUrl).getHost();
         int gatewayPort = rtspGatewayPort.getAsInt();
-        String gatewayUrl = gatewayPort <= 0 || openhabHost == null ? null
-                : "rtsp://" + openhabHost + ":" + gatewayPort + "/" + accessToken;
-        updateState(CHANNEL_LOCAL_RTSP_URL, gatewayUrl == null ? UnDefType.UNDEF : new StringType(gatewayUrl));
+        String gateway = gatewayPort <= 0 || openhabHost == null ? null
+                : openhabHost + ":" + gatewayPort + "/" + accessToken;
+        updateState(CHANNEL_LOCAL_RTSP_URL, gateway == null ? UnDefType.UNDEF : new StringType("rtsp://" + gateway));
         updateState(CHANNEL_LOCAL_RTSP_SUBSTREAM_URL,
-                gatewayUrl == null ? UnDefType.UNDEF : new StringType(gatewayUrl + RTSP_SUBSTREAM_QUERY));
-        updateState(CHANNEL_LOCAL_PROXY_RTSPS_URL, rtspPassthrough == null || openhabHost == null ? UnDefType.UNDEF
-                : new StringType("rtsps://" + openhabHost + ":" + config.rtspsPort + RTSP_PATH));
+                gateway == null ? UnDefType.UNDEF : new StringType("rtsp://" + gateway + RTSP_SUBSTREAM_QUERY));
+
+        X509Certificate certificate = gateway == null ? null : rtspGatewayCertificate.get();
+        String secureGateway = certificate == null ? null : "rtsps://" + gateway;
+        updateState(CHANNEL_LOCAL_RTSPS_URL, secureGateway == null ? UnDefType.UNDEF : new StringType(secureGateway));
+        updateState(CHANNEL_LOCAL_RTSPS_SUBSTREAM_URL,
+                secureGateway == null ? UnDefType.UNDEF : new StringType(secureGateway + RTSP_SUBSTREAM_QUERY));
+        updateProperty(PROPERTY_RTSPS_CERTIFICATE, certificate == null ? null : pem(certificate));
+        updateProperty(PROPERTY_RTSPS_CERTIFICATE_SHA256, certificate == null ? null : sha256(certificate));
+    }
+
+    private static @Nullable String pem(X509Certificate certificate) {
+        try {
+            return "-----BEGIN CERTIFICATE-----\n"
+                    + Base64.getMimeEncoder(64, new byte[] { '\n' }).encodeToString(certificate.getEncoded())
+                    + "\n-----END CERTIFICATE-----\n";
+        } catch (CertificateEncodingException e) {
+            return null;
+        }
     }
 
     /**
-     * @return what the RTSP gateway needs to play this camera for a player
+     * @return the fingerprint in the form browsers and {@code openssl x509 -fingerprint -sha256} show it
      */
-    public RtspGateway.Target getRtspTarget() {
+    private static @Nullable String sha256(X509Certificate certificate) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(certificate.getEncoded());
+            return HexFormat.ofDelimiter(":").withUpperCase().formatHex(digest);
+        } catch (CertificateEncodingException | NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
+
+    /**
+     * A stream is only offered the way its address is linked to an item: whoever does not want the stream over plain
+     * RTSP, or at all, leaves those channels unlinked. The token alone, known from the snapshot address for instance,
+     * is not enough.
+     *
+     * @param secure whether the player came over TLS
+     * @return what the RTSP gateway needs to play this camera for a player, or {@code null} if it offers no stream
+     *         that way
+     */
+    public RtspGateway.@Nullable Target getRtspTarget(boolean secure) {
+        boolean linked = secure ? isLinked(CHANNEL_LOCAL_RTSPS_URL) || isLinked(CHANNEL_LOCAL_RTSPS_SUBSTREAM_URL)
+                : isLinked(CHANNEL_LOCAL_RTSP_URL) || isLinked(CHANNEL_LOCAL_RTSP_SUBSTREAM_URL);
+        if (!linked) {
+            return null;
+        }
         return new RtspGateway.Target(config.host, config.user, config.password, config.trustAllCertificates,
                 this::isAllowedFrom);
+    }
+
+    /**
+     * Like a stream, the still image is only offered while its address is linked to an item.
+     */
+    public boolean offersSnapshot() {
+        return isLinked(CHANNEL_LOCAL_SNAPSHOT_URL);
     }
 
     public String getSnapshotUrl() {
@@ -664,10 +689,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     private String getUrl(String file) {
         return openhabBaseUrl + SERVLET_PATH + "/" + accessToken + "/" + file;
-    }
-
-    public EventLog getEventLog() {
-        return eventLog;
     }
 
     public String getLabel() {

@@ -22,9 +22,8 @@
 		</parameter>
 		<parameter name="rtspPort" type="integer" min="0" max="65535">
 			<label>RTSP Port</label>
-			<description>Port openHAB offers the streams of all cameras on, as plain RTSP without password. Each camera has
-				its
-				own address there, with its token in it. Leave empty or 0 to offer none.</description>
+			<description>Port openHAB offers the streams of all cameras on, as plain RTSP and over TLS, without password. Each
+				camera has its own address there, with its token in it. Leave empty or 0 to offer none.</description>
 			<advanced>true</advanced>
 		</parameter>
 	</config-description>

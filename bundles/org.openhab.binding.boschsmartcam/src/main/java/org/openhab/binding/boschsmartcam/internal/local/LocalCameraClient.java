@@ -37,7 +37,8 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 
 /**
- * Talks to a camera directly through its local API, which the user enables per camera in the Bosch app ("Local data
+ * Talks to a camera directly through its local API, which the user enables per camera in the Bosch Smart Camera app
+ * ("Local data
  * interface"). It is read only, everything that changes a setting has to go through the cloud.
  *
  * @author Jonas Brüstel - Initial contribution

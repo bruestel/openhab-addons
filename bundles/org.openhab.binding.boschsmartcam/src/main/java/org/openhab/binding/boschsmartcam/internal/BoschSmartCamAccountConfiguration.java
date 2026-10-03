@@ -23,8 +23,10 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public class BoschSmartCamAccountConfiguration {
 
     /**
-     * Interval in seconds the camera settings are polled from the Bosch cloud. Changes made through openHAB are read
-     * back right away, so the poll only has to pick up changes made elsewhere, e.g. in the Bosch app.
+     * Interval in seconds the account is polled. Commands sent from openHAB are read back right away, and everything
+     * the cameras report themselves arrives locally, so the poll only picks up what is changed in the Bosch Smart
+     * Camera app:
+     * the notifications, and cameras added to or removed from the account.
      */
-    public int refreshInterval = 300;
+    public int refreshInterval = 3600;
 }

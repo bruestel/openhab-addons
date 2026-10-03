@@ -31,7 +31,8 @@ import org.osgi.service.component.annotations.Component;
 /**
  * The Bosch cloud API is not served with a publicly trusted certificate but with one issued by an internal Bosch CA.
  * This provider makes openHAB trust that CA - and only that CA - for the API host, so certificate renewals keep
- * working while the connection stays verified. The Bosch app ships the same certificates and pins them the same way.
+ * working while the connection stays verified. The Bosch Smart Camera app ships the same certificates and pins them the
+ * same way.
  *
  * @author Jonas Brüstel - Initial contribution
  */

@@ -15,9 +15,7 @@ package org.openhab.binding.boschsmartcam.internal.events;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.junit.jupiter.api.Test;
@@ -46,43 +44,22 @@ public class EventLogTest {
     }
 
     @Test
-    public void finishedRecordingIsNotedAndPassedOn() {
+    public void finishedRecordingIsNoted() {
         EventLog log = new EventLog();
-        List<CameraEvent> seen = new ArrayList<>();
         log.add(new CameraEvent(T0, "PERSON", "10154", null));
-        log.addListener(seen::add, 1);
 
         log.finishRecording("10154", T0.plusSeconds(15));
 
         assertEquals(T0.plusSeconds(15), log.list().getFirst().recordingEnd());
-        assertEquals(1, seen.size());
-        assertEquals(T0.plusSeconds(15), seen.getFirst().recordingEnd());
     }
 
     @Test
     public void unknownClipChangesNothing() {
         EventLog log = new EventLog();
-        List<CameraEvent> seen = new ArrayList<>();
         log.add(new CameraEvent(T0, "PERSON", "10154", null));
-        log.addListener(seen::add, 1);
 
         log.finishRecording("99999", T0.plusSeconds(15));
 
         assertNull(log.list().getFirst().recordingEnd());
-        assertTrue(seen.isEmpty());
-    }
-
-    @Test
-    public void listenersAreLimited() {
-        EventLog log = new EventLog();
-        Consumer<CameraEvent> first = event -> {
-        };
-        Consumer<CameraEvent> second = event -> {
-        };
-
-        assertTrue(log.addListener(first, 1));
-        assertFalse(log.addListener(second, 1));
-        log.removeListener(first);
-        assertTrue(log.addListener(second, 1));
     }
 }

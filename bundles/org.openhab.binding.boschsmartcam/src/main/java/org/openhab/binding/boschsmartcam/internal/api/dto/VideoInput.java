@@ -24,7 +24,7 @@ import org.eclipse.jdt.annotation.Nullable;
  * endpoint are for.
  *
  * @param id id of the camera, used in every other request
- * @param title the name given to the camera in the Bosch app
+ * @param title the name given to the camera in the Bosch Smart Camera app
  * @param hardwareVersion model code rather than a version, see {@link CameraModel}
  * @param firmwareVersion firmware currently on the camera
  * @param privacyMode {@code ON} means the camera is switched off (shutter closed), {@code OFF} means it is recording

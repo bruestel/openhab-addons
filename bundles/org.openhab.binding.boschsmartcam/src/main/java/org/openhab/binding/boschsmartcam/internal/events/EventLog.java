@@ -16,14 +16,11 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
- * The last events of a camera, kept in memory, and whoever follows them live.
+ * The last events of a camera, kept in memory.
  *
  * @author Jonas Brüstel - Initial contribution
  */
@@ -33,7 +30,6 @@ public class EventLog {
     public static final int CAPACITY = 50;
 
     private final Deque<CameraEvent> events = new ArrayDeque<>();
-    private final List<Consumer<CameraEvent>> listeners = new CopyOnWriteArrayList<>();
 
     public void add(CameraEvent event) {
         synchronized (events) {
@@ -42,11 +38,10 @@ public class EventLog {
                 events.removeLast();
             }
         }
-        listeners.forEach(listener -> listener.accept(event));
     }
 
     /**
-     * Notes when the clip of an event was finished. Listeners get the event again with the end filled in.
+     * Notes when the clip of an event was finished.
      */
     public void finishRecording(String clipId, Instant end) {
         CameraEvent updated = null;
@@ -62,10 +57,6 @@ public class EventLog {
                 }
             }
         }
-        CameraEvent changed = updated;
-        if (changed != null) {
-            listeners.forEach(listener -> listener.accept(changed));
-        }
     }
 
     /**
@@ -75,21 +66,5 @@ public class EventLog {
         synchronized (events) {
             return List.copyOf(events);
         }
-    }
-
-    /**
-     * @param maxListeners how many may follow the log at once
-     * @return whether the listener was added, {@code false} if there are already as many as allowed
-     */
-    public synchronized boolean addListener(Consumer<CameraEvent> listener, int maxListeners) {
-        if (listeners.size() >= maxListeners) {
-            return false;
-        }
-        listeners.add(Objects.requireNonNull(listener));
-        return true;
-    }
-
-    public synchronized void removeListener(Consumer<CameraEvent> listener) {
-        listeners.remove(listener);
     }
 }

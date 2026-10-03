@@ -42,6 +42,7 @@ import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.api.dto.WifiInfo;
 import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
 import org.openhab.binding.boschsmartcam.internal.auth.PkceChallenge;
+import org.openhab.binding.boschsmartcam.internal.local.CameraIdentity;
 import org.openhab.core.auth.client.oauth2.AccessTokenRefreshListener;
 import org.openhab.core.auth.client.oauth2.AccessTokenResponse;
 import org.openhab.core.auth.client.oauth2.OAuthClientService;
@@ -156,10 +157,8 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         if (!CHANNEL_NOTIFICATIONS.equals(channelUID.getIdWithoutGroup()) || !(command instanceof OnOffType onOff)) {
             return;
         }
-        String groupId = channelUID.getGroupId();
-        VideoInput camera = cameras.stream().filter(input -> groupId != null && groupId.equals(groupId(input)))
-                .findFirst().orElse(null);
-        String cameraId = camera == null ? null : camera.id();
+        Channel channel = getThing().getChannel(channelUID);
+        String cameraId = channel == null ? null : channel.getProperties().get(PROPERTY_CAMERA_ID);
         if (cameraId == null) {
             logger.debug("No camera of {} belongs to {}", getHandle(), channelUID);
             return;
@@ -308,8 +307,9 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
             cameras = videoInputs;
             updateStatus(ThingStatus.ONLINE);
             syncNotificationChannels(videoInputs);
+            Map<String, String> groups = notificationGroups();
             for (VideoInput camera : videoInputs) {
-                String groupId = groupId(camera);
+                String groupId = camera.id() == null ? null : groups.get(camera.id());
                 if (groupId == null) {
                     continue;
                 }
@@ -340,37 +340,61 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      * Gives every camera of the account a channel group for its notifications, named after the camera, and removes
      * the groups of cameras that are gone. Notifications go to the phones of this user, so they belong to the
      * account rather than to the camera thing - and they can be switched for cameras that are no thing at all.
+     *
+     * A group is named after the MAC address of its camera, like the camera thing. The cloud id the commands need is
+     * kept as a property of the channels, so the MAC address is only looked up once, for a camera new to the account.
      */
     private void syncNotificationChannels(List<VideoInput> videoInputs) {
         ThingHandlerCallback callback = getCallback();
         if (callback == null) {
             return;
         }
-        Map<String, VideoInput> wanted = new HashMap<>();
-        for (VideoInput camera : videoInputs) {
-            String groupId = groupId(camera);
-            if (groupId != null) {
-                wanted.put(groupId, camera);
-            }
-        }
+        Set<String> cameraIds = videoInputs.stream().map(VideoInput::id).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, String> existing = notificationGroups();
 
-        List<Channel> stale = getThing().getChannels().stream()
-                .filter(channel -> !wanted.containsKey(channel.getUID().getGroupId())).toList();
-        Set<String> present = getThing().getChannels().stream().map(channel -> channel.getUID().getGroupId())
-                .filter(Objects::nonNull).collect(Collectors.toSet());
+        // groups of cameras that are gone, and groups of an earlier version that carry no cloud id
+        List<Channel> stale = getThing().getChannels().stream().filter(channel -> {
+            String cameraId = channel.getProperties().get(PROPERTY_CAMERA_ID);
+            return cameraId == null || !cameraIds.contains(cameraId);
+        }).toList();
+
+        // new cameras get a group; existing groups are relabeled when the name of the camera or of the channel
+        // types changed
+        List<Channel> replaced = new ArrayList<>();
         List<Channel> added = new ArrayList<>();
-        wanted.forEach((groupId, camera) -> {
-            if (present.contains(groupId)) {
-                return;
+        for (VideoInput camera : videoInputs) {
+            String cameraId = camera.id();
+            if (cameraId == null) {
+                continue;
+            }
+            String groupId = existing.get(cameraId);
+            if (groupId == null) {
+                try {
+                    groupId = notificationGroupId(cameraId);
+                } catch (BoschSmartCamException e) {
+                    logger.debug("Could not read the MAC address of {}, trying again with the next poll: {}",
+                            camera.title(), e.getMessage());
+                    continue;
+                }
             }
             String title = camera.title();
             for (ChannelBuilder builder : callback.createChannelBuilders(
                     new ChannelGroupUID(getThing().getUID(), groupId), GROUP_TYPE_NOTIFICATIONS)) {
-                Channel channel = builder.build();
-                added.add(title == null || title.isBlank() ? channel
-                        : ChannelBuilder.create(channel).withLabel(title + " " + channel.getLabel()).build());
+                Channel channel = builder.withProperties(Map.of(PROPERTY_CAMERA_ID, cameraId)).build();
+                Channel wanted = title == null || title.isBlank() ? channel
+                        : ChannelBuilder.create(channel).withLabel(title + " " + channel.getLabel()).build();
+                Channel current = getThing().getChannel(wanted.getUID());
+                if (current == null) {
+                    added.add(wanted);
+                } else if (!Objects.equals(current.getLabel(), wanted.getLabel())) {
+                    replaced.add(current);
+                    added.add(wanted);
+                }
             }
-        });
+        }
+        stale = new ArrayList<>(stale);
+        stale.addAll(replaced);
 
         if (!stale.isEmpty() || !added.isEmpty()) {
             updateThing(editThing().withoutChannels(stale).withChannels(added).build());
@@ -378,11 +402,28 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
     }
 
     /**
-     * @return the id of the channel group of a camera, its cloud id in lower case without dashes
+     * @return the channel groups of the notifications by the cloud id of their camera
      */
-    private static @Nullable String groupId(VideoInput camera) {
-        String id = camera.id();
-        return id == null || id.isBlank() ? null : id.replace("-", "").toLowerCase(Locale.ROOT);
+    private Map<String, String> notificationGroups() {
+        Map<String, String> groups = new HashMap<>();
+        for (Channel channel : getThing().getChannels()) {
+            String cameraId = channel.getProperties().get(PROPERTY_CAMERA_ID);
+            String groupId = channel.getUID().getGroupId();
+            if (cameraId != null && groupId != null) {
+                groups.put(cameraId, groupId);
+            }
+        }
+        return groups;
+    }
+
+    /**
+     * @return the id of the notification group of a camera: its MAC address without separators, like the camera
+     *         thing, or its cloud id in lower case without dashes if the cloud does not tell the MAC address
+     */
+    private String notificationGroupId(String cameraId) throws BoschSmartCamException {
+        String macAddress = getMacAddress(cameraId);
+        return macAddress != null ? CameraIdentity.thingId(macAddress)
+                : cameraId.replace("-", "").toLowerCase(Locale.ROOT);
     }
 
     /**

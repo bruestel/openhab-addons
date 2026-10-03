@@ -13,27 +13,18 @@
 package org.openhab.binding.boschsmartcam.internal.auth;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_PAGE_FILE;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_STREAM_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -45,8 +36,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
-import org.openhab.binding.boschsmartcam.internal.events.CameraEvent;
-import org.openhab.binding.boschsmartcam.internal.events.EventLog;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
 import org.slf4j.Logger;
@@ -99,28 +88,9 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private final transient Logger logger = LoggerFactory.getLogger(BoschSmartCamAuthServlet.class);
 
     /**
-     * How many browsers may follow the events of one camera at once. Each holds a thread of the web server.
-     */
-    private static final int MAX_EVENT_STREAMS = 5;
-
-    /**
-     * A stream ends after this long and the browser opens a new one, so no request stays open forever.
-     */
-    private static final Duration EVENT_STREAM_DURATION = Duration.ofMinutes(10);
-    private static final long KEEPALIVE_SECONDS = 15;
-
-    // keys used in events.html
-    private static final String KEY_LABEL = "label";
-    private static final String KEY_ROWS = "rows";
-    private static final String KEY_EMPTY_HIDDEN = "emptyHidden";
-    private static final String KEY_CAPACITY = "capacity";
-    private static final String KEY_SNAPSHOT_FILE = "snapshotFile";
-    private static final String KEY_STREAM_FILE = "streamFile";
-
-    /**
      * The HTML templates of the pages.
      */
-    public record Templates(String index, String account, String events) {
+    public record Templates(String index, String account) {
     }
 
     private final transient BoschSmartCamAuthService authService;
@@ -184,9 +154,8 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     }
 
     /**
-     * Serves the files of a camera below {@code /<token>/}: the snapshot, the event page and its stream. The token is
-     * the only thing standing between a request and the camera, so requests are additionally limited to the
-     * configured networks.
+     * Serves the snapshot of a camera at {@code /<token>/snapshot.jpg}. The token is the only thing standing between a
+     * request and the camera, so requests are additionally limited to the configured networks.
      *
      * @return whether the request was for a camera and is now answered
      */
@@ -202,7 +171,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return false;
         }
         String file = parts[2];
-        if (!SNAPSHOT_FILE.equals(file) && !EVENTS_PAGE_FILE.equals(file) && !EVENTS_STREAM_FILE.equals(file)) {
+        if (!SNAPSHOT_FILE.equals(file)) {
             return false;
         }
 
@@ -220,15 +189,11 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return true;
         }
 
-        if (EVENTS_PAGE_FILE.equals(file)) {
-            renderEvents(camera.get(), response);
+        if (!camera.get().offersSnapshot()) {
+            logger.debug("Refused a snapshot request from {}, the snapshot URL is not linked", request.getRemoteAddr());
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return true;
         }
-        if (EVENTS_STREAM_FILE.equals(file)) {
-            streamEvents(camera.get().getEventLog(), response);
-            return true;
-        }
-
         try {
             byte[] image = camera.get().getSnapshot();
             response.setContentType("image/jpeg");
@@ -241,87 +206,6 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         }
         return true;
-    }
-
-    private void renderEvents(BoschSmartCamCameraHandler camera, HttpServletResponse response) throws IOException {
-        List<CameraEvent> events = camera.getEventLog().list();
-        Map<String, String> replacements = new HashMap<>();
-        replacements.put(KEY_LABEL, escape(camera.getLabel()));
-        replacements.put(KEY_ROWS,
-                events.stream().map(BoschSmartCamAuthServlet::formatEventRow).collect(Collectors.joining()));
-        replacements.put(KEY_EMPTY_HIDDEN, events.isEmpty() ? "" : " hidden");
-        replacements.put(KEY_CAPACITY, String.valueOf(EventLog.CAPACITY));
-        replacements.put(KEY_SNAPSHOT_FILE, SNAPSHOT_FILE);
-        replacements.put(KEY_STREAM_FILE, EVENTS_STREAM_FILE);
-
-        response.setContentType(CONTENT_TYPE);
-        response.setHeader("Cache-Control", "no-store");
-        response.getWriter().append(replacePlaceholders(templates.events(), replacements)).close();
-    }
-
-    /**
-     * A row with the raw values only, the script of the page formats them in the time zone of the browser.
-     */
-    private static String formatEventRow(CameraEvent event) {
-        String clipId = event.clipId();
-        Instant end = event.recordingEnd();
-        return "<tr data-time=\"" + event.time() + "\" data-kind=\"" + escape(event.kind()) + "\" data-clip=\""
-                + (clipId == null ? "" : escape(clipId)) + "\" data-end=\"" + (end == null ? "" : end) + "\"><td>"
-                + event.time() + "</td><td>" + escape(event.kind()) + "</td><td></td><td class=\"clip\">"
-                + (clipId == null ? "" : escape(clipId)) + "</td></tr>";
-    }
-
-    /**
-     * Sends new events as server-sent events until the browser goes away or the stream has run for
-     * {@link #EVENT_STREAM_DURATION}. The browser reconnects on its own.
-     */
-    private void streamEvents(EventLog eventLog, HttpServletResponse response) throws IOException {
-        BlockingQueue<CameraEvent> queue = new LinkedBlockingQueue<>(EventLog.CAPACITY);
-        Consumer<CameraEvent> listener = queue::offer;
-        if (!eventLog.addListener(listener, MAX_EVENT_STREAMS)) {
-            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-            return;
-        }
-        try {
-            response.setContentType("text/event-stream;charset=UTF-8");
-            response.setHeader("Cache-Control", "no-store");
-            PrintWriter writer = response.getWriter();
-            writer.write("retry: 5000\n\n");
-            writer.flush();
-            Instant end = Instant.now().plus(EVENT_STREAM_DURATION);
-            while (Instant.now().isBefore(end) && !writer.checkError()) {
-                CameraEvent event = queue.poll(KEEPALIVE_SECONDS, TimeUnit.SECONDS);
-                // a comment keeps proxies from closing an idle stream and shows when the browser is gone
-                writer.write(event == null ? ": keepalive\n\n" : "data: " + toJson(event) + "\n\n");
-                writer.flush();
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {
-            eventLog.removeListener(listener);
-        }
-    }
-
-    private static String toJson(CameraEvent event) {
-        String clipId = event.clipId();
-        Instant end = event.recordingEnd();
-        return "{\"time\":\"" + event.time() + "\",\"kind\":" + jsonString(event.kind()) + ",\"clipId\":"
-                + (clipId == null ? "null" : jsonString(clipId)) + ",\"recordingEnd\":"
-                + (end == null ? "null" : "\"" + end + "\"") + "}";
-    }
-
-    private static String jsonString(String value) {
-        StringBuilder json = new StringBuilder("\"");
-        for (char c : value.toCharArray()) {
-            if (c == '"' || c == '\\') {
-                json.append('\\').append(c);
-            } else if (c < 0x20) {
-                json.append(String.format("\\u%04x", (int) c));
-            } else {
-                json.append(c);
-            }
-        }
-        return json.append('"').toString();
     }
 
     private String authorize(@Nullable String thingUid, String redirectUrl) {

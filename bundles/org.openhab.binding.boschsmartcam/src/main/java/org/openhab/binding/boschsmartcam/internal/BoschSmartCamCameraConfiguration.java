@@ -41,11 +41,6 @@ public class BoschSmartCamCameraConfiguration {
     public int snapshotCacheSeconds = 3;
 
     /**
-     * Port openHAB passes the RTSP tunnel of the camera through on, TLS included. 0 offers none.
-     */
-    public int rtspsPort = 0;
-
-    /**
      * Accept any certificate instead of only those below the root Bosch publishes. A way out should a firmware update
      * ever bring a new root.
      */

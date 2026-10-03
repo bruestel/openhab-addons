@@ -57,7 +57,6 @@ public class BoschSmartCamAuthService {
 
     private static final String TEMPLATE_INDEX = "templates/index.html";
     private static final String TEMPLATE_ACCOUNT = "templates/account.html";
-    private static final String TEMPLATE_EVENTS = "templates/events.html";
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamAuthService.class);
 
@@ -74,7 +73,7 @@ public class BoschSmartCamAuthService {
         BoschSmartCamAuthServlet.Templates templates;
         try {
             templates = new BoschSmartCamAuthServlet.Templates(readTemplate(TEMPLATE_INDEX),
-                    readTemplate(TEMPLATE_ACCOUNT), readTemplate(TEMPLATE_EVENTS));
+                    readTemplate(TEMPLATE_ACCOUNT));
         } catch (IOException e) {
             logger.warn("Could not read the templates of the authorization page: {}", e.getMessage());
             return;
