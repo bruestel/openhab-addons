@@ -31,8 +31,8 @@ import org.eclipse.jdt.annotation.Nullable;
  * @param notificationsEnabledStatus not a plain on/off: seen so far are {@code FOLLOW_CAMERA_SCHEDULE},
  *            {@code FOLLOW_SCHEDULE}, {@code ON_CAMERA_SCHEDULE}, {@code OFF_CAMERA_SCHEDULE},
  *            {@code OFF_OVERRIDE}, {@code OFF_UNTIL} and {@code ALWAYS_OFF}. Rather than listing them,
- *            {@link #areNotificationsEnabled()} goes by the {@code OFF} prefix, which also covers values Bosch may
- *            add later
+ *            {@link #areNotificationsEnabled()} goes by {@code OFF} at the start or the end, which also covers
+ *            values Bosch may add later
  *
  * @author Jonas Brüstel - Initial contribution
  */
@@ -52,10 +52,15 @@ public record VideoInput(@Nullable String id, @Nullable String title, @Nullable 
     }
 
     /**
-     * @return whether notifications are currently delivered - everything starting with {@code OFF} means they are not
+     * @return whether notifications are currently delivered: not for anything starting with {@code OFF}, such as
+     *         {@code OFF_OVERRIDE}, nor for {@code ALWAYS_OFF}
      */
     public boolean areNotificationsEnabled() {
         String status = notificationsEnabledStatus;
-        return status != null && !status.toUpperCase(Locale.ROOT).startsWith("OFF");
+        if (status == null) {
+            return false;
+        }
+        String upper = status.toUpperCase(Locale.ROOT);
+        return !upper.startsWith("OFF") && !upper.endsWith("_OFF");
     }
 }
