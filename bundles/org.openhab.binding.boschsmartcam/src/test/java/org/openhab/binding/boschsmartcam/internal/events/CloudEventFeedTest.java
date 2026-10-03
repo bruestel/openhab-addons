@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -101,7 +102,9 @@ public class CloudEventFeedTest {
     public void timeOfTheCloudIsRead() {
         CloudEvent event = new CloudEvent(id(0), null, "MOVEMENT", List.of("PERSON"),
                 "2026-10-03T17:43:45.435+02:00[Europe/Berlin]", false, null, null, null);
-        assertEquals(NEWEST, event.time() == null ? null : event.time().toInstant());
+        ZonedDateTime time = event.time();
+        assertNotNull(time);
+        assertEquals(NEWEST, time.toInstant());
         assertEquals("PERSON", event.kind());
     }
 

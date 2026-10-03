@@ -32,6 +32,7 @@
 
 		<channel-groups>
 			<channel-group id="local" typeId="local"/>
+			<channel-group id="alarm" typeId="alarm"/>
 			<channel-group id="cloud" typeId="cloud"/>
 		</channel-groups>
 
@@ -61,6 +62,13 @@
 					not
 					matter, they all share it.</description>
 				<default>3</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="accessToken" type="text" pattern="[A-Za-z0-9_-]{16,}">
+				<context>password</context>
+				<label>Access Token</label>
+				<description>Token in the addresses of snapshot, streams and events. Leave empty and the binding creates one and
+					keeps it. Enter a new one, at least 16 letters, digits, - or _, to revoke addresses that leaked.</description>
 				<advanced>true</advanced>
 			</parameter>
 			<parameter name="publishEventsApi" type="boolean">
@@ -98,6 +106,26 @@
 			<channel id="rtsps-url" typeId="rtsps-url"/>
 			<channel id="rtsps-substream-url" typeId="rtsps-substream-url"/>
 			<channel id="camera-rtsps-url" typeId="camera-rtsps-url"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="light">
+		<label>Light</label>
+		<description>The lights of the Eyes Outdoor Camera II. Added with an account, which tells the model and switches
+			them;
+			the state is reported by the camera itself.</description>
+		<channels>
+			<channel id="front-light" typeId="front-light"/>
+			<channel id="top-bottom-light" typeId="top-bottom-light"/>
+			<channel id="motion-light" typeId="motion-light"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="alarm">
+		<label>Alarm</label>
+		<description>Siren and alarms of the camera. Read from the camera; switching the siren needs an account.</description>
+		<channels>
+			<channel id="siren" typeId="siren"/>
 		</channels>
 	</channel-group-type>
 
@@ -239,6 +267,49 @@
 			the MAC address of the camera instead of its host, and logs in with the user and password of the
 			camera.</description>
 		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="front-light">
+		<item-type>Switch</item-type>
+		<label>Front Light</label>
+		<description>Switches the front light like the button in the app does. Shows ON while it shines, also when motion or
+			dusk turned it on.</description>
+		<category>Light</category>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Light</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="top-bottom-light">
+		<item-type>Switch</item-type>
+		<label>Top and Bottom Light</label>
+		<description>Switches the LEDs on top of and below the camera together, like the button in the app does. Shows ON
+			while either shines, also when motion or dusk turned them on.</description>
+		<category>Light</category>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Light</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="motion-light">
+		<item-type>Switch</item-type>
+		<label>Light on Motion</label>
+		<description>Whether the lights go on when the camera detects motion, as set in the app. A change made in the app
+			shows up with the next poll of the account.</description>
+	</channel-type>
+
+	<channel-type id="siren">
+		<item-type>Switch</item-type>
+		<label>Siren</label>
+		<description>ON sounds the siren of the camera until it is switched off or the alarm time set in the app has
+			passed.
+			Shows ON while the camera sounds any alarm. Switching needs an account.</description>
+		<category>Siren</category>
+		<tags>
+			<tag>Alarm</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="last-clip-snapshot-url">

@@ -39,6 +39,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import javax.net.ssl.SSLHandshakeException;
 
@@ -51,6 +52,7 @@ import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamApi;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
+import org.openhab.binding.boschsmartcam.internal.api.dto.LightSettings;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
 import org.openhab.binding.boschsmartcam.internal.events.CameraEvent;
@@ -59,6 +61,8 @@ import org.openhab.binding.boschsmartcam.internal.events.EventLog;
 import org.openhab.binding.boschsmartcam.internal.local.CameraIdentity;
 import org.openhab.binding.boschsmartcam.internal.local.CameraTrust;
 import org.openhab.binding.boschsmartcam.internal.local.LocalCameraClient;
+import org.openhab.binding.boschsmartcam.internal.local.LocalCameraClient.AlarmStatus;
+import org.openhab.binding.boschsmartcam.internal.local.LocalCameraClient.ManualLighting;
 import org.openhab.binding.boschsmartcam.internal.local.OnvifEvent;
 import org.openhab.binding.boschsmartcam.internal.local.PullPointSubscriber;
 import org.openhab.binding.boschsmartcam.internal.local.RtspGateway;
@@ -66,13 +70,18 @@ import org.openhab.binding.boschsmartcam.internal.net.CidrMatcher;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
+import org.openhab.core.storage.Storage;
 import org.openhab.core.thing.Bridge;
+import org.openhab.core.thing.Channel;
+import org.openhab.core.thing.ChannelGroupUID;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.thing.ThingStatusInfo;
 import org.openhab.core.thing.binding.BaseThingHandler;
+import org.openhab.core.thing.binding.ThingHandlerCallback;
+import org.openhab.core.thing.binding.builder.ThingBuilder;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
 import org.openhab.core.types.UnDefType;
@@ -118,6 +127,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private static final String ITEM_END_TIME = "Endtime";
     private static final String OPERATION_INITIALIZED = "Initialized";
 
+    /**
+     * A token goes into paths and addresses, so it has to be long and plain.
+     */
+    private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_-]{16,}");
+
     private static final String CHANNEL_LOCAL_PRIVACY_MODE = GROUP_LOCAL + "#" + CHANNEL_PRIVACY_MODE;
     private static final String CHANNEL_LOCAL_SNAPSHOT_URL = GROUP_LOCAL + "#" + CHANNEL_SNAPSHOT_URL;
     private static final String CHANNEL_LOCAL_RTSP_URL = GROUP_LOCAL + "#" + CHANNEL_RTSP_URL;
@@ -133,6 +147,29 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             + CHANNEL_LAST_CLIP_SNAPSHOT_URL;
     private static final String CHANNEL_CLOUD_LAST_CLIP_URL = GROUP_CLOUD + "#" + CHANNEL_LAST_CLIP_URL;
     private static final String CHANNEL_CLOUD_CLIP_READY = GROUP_CLOUD + "#" + CHANNEL_CLIP_READY;
+    private static final String CHANNEL_LIGHT_FRONT = GROUP_LIGHT + "#" + CHANNEL_FRONT_LIGHT;
+    private static final String CHANNEL_LIGHT_TOP_BOTTOM = GROUP_LIGHT + "#" + CHANNEL_TOP_BOTTOM_LIGHT;
+    private static final String CHANNEL_LIGHT_MOTION = GROUP_LIGHT + "#" + CHANNEL_MOTION_LIGHT;
+    private static final String CHANNEL_ALARM_SIREN = GROUP_ALARM + "#" + CHANNEL_SIREN;
+
+    private static final String TOPIC_LIGHT_FRONT = "LightStatusFront";
+    private static final String TOPIC_LIGHT_TOP = "LightStatusTop";
+    private static final String TOPIC_LIGHT_BOTTOM = "LightStatusBottom";
+    private static final String ITEM_BRIGHTNESS = "Brightness";
+    private static final String ALARM_NONE = "NONE";
+    /**
+     * After a command the cloud passes on to the camera, the camera is read again this much later.
+     */
+    private static final int READ_BACK_SECONDS = 3;
+    /**
+     * While an alarm sounds, the camera is asked this often whether it still does. It reports no end of its own.
+     */
+    private static final int ALARM_WATCH_SECONDS = 15;
+    /**
+     * The camera reports the top and bottom LEDs one after the other, some 25 ms apart. Their common state waits this
+     * long, so switching both off does not show ON in between.
+     */
+    private static final int TOP_BOTTOM_SETTLE_MILLIS = 300;
 
     /**
      * How far apart the cloud and the camera may date the same event. Measured, they are some 50 ms apart.
@@ -153,6 +190,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private final Supplier<CidrMatcher> snapshotNetworks;
     private final IntSupplier rtspGatewayPort;
     private final Supplier<@Nullable X509Certificate> rtspGatewayCertificate;
+    private final Storage<String> accessTokens;
     private final String openhabBaseUrl;
 
     private BoschSmartCamCameraConfiguration config = new BoschSmartCamCameraConfiguration();
@@ -166,6 +204,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private volatile Instant latestLocalEvent = Instant.EPOCH;
     private volatile @Nullable String lastImageEventId;
     private volatile @Nullable String lastClipEventId;
+    private @Nullable ScheduledFuture<?> alarmWatch;
+    // the top and bottom LEDs are switched together but reported apart
+    private volatile int topBrightness;
+    private volatile int bottomBrightness;
+    private @Nullable ScheduledFuture<?> topBottomUpdate;
     private @Nullable ScheduledFuture<?> connectJob;
     private Duration nextRetry = FIRST_RETRY;
 
@@ -199,8 +242,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     public BoschSmartCamCameraHandler(Thing thing, BoschSmartCamAuthService authService, HttpClient cameraHttpClient,
             Supplier<HttpClient> trustAllHttpClient, CameraTrust cameraTrust, Supplier<CidrMatcher> snapshotNetworks,
             IntSupplier rtspGatewayPort, Supplier<@Nullable X509Certificate> rtspGatewayCertificate,
-            String openhabBaseUrl) {
+            Storage<String> accessTokens, String openhabBaseUrl) {
         super(thing);
+        this.accessTokens = accessTokens;
         this.rtspGatewayPort = rtspGatewayPort;
         this.rtspGatewayCertificate = rtspGatewayCertificate;
         this.authService = authService;
@@ -228,7 +272,13 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         identity = null;
         cameraId = null;
         snapshotCache = Duration.ofSeconds(Math.max(MIN_SNAPSHOT_CACHE_SECONDS, config.snapshotCacheSeconds));
-        accessToken = currentOrNewAccessToken();
+        String token = currentOrNewAccessToken();
+        if (!ACCESS_TOKEN_PATTERN.matcher(token).matches()) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "@text/offline.conf-error.invalid-token");
+            return;
+        }
+        accessToken = token;
         if (config.trustAllCertificates) {
             logger.warn("{} accepts any certificate, the camera is not verified", getThing().getUID());
         }
@@ -257,6 +307,18 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         }
         cloudLookups.forEach(lookup -> lookup.cancel(true));
         cloudLookups.clear();
+        synchronized (this) {
+            ScheduledFuture<?> watch = alarmWatch;
+            if (watch != null) {
+                watch.cancel(true);
+                alarmWatch = null;
+            }
+            ScheduledFuture<?> pending = topBottomUpdate;
+            if (pending != null) {
+                pending.cancel(true);
+                topBottomUpdate = null;
+            }
+        }
         authService.removeCamera(accessToken);
         cameraTrust.release(config.host);
         client = null;
@@ -281,9 +343,71 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             refresh(channelUID.getId());
             return;
         }
-        if (CHANNEL_LOCAL_PRIVACY_MODE.equals(channelUID.getId()) && command instanceof OnOffType onOff) {
+        String channelId = channelUID.getId();
+        if (CHANNEL_LOCAL_PRIVACY_MODE.equals(channelId) && command instanceof OnOffType onOff) {
             setPrivacyMode(onOff == OnOffType.ON);
+            return;
         }
+        switch (channelId) {
+            case CHANNEL_LIGHT_FRONT -> {
+                if (command instanceof OnOffType onOff) {
+                    inCloud("switch the front light of",
+                            (api, id) -> api.setLightOn(id, "front", onOff == OnOffType.ON));
+                }
+            }
+            case CHANNEL_LIGHT_TOP_BOTTOM -> {
+                if (command instanceof OnOffType onOff) {
+                    inCloud("switch the top and bottom light of",
+                            (api, id) -> api.setLightOn(id, "topdown", onOff == OnOffType.ON));
+                }
+            }
+            case CHANNEL_LIGHT_MOTION -> {
+                if (command instanceof OnOffType onOff) {
+                    inCloud("switch the motion light of", (api, id) -> api.setLightingEnabled(id, "motion",
+                            "lightOnMotionEnabled", onOff == OnOffType.ON));
+                }
+            }
+            case CHANNEL_ALARM_SIREN -> {
+                if (command instanceof OnOffType onOff) {
+                    inCloud("switch the siren of", (api, id) -> api.setPanicAlarm(id, onOff == OnOffType.ON));
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface CloudCall {
+        void run(BoschSmartCamApi api, String cameraId) throws BoschSmartCamException;
+    }
+
+    /**
+     * Sends a command through the cloud, as the local API only reads, and reads the camera back once the cloud passed
+     * it on. Without an account the command is refused and the channels show what the camera reports.
+     *
+     * @param what what is done, for the log, e.g. {@code "switch the siren of"}
+     */
+    private void inCloud(String what, CloudCall call) {
+        scheduler.execute(() -> {
+            BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+            String id = accountHandler == null ? null : resolveCameraId(accountHandler);
+            try {
+                if (accountHandler == null || id == null) {
+                    logger.info("Can only {} {} with a Bosch account bridge, the local API is read only", what,
+                            getThing().getUID());
+                } else {
+                    call.run(accountHandler.getApi(), id);
+                }
+            } catch (BoschSmartCamException e) {
+                if (e.isExpected()) {
+                    logger.info("Could not {} {}: {}", what, getThing().getUID(), e.getReason());
+                } else {
+                    logger.warn("Could not {} {}: {}", what, getThing().getUID(), e.getReason());
+                }
+            }
+            scheduler.schedule(this::refreshSettings, READ_BACK_SECONDS, TimeUnit.SECONDS);
+        });
     }
 
     /**
@@ -304,7 +428,11 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             // the camera confirms the change through the event subscription within a second
             updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(on));
         } catch (BoschSmartCamException e) {
-            logger.warn("Could not switch the privacy mode of {}: {}", getThing().getUID(), e.getMessage());
+            if (e.isExpected()) {
+                logger.info("Could not switch the privacy mode of {}: {}", getThing().getUID(), e.getReason());
+            } else {
+                logger.warn("Could not switch the privacy mode of {}: {}", getThing().getUID(), e.getReason());
+            }
             updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(privacyModeOn));
         }
     }
@@ -342,6 +470,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      */
     private void refresh(String channelId) {
         switch (channelId) {
+            case CHANNEL_LIGHT_FRONT, CHANNEL_LIGHT_TOP_BOTTOM, CHANNEL_LIGHT_MOTION, CHANNEL_ALARM_SIREN ->
+                scheduler.execute(this::refreshSettings);
             case CHANNEL_LOCAL_PRIVACY_MODE -> {
                 if (Duration.between(lastRefresh, Instant.now()).getSeconds() >= MIN_REFRESH_AGE_SECONDS) {
                     lastRefresh = Instant.now();
@@ -437,6 +567,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 Objects.requireNonNullElse(event.propertyOperation(), "event"), event.data());
         if (TOPIC_PRIVACY_MODE.equals(topic)) {
             updatePrivacyMode(event.isTrue(ITEM_STATE));
+        } else if (TOPIC_LIGHT_FRONT.equals(topic) || TOPIC_LIGHT_TOP.equals(topic)
+                || TOPIC_LIGHT_BOTTOM.equals(topic)) {
+            updateLight(topic, brightness(event.get(ITEM_BRIGHTNESS)));
         } else if (TOPIC_CLIP_RECORDING.equals(topic)) {
             // the camera only reports the end of a recording, the start comes with the detection
             boolean recording = event.isTrue(ITEM_STATE);
@@ -566,6 +699,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
         updateRtspUrls();
         updateProperty(PROPERTY_EVENTS_API, config.publishEventsApi ? getUrl(EVENTS_PATH) : null);
+        scheduler.execute(this::refreshSettings);
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
             updateFromCloud(accountHandler.getCameras());
@@ -606,6 +740,128 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
         }
         updateProperties(properties);
+        if (model != null) {
+            updateLightChannels(model == CameraModel.EYES_OUTDOOR_II);
+        }
+        // settings changed in the app are not reported by the camera, so they are read along with the account
+        scheduler.execute(this::refreshSettings);
+    }
+
+    /**
+     * Only the Eyes Outdoor Camera II has lights. Which model a camera is only the cloud tells reliably, and only
+     * through the cloud they can be switched, so the light channels come with the account.
+     */
+    private void updateLightChannels(boolean hasLights) {
+        List<Channel> existing = getThing().getChannelsOfGroup(GROUP_LIGHT);
+        if (hasLights != existing.isEmpty()) {
+            return;
+        }
+        if (!hasLights) {
+            updateThing(editThing().withoutChannels(existing).build());
+            return;
+        }
+        ThingHandlerCallback callback = getCallback();
+        if (callback == null) {
+            return;
+        }
+        // withChannels would replace all channels of the thing, so they are added one by one
+        ThingBuilder builder = editThing();
+        callback.createChannelBuilders(new ChannelGroupUID(getThing().getUID(), GROUP_LIGHT), GROUP_TYPE_LIGHT)
+                .forEach(channel -> builder.withChannel(channel.build()));
+        updateThing(builder.build());
+    }
+
+    /**
+     * Reads what the camera does not report through the event subscription: the light settings and the alarm.
+     */
+    private void refreshSettings() {
+        LocalCameraClient localClient = client;
+        if (localClient == null || identity == null) {
+            return;
+        }
+        try {
+            if (getThing().getChannel(CHANNEL_LIGHT_FRONT) != null) {
+                updateState(CHANNEL_LIGHT_MOTION, OnOffType.from(localClient.isEnabled("lighting/motion")));
+                ManualLighting lighting = localClient.getLighting();
+                updateLight(TOPIC_LIGHT_FRONT, brightness(lighting.front()));
+                updateLight(TOPIC_LIGHT_TOP, brightness(lighting.top()));
+                updateLight(TOPIC_LIGHT_BOTTOM, brightness(lighting.bottom()));
+            }
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not read the settings of {}: {}", getThing().getUID(), e.getMessage());
+        }
+        refreshAlarm();
+    }
+
+    /**
+     * Reads whether an alarm sounds. The camera does not report when it stops, so while it sounds it is asked again.
+     */
+    private synchronized void refreshAlarm() {
+        LocalCameraClient localClient = client;
+        if (localClient == null) {
+            return;
+        }
+        ScheduledFuture<?> watch = alarmWatch;
+        if (watch != null) {
+            watch.cancel(false);
+            alarmWatch = null;
+        }
+        AlarmStatus status;
+        try {
+            status = localClient.getAlarmStatus();
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not read the alarm of {}: {}", getThing().getUID(), e.getMessage());
+            return;
+        }
+        String type = status.alarmType();
+        boolean sounding = type != null && !ALARM_NONE.equalsIgnoreCase(type);
+        updateState(CHANNEL_ALARM_SIREN, OnOffType.from(sounding));
+        if (sounding) {
+            alarmWatch = scheduler.schedule(this::refreshAlarm, ALARM_WATCH_SECONDS, TimeUnit.SECONDS);
+        }
+    }
+
+    /**
+     * A light shows ON while it shines, whatever made it: the buttons, motion or dusk.
+     *
+     * @param topic the light as the camera reports it, e.g. {@code LightStatusTop}
+     */
+    private void updateLight(String topic, int brightness) {
+        if (getThing().getChannel(CHANNEL_LIGHT_FRONT) == null) {
+            // no lights, or the account has not told the model yet
+            return;
+        }
+        switch (topic) {
+            case TOPIC_LIGHT_FRONT -> updateState(CHANNEL_LIGHT_FRONT, OnOffType.from(brightness > 0));
+            case TOPIC_LIGHT_TOP -> topBrightness = brightness;
+            case TOPIC_LIGHT_BOTTOM -> bottomBrightness = brightness;
+            default -> {
+            }
+        }
+        if (!TOPIC_LIGHT_FRONT.equals(topic)) {
+            synchronized (this) {
+                ScheduledFuture<?> pending = topBottomUpdate;
+                if (pending != null) {
+                    pending.cancel(false);
+                }
+                topBottomUpdate = scheduler.schedule(
+                        () -> updateState(CHANNEL_LIGHT_TOP_BOTTOM,
+                                OnOffType.from(topBrightness > 0 || bottomBrightness > 0)),
+                        TOP_BOTTOM_SETTLE_MILLIS, TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
+    private static int brightness(@Nullable LightSettings light) {
+        return light == null ? 0 : light.brightnessOrZero();
+    }
+
+    private static int brightness(@Nullable String reported) {
+        try {
+            return reported == null ? 0 : (int) Math.round(Double.parseDouble(reported));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     /**
@@ -855,19 +1111,34 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Reuses the token of a previous run so links stay valid, and creates one when there is none yet. Deleting the
-     * property is therefore how a link is revoked.
+     * The configured token, otherwise the one of a previous run so links stay valid, otherwise a new one. It is kept
+     * in the storage of openHAB, which unlike a thing property also survives a restart for things defined in files;
+     * the property only shows it. A token from the property of an older version is taken over.
      */
     private String currentOrNewAccessToken() {
-        String stored = getThing().getProperties().get(PROPERTY_ACCESS_TOKEN);
-        if (stored != null && !stored.isBlank()) {
-            return stored;
+        String uid = getThing().getUID().getAsString();
+        String token = config.accessToken.strip();
+        if (token.isEmpty()) {
+            token = accessTokens.get(uid);
         }
-        String token = UUID.randomUUID().toString();
-        Map<String, String> properties = new HashMap<>(editProperties());
-        properties.put(PROPERTY_ACCESS_TOKEN, token);
-        updateProperties(properties);
+        if (token == null || token.isBlank()) {
+            token = getThing().getProperties().get(PROPERTY_ACCESS_TOKEN);
+        }
+        if (token == null || token.isBlank()) {
+            token = UUID.randomUUID().toString();
+        }
+        accessTokens.put(uid, token);
+        updateProperty(PROPERTY_ACCESS_TOKEN, token);
         return token;
+    }
+
+    /**
+     * Removing the camera revokes its addresses: added again, it gets a new token.
+     */
+    @Override
+    public void handleRemoval() {
+        accessTokens.remove(getThing().getUID().getAsString());
+        super.handleRemoval();
     }
 
     private static void putIfPresent(Map<String, String> properties, String key, @Nullable String value) {

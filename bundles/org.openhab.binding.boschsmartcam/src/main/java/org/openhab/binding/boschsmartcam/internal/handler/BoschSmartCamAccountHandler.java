@@ -62,6 +62,7 @@ import org.openhab.core.thing.binding.BaseBridgeHandler;
 import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerCallback;
 import org.openhab.core.thing.binding.builder.ChannelBuilder;
+import org.openhab.core.thing.binding.builder.ThingBuilder;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
 import org.openhab.core.types.UnDefType;
@@ -327,7 +328,10 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
             }
         } catch (BoschSmartCamException e) {
             logger.debug("Polling the Bosch cloud failed", e);
-            if (e.isAuthorizationFailure()) {
+            if (e.isRateLimited()) {
+                // the account is fine, Bosch only wants fewer requests; the next poll tries again
+                logger.info("Polling the Bosch cloud skipped: {}", e.getReason());
+            } else if (e.isAuthorizationFailure()) {
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
                         "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]");
             } else {
@@ -397,7 +401,10 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         stale.addAll(replaced);
 
         if (!stale.isEmpty() || !added.isEmpty()) {
-            updateThing(editThing().withoutChannels(stale).withChannels(added).build());
+            // withChannels would replace all channels of the thing, so the new ones are added one by one
+            ThingBuilder builder = editThing().withoutChannels(stale);
+            added.forEach(builder::withChannel);
+            updateThing(builder.build());
         }
     }
 

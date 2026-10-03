@@ -37,6 +37,8 @@ import org.openhab.core.auth.client.oauth2.OAuthFactory;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.net.HttpServiceUtil;
 import org.openhab.core.net.NetworkAddressService;
+import org.openhab.core.storage.Storage;
+import org.openhab.core.storage.StorageService;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
@@ -105,6 +107,12 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
      */
     private @Nullable HttpClient trustAllHttpClient;
 
+    /**
+     * The tokens of the cameras by thing UID. Kept here rather than in a thing property, which openHAB does not keep
+     * for things defined in files.
+     */
+    private final Storage<String> accessTokens;
+
     private volatile CidrMatcher snapshotNetworks = new CidrMatcher(DEFAULT_SNAPSHOT_NETWORKS);
 
     /**
@@ -120,12 +128,14 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
     @Activate
     public BoschSmartCamHandlerFactory(final @Reference OAuthFactory oAuthFactory,
             final @Reference HttpClientFactory httpClientFactory, final @Reference BoschSmartCamAuthService authService,
-            final @Reference NetworkAddressService networkAddressService) {
+            final @Reference NetworkAddressService networkAddressService,
+            final @Reference StorageService storageService) {
         this.oAuthFactory = oAuthFactory;
         this.httpClient = httpClientFactory.getCommonHttpClient();
         this.authService = authService;
         this.networkAddressService = networkAddressService;
         this.httpClientFactory = httpClientFactory;
+        this.accessTokens = storageService.getStorage(BINDING_ID + ".accessTokens");
 
         cameraHttpClient = httpClientFactory.createHttpClient("boschsmartcam", cameraTrust.createSslContextFactory());
     }
@@ -310,7 +320,7 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
         } else if (THING_TYPE_CAMERA.equals(thingTypeUID)) {
             return new BoschSmartCamCameraHandler(thing, authService, cameraHttpClient, this::getTrustAllHttpClient,
                     cameraTrust, () -> snapshotNetworks, () -> rtspGatewayPort, () -> rtspGatewayCertificate,
-                    getOpenhabBaseUrl());
+                    accessTokens, getOpenhabBaseUrl());
         }
 
         return null;

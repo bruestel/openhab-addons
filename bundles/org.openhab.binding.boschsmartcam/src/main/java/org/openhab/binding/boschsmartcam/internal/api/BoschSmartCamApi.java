@@ -43,6 +43,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
@@ -61,6 +64,8 @@ public class BoschSmartCamApi {
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamApi.class);
     private final Gson gson = new Gson();
+    // a light setting is written back as read, its nulls included
+    private final Gson gsonWithNulls = new GsonBuilder().serializeNulls().create();
 
     private final HttpClient httpClient;
     private final AccessTokenProvider tokenProvider;
@@ -177,6 +182,42 @@ public class BoschSmartCamApi {
         } catch (ExecutionException | TimeoutException | IOException e) {
             throw new BoschSmartCamException("Fetching media failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Switches a light of an Eyes Outdoor Camera II on or off, like the buttons of the app do.
+     *
+     * @param light {@code front} for the front light, {@code topdown} for the LEDs on top and below
+     */
+    public void setLightOn(String cameraId, String light, boolean on) throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/lighting/switch/" + light,
+                gson.toJson(java.util.Map.of("enabled", on)));
+    }
+
+    /**
+     * Switches whether a light setting of an Eyes Outdoor Camera II is active, such as {@code lightOnMotionEnabled} of
+     * {@code lighting/motion}. The cloud wants the whole setting back, so it is read and written with only that field
+     * changed.
+     */
+    public void setLightingEnabled(String cameraId, String setting, String field, boolean enabled)
+            throws BoschSmartCamException {
+        String path = "/v11/video_inputs/" + cameraId + "/lighting/" + setting;
+        JsonObject body;
+        try {
+            body = JsonParser.parseString(execute(HttpMethod.GET, path, null)).getAsJsonObject();
+        } catch (IllegalStateException | JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected lighting " + setting + " for " + cameraId, e);
+        }
+        body.addProperty(field, enabled);
+        execute(HttpMethod.PUT, path, gsonWithNulls.toJson(body));
+    }
+
+    /**
+     * Sounds the siren of a camera until it is switched off again, or stops it.
+     */
+    public void setPanicAlarm(String cameraId, boolean on) throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/panic_alarm",
+                gson.toJson(java.util.Map.of("status", on ? "ON" : "OFF")));
     }
 
     private String execute(HttpMethod method, String path, @Nullable String body) throws BoschSmartCamException {

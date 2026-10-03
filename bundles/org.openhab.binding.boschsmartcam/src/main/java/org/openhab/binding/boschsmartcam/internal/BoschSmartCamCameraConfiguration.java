@@ -41,6 +41,12 @@ public class BoschSmartCamCameraConfiguration {
     public int snapshotCacheSeconds = 3;
 
     /**
+     * Token in the snapshot, stream and event addresses. Left empty, the binding creates one and keeps it; set, it
+     * replaces that one, which is how a leaked address is revoked.
+     */
+    public String accessToken = "";
+
+    /**
      * Offer the events the cloud keeps for this camera, with their images and clips, as a small JSON API below the
      * snapshot address. Needs an account.
      */

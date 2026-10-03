@@ -48,6 +48,7 @@ Only the password of the local API has to be entered when adding it.
 | user                 | text    | User of the local API, as shown in the Bosch Smart Camera app.                   | `localuser` | yes      | no       |
 | password             | text    | Password of the local API, as shown in the Bosch Smart Camera app.               | N/A         | yes      | no       |
 | snapshotCacheSeconds | integer | How long a fetched image is reused in sec.                          | 3           | no       | yes      |
+| accessToken          | text    | Token in the addresses of snapshot, streams and events, see [Who may fetch them](#who-may-fetch-them). | generated | no | yes |
 | publishEventsApi     | boolean | Offer the events the cloud keeps as a JSON API, see below. Needs an account. | false | no  | yes      |
 | trustAllCertificates | boolean | Accept any certificate instead of verifying it, see below.          | false       | no       | yes      |
 
@@ -116,6 +117,10 @@ The same page also lets you remove the stored tokens of an account, for example 
 | local#rtsps-url       | String   | R          | Address of the video stream through openHAB over TLS, without password. Contains a token.       |
 | local#rtsps-substream-url | String | R         | The same for the small stream without sound.                                                    |
 | local#camera-rtsps-url | String  | R          | Address of the video stream directly at the camera, RTSP over TLS.                              |
+| light#front-light    | Switch   | RW         | Front light on or off, like its button in the app. Eyes Outdoor Camera II only, see below.      |
+| light#top-bottom-light | Switch | RW         | The LEDs on top and below on or off together, like their button in the app.                    |
+| light#motion-light    | Switch   | RW         | Whether the lights go on with motion, as set in the app.                                        |
+| alarm#siren           | Switch   | RW         | `ON` sounds the siren until switched off or the alarm time of the app has passed.               |
 | cloud#last-clip-snapshot-url | String | R      | Address of the still image of the last clip, as the cloud keeps it. Needs an account, only served while linked. |
 | cloud#last-clip-url   | String   | R          | Address of the clip of the last event, once uploaded. Needs an account, only served while linked. |
 | cloud#clip-ready      | Trigger  |            | Fires when the clip of an event is in the cloud, with the kind of the event as payload.          |
@@ -132,6 +137,19 @@ The camera repeats an event about every half second while it lasts; the binding 
 
 The privacy mode is read from the camera, which reports every change within a second.
 Switching it has to go through the cloud, because the local API cannot change anything: without an account a command is refused with a note in the log, and the switch goes back to what the camera reports.
+
+### Lights and Alarm
+
+The local API of the camera only reads, so lights and siren are switched through the Bosch cloud, like the privacy mode: without an account a command is refused with a note in the log.
+What they do is read from the camera itself.
+
+The `light` group appears once the account has told the binding that the camera is an Eyes Outdoor Camera II, the only model with lights.
+`front-light` and `top-bottom-light` work like the buttons of the app and show `ON` while the light shines, whatever turned it on: the button, motion or dusk.
+The camera reports that within a second.
+Brightness and color stay as set in the app.
+Like the buttons, switching off takes precedence over the ambient light: it stays off until the camera turns the ambient light on again, as Bosch describes it once a day.
+
+`motion-light` and the alarm are not reported by the camera, so the binding reads them a few seconds after a command and with every poll of the account; while an alarm sounds it asks every 15 seconds whether it still does.
 
 ### `account` Channels
 
@@ -200,8 +218,10 @@ A fetch is a single request to the camera in the local network, the cloud is not
 Two things guard the URL.
 
 The token is a random UUID and part of the path, so the address cannot be guessed.
-It is stored as the `accessToken` property of the camera and survives restarts.
-Deleting that property hands out a new one on the next start, which makes every previously shared link fail.
+The binding keeps it in the storage of openHAB, so it survives restarts, also for things defined in files, and shows it as the `accessToken` property.
+Removing the camera revokes its addresses: added again, it gets a new token, unless one is set in its configuration.
+To revoke addresses that leaked, enter a new token as `accessToken` in the configuration of the camera, at least 16 letters, digits, `-` or `_`; every address with the old one fails from then on.
+A token can also be set in a file right away, to keep addresses fixed that are written down elsewhere.
 
 On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` of the binding configuration, which defaults to loopback and the private ranges of IPv4 and IPv6.
 The comparison works on the raw address bytes against the CIDR blocks, so `192.168.0.9` does not accidentally match `192.168.0.99`.

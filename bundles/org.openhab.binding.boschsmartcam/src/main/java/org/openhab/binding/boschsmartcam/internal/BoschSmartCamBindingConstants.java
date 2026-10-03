@@ -38,6 +38,9 @@ public class BoschSmartCamBindingConstants {
     // Channel groups: what a camera reports itself, and per camera on the account what belongs to the user
     public static final String GROUP_LOCAL = "local";
     public static final String GROUP_CLOUD = "cloud";
+    public static final String GROUP_LIGHT = "light";
+    public static final String GROUP_ALARM = "alarm";
+    public static final ChannelGroupTypeUID GROUP_TYPE_LIGHT = new ChannelGroupTypeUID(BINDING_ID, GROUP_LIGHT);
     public static final ChannelGroupTypeUID GROUP_TYPE_NOTIFICATIONS = new ChannelGroupTypeUID(BINDING_ID,
             "notifications");
 
@@ -56,6 +59,10 @@ public class BoschSmartCamBindingConstants {
     public static final String CHANNEL_LAST_CLIP_SNAPSHOT_URL = "last-clip-snapshot-url";
     public static final String CHANNEL_LAST_CLIP_URL = "last-clip-url";
     public static final String CHANNEL_CLIP_READY = "clip-ready";
+    public static final String CHANNEL_FRONT_LIGHT = "front-light";
+    public static final String CHANNEL_TOP_BOTTOM_LIGHT = "top-bottom-light";
+    public static final String CHANNEL_MOTION_LIGHT = "motion-light";
+    public static final String CHANNEL_SIREN = "siren";
     public static final String CHANNEL_NOTIFICATIONS = "notifications";
     public static final String CHANNEL_NOTIFICATIONS_STATUS = "notifications-status";
 

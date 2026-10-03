@@ -29,6 +29,7 @@ import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
+import org.openhab.binding.boschsmartcam.internal.api.dto.LightSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +91,26 @@ public class LocalCameraClient {
     /**
      * @return the firmware version the way the app shows it, e.g. {@code 9.40.202}
      */
+    /**
+     * @return what the lights of an Eyes Outdoor Camera II show right now, the manual light as well as the motion or
+     *         ambient light while it is on
+     */
+    public ManualLighting getLighting() throws BoschSmartCamException {
+        return parse(get("/sh/data/lighting/manual"), ManualLighting.class);
+    }
+
+    /**
+     * @param setting {@code lighting/motion} or {@code lighting/ambient}
+     * @return whether that light setting is active
+     */
+    public boolean isEnabled(String setting) throws BoschSmartCamException {
+        return Boolean.TRUE.equals(parse(get("/sh/data/" + setting), Enabled.class).enable());
+    }
+
+    public AlarmStatus getAlarmStatus() throws BoschSmartCamException {
+        return parse(get("/sh/data/alarm/status"), AlarmStatus.class);
+    }
+
     public @Nullable String getFirmwareVersion() throws BoschSmartCamException {
         Version version = parse(get("/sh/data/version"), Version.class);
         String raw = version.firmwareVersion() != null ? version.firmwareVersion() : version.firmwareVersionCamel();
@@ -166,6 +187,20 @@ public class LocalCameraClient {
         } catch (JsonSyntaxException e) {
             throw new BoschSmartCamException("Unexpected answer from the camera: " + json, e);
         }
+    }
+
+    public record ManualLighting(@Nullable LightSettings front, @Nullable LightSettings top,
+            @Nullable LightSettings bottom) {
+    }
+
+    /**
+     * @param alarmType e.g. {@code NONE}, {@code INTRUSION_ALARM} or {@code MANUAL_ALARM}
+     * @param intrusionSystem e.g. {@code INACTIVE}, {@code ARMING} or {@code ARMED}
+     */
+    public record AlarmStatus(@Nullable String alarmType, @Nullable String intrusionSystem) {
+    }
+
+    private record Enabled(@Nullable Boolean enable) {
     }
 
     private record PrivacyMode(@Nullable Boolean enable, @Nullable Integer timeout) {
