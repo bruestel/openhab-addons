@@ -74,7 +74,7 @@ The minimum is 30 seconds.
 
 | Name                    | Type | Description                                                         | Default                         |
 |-------------------------|------|---------------------------------------------------------------------|---------------------------------|
-| snapshotAllowedNetworks | text | Networks that may fetch the snapshot URLs and the streams, as comma separated CIDR. | loopback and the private ranges |
+| snapshotAllowedNetworks | text | Networks that may fetch the snapshot URLs and the streams, as comma separated CIDR. | loopback, private and link-local ranges |
 | rtspPort                | integer | Port the streams of all cameras are offered on, plain and over TLS, see below. | N/A              |
 
 ## Authorization
@@ -161,12 +161,13 @@ The group is named after the MAC address of the camera, like the camera thing, e
 | Channel                   | Type   | Read/Write | Description                                                                                     |
 |---------------------------|--------|------------|-------------------------------------------------------------------------------------------------|
 | <camera>#notifications        | Switch | RW         | App push notifications: whether the Bosch Smart Camera app notifies about this camera.                                            |
-| <camera>#notifications-status | String | R          | The notification setting as the cloud reports it, e.g. `FOLLOW_CAMERA_SCHEDULE` or `ALWAYS_OFF`. |
+| <camera>#notifications-status | String | R          | The notification setting as the cloud reports it, e.g. `ON_CAMERA_SCHEDULE` or `OFF_OVERRIDE`. |
 
 The notification setting is not a plain on/off in the cloud: it can also follow a schedule.
-`notifications` therefore reads `ON` for everything that is not switched off, and writing `ON` always sets `FOLLOW_CAMERA_SCHEDULE`.
+`notifications` therefore reads `ON` for everything that is not switched off.
+Writing `ON` sends `FOLLOW_CAMERA_SCHEDULE` and writing `OFF` sends `ALWAYS_OFF`; the cloud then reports them as `ON_CAMERA_SCHEDULE` and `OFF_OVERRIDE`.
 Use `notifications-status` to see the exact setting: `FOLLOW_CAMERA_SCHEDULE`, `FOLLOW_SCHEDULE`, `ON_CAMERA_SCHEDULE`, `OFF_CAMERA_SCHEDULE`, `OFF_OVERRIDE`, `OFF_UNTIL` or `ALWAYS_OFF`.
-Everything starting with `OFF` counts as switched off, so a value Bosch adds later is read correctly as well.
+Everything starting with `OFF`, and `ALWAYS_OFF`, counts as switched off, so a value Bosch adds later is read correctly as well.
 
 ## Properties
 
@@ -178,6 +179,7 @@ Everything starting with `OFF` counts as switched off, so a value Bosch adds lat
 | firmwareVersion | Firmware currently on the camera, written the way the Bosch Smart Camera app shows it.      |
 | rtspsCertificate | Certificate openHAB presents for `rtsps-url`, as PEM, see [Video Streams](#video-streams). |
 | rtspsCertificateSha256 | SHA-256 fingerprint of that certificate.                                 |
+| eventsApiUrl    | Address of the events API, only while `publishEventsApi` is on; it answers only with an account. |
 
 With an account these are added:
 
@@ -187,7 +189,6 @@ With an account these are added:
 | modelId         | Model code from the cloud, e.g. `HOME_Eyes_Outdoor`.                           |
 | productName     | The name Bosch sells that model under, e.g. `Eyes Outdoor Camera II`.          |
 | generation      | Hardware generation, `1` or `2`.                                               |
-| eventsApiUrl    | Address of the events API, only while `publishEventsApi` is on.                |
 
 `productName` and `generation` are only set for models the binding knows:
 
@@ -219,12 +220,13 @@ A fetch is a single request to the camera in the local network, the cloud is not
 Two things guard the URL.
 
 The token is a random UUID and part of the path, so the address cannot be guessed.
-The binding keeps it in the storage of openHAB, so it survives restarts, also for things defined in files, and shows it as the `accessToken` property.
+The binding keeps it in the storage of openHAB, so it survives restarts, also for things defined in files.
+It is not shown as a property, as it opens the camera to whoever has it; the address channels carry it.
 Removing the camera, in the UI or from a file, revokes its addresses: added again, it gets a new token, unless one is set in its configuration.
 To revoke addresses that leaked, enter a new token as `accessToken` in the configuration of the camera, at least 16 letters, digits, `-` or `_`; every address with the old one fails from then on.
 A token can also be set in a file right away, to keep addresses fixed that are written down elsewhere.
 
-On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` of the binding configuration, which defaults to loopback and the private ranges of IPv4 and IPv6.
+On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` of the binding configuration, which defaults to loopback, the private ranges and the link-local ranges of IPv4 and IPv6.
 The comparison works on the raw address bytes against the CIDR blocks, so `192.168.0.9` does not accidentally match `192.168.0.99`.
 Behind a reverse proxy openHAB sees the address of the proxy, so add that one rather than the address of the browser.
 
@@ -245,7 +247,7 @@ These addresses are offered for players such as VLC, Frigate or a video recorder
 
 `rtsp-url` reads `rtsp://<openhab>:<port>/<token>`, with the token of the snapshot.
 openHAB takes the TLS connection to the camera with the same checks as everything else, logs in with the user and password of the camera itself and passes the stream on; whatever the player sends as login is dropped.
-One port serves all cameras, set as `rtspPort` in the binding configuration.
+One port serves all cameras, set as `rtspPort` in the binding configuration; without it the RTSP and RTSPS channels stay `UNDEF`.
 With `rtsp-url` the connection is unencrypted on the network between player and openHAB.
 
 `rtsps-url` reads `rtsps://<openhab>:<port>/<token>`, on the same port: openHAB tells TLS and plain RTSP apart by the first byte the player sends.
@@ -339,19 +341,18 @@ A camera on its own:
 Thing boschsmartcam:camera:64daa0123456 "Front Door" [ host="192.168.0.42", user="localuser", password="secret" ]
 ```
 
-The same camera under an account:
+The same camera under an account; the account is given as its bridge rather than nesting the camera in it, which would put the account into the id of the camera:
 
 ```java
-Bridge boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=3600 ] {
-    Thing camera 64daa0123456 "Front Door" [ host="192.168.0.42", user="localuser", password="secret" ]
-}
+Bridge boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=3600 ]
+Thing boschsmartcam:camera:64daa0123456 "Front Door" (boschsmartcam:account:home) [ host="192.168.0.42", user="localuser", password="secret" ]
 ```
 
 ### Item Configuration
 
 ```java
-Switch FrontDoor_Privacy      "Front Door Privacy Mode"  { channel="boschsmartcam:camera:home:64daa0123456:local#privacy-mode" }
-String FrontDoor_Snapshot     "Front Door Snapshot [%s]" { channel="boschsmartcam:camera:home:64daa0123456:local#snapshot-url" }
+Switch FrontDoor_Privacy      "Front Door Privacy Mode"  { channel="boschsmartcam:camera:64daa0123456:local#privacy-mode" }
+String FrontDoor_Snapshot     "Front Door Snapshot [%s]" { channel="boschsmartcam:camera:64daa0123456:local#snapshot-url" }
 Switch FrontDoor_Notification "Front Door Notifications" { channel="boschsmartcam:account:home:64daa0123456#notifications" }
 ```
 
