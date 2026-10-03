@@ -14,24 +14,42 @@ package org.openhab.binding.boschsmartcam.internal.handler;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.*;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+import javax.net.ssl.SSLHandshakeException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.boschsmartcam.internal.BoschSmartCamCameraConfiguration;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
-import org.openhab.binding.boschsmartcam.internal.api.dto.CameraStatus;
 import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
 import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
-import org.openhab.binding.boschsmartcam.internal.diagnostics.OnvifProbe;
-import org.openhab.binding.boschsmartcam.internal.snapshot.SnapshotFetcher;
+import org.openhab.binding.boschsmartcam.internal.events.CameraEvent;
+import org.openhab.binding.boschsmartcam.internal.events.EventLog;
+import org.openhab.binding.boschsmartcam.internal.local.CameraIdentity;
+import org.openhab.binding.boschsmartcam.internal.local.CameraTrust;
+import org.openhab.binding.boschsmartcam.internal.local.LocalCameraClient;
+import org.openhab.binding.boschsmartcam.internal.local.OnvifEvent;
+import org.openhab.binding.boschsmartcam.internal.local.PullPointSubscriber;
+import org.openhab.binding.boschsmartcam.internal.net.CidrMatcher;
+import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.thing.Bridge;
@@ -39,187 +57,515 @@ import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
+import org.openhab.core.thing.ThingStatusInfo;
 import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
-import org.openhab.core.types.UnDefType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link BoschSmartCamCameraHandler} exposes the settings of a single camera. Snapshots and video streams are
- * fetched directly from the camera and are not part of this binding.
+ * The {@link BoschSmartCamCameraHandler} talks to a single camera through its local API. Everything the camera can
+ * tell about itself is read there.
+ *
+ * Events arrive through an ONVIF PullPoint subscription the handler keeps open. As long as the camera answers it, the
+ * thing is online; a failing cloud does not change that.
+ *
+ * The account bridge is optional. With one the privacy mode can be switched, because the local API cannot change
+ * anything.
  *
  * @author Jonas Brüstel - Initial contribution
  */
 @NonNullByDefault
 public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
-    private static final int MIN_SNAPSHOT_CACHE_SECONDS = 5;
+    private static final int MIN_SNAPSHOT_CACHE_SECONDS = 1;
+    private static final long MIN_REFRESH_AGE_SECONDS = 5;
+
+    /**
+     * Delay before connecting again after the camera was lost, doubled with every failed attempt.
+     */
+    private static final Duration FIRST_RETRY = Duration.ofSeconds(5);
+    private static final Duration MAX_RETRY = Duration.ofSeconds(60);
+
+    /**
+     * Without a clip id, events of the same kind within this window count as one.
+     */
+    private static final Duration EVENT_WINDOW = Duration.ofSeconds(10);
+    private static final int REMEMBERED_EVENTS = 100;
+
+    private static final String TOPIC_PRIVACY_MODE = "PrivacyMode";
+    private static final String TOPIC_CLIP_RECORDING = "ClipRecording";
+    private static final String TOPIC_DETECTED_SUFFIX = "Detected";
+    private static final String ITEM_STATE = "State";
+    private static final String ITEM_CLIP_ID = "ClipId";
+    private static final String ITEM_START_TIME = "Starttime";
+    private static final String ITEM_END_TIME = "Endtime";
+    private static final String OPERATION_INITIALIZED = "Initialized";
+
+    private static final String CHANNEL_LOCAL_PRIVACY_MODE = GROUP_LOCAL + "#" + CHANNEL_PRIVACY_MODE;
+    private static final String CHANNEL_LOCAL_SNAPSHOT_URL = GROUP_LOCAL + "#" + CHANNEL_SNAPSHOT_URL;
+    private static final String CHANNEL_LOCAL_EVENT = GROUP_LOCAL + "#" + CHANNEL_EVENT;
+    private static final String CHANNEL_LOCAL_LAST_EVENT = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT;
+    private static final String CHANNEL_LOCAL_LAST_EVENT_TIME = GROUP_LOCAL + "#" + CHANNEL_LAST_EVENT_TIME;
+    private static final String CHANNEL_LOCAL_RECORDING = GROUP_LOCAL + "#" + CHANNEL_RECORDING;
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamCameraHandler.class);
 
     private final BoschSmartCamAuthService authService;
-    private final org.eclipse.jetty.client.HttpClient cameraHttpClient;
+    private final HttpClient cameraHttpClient;
+    private final Supplier<HttpClient> trustAllHttpClient;
+    private final CameraTrust cameraTrust;
+    private final Supplier<CidrMatcher> snapshotNetworks;
     private final String openhabBaseUrl;
 
-    private String cameraId = "";
-    private String accessToken = "";
-    private Duration snapshotCache = Duration.ofSeconds(15);
     private BoschSmartCamCameraConfiguration config = new BoschSmartCamCameraConfiguration();
-    private @Nullable SnapshotFetcher snapshotFetcher;
+    private String accessToken = "";
+    private Duration snapshotCache = Duration.ofSeconds(3);
+    private @Nullable LocalCameraClient client;
+    private @Nullable PullPointSubscriber subscriber;
+    private final EventLog eventLog = new EventLog();
+    private @Nullable ScheduledFuture<?> connectJob;
+    private Duration nextRetry = FIRST_RETRY;
 
-    public BoschSmartCamCameraHandler(Thing thing, BoschSmartCamAuthService authService,
-            org.eclipse.jetty.client.HttpClient cameraHttpClient, String openhabBaseUrl) {
+    /**
+     * The camera repeats an event every second while it lasts, and sends each one for two sources. Events already
+     * passed on, by kind and clip id, with the time they were seen.
+     */
+    private final Map<String, Instant> recentEvents = new LinkedHashMap<>() {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        protected boolean removeEldestEntry(Map.@Nullable Entry<String, Instant> eldest) {
+            return size() > REMEMBERED_EVENTS;
+        }
+    };
+
+    /**
+     * Who answers at the configured host, read from its certificate. {@code null} until that was checked, and again
+     * after the camera was unreachable, since the address may now belong to another device.
+     */
+    private volatile @Nullable CameraIdentity identity;
+
+    /**
+     * Id of this camera in the cloud, found through its MAC address. Only known with an account bridge.
+     */
+    private volatile @Nullable String cameraId;
+
+    private volatile boolean privacyModeOn;
+    private volatile Instant lastRefresh = Instant.EPOCH;
+
+    public BoschSmartCamCameraHandler(Thing thing, BoschSmartCamAuthService authService, HttpClient cameraHttpClient,
+            Supplier<HttpClient> trustAllHttpClient, CameraTrust cameraTrust, Supplier<CidrMatcher> snapshotNetworks,
+            String openhabBaseUrl) {
         super(thing);
         this.authService = authService;
         this.cameraHttpClient = cameraHttpClient;
+        this.trustAllHttpClient = trustAllHttpClient;
+        this.cameraTrust = cameraTrust;
+        this.snapshotNetworks = snapshotNetworks;
         this.openhabBaseUrl = openhabBaseUrl;
     }
 
     @Override
     public void initialize() {
         config = getConfigAs(BoschSmartCamCameraConfiguration.class);
-        cameraId = config.cameraId;
-        if (cameraId.isBlank()) {
+        if (config.host.isBlank()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                    "@text/offline.conf-error.no-camera-id");
+                    "@text/offline.conf-error.no-host");
+            return;
+        }
+        if (config.password.isBlank()) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "@text/offline.conf-error.no-password");
             return;
         }
 
+        identity = null;
+        cameraId = null;
         snapshotCache = Duration.ofSeconds(Math.max(MIN_SNAPSHOT_CACHE_SECONDS, config.snapshotCacheSeconds));
         accessToken = currentOrNewAccessToken();
-        snapshotFetcher = new SnapshotFetcher(cameraHttpClient, cameraId,
-                () -> getRequiredAccountHandler().getApi().openLocalConnection(cameraId));
+        if (config.trustAllCertificates) {
+            logger.warn("{} accepts any certificate, the camera is not verified", getThing().getUID());
+        }
+        HttpClient httpClient = config.trustAllCertificates ? trustAllHttpClient.get() : cameraHttpClient;
+        client = new LocalCameraClient(httpClient, config.host, config.user, config.password);
+        subscriber = new PullPointSubscriber(httpClient, config.host,
+                LocalCameraClient.basicAuthorization(config.user, config.password), new EventListener());
         authService.addCamera(accessToken, this);
 
         updateStatus(ThingStatus.UNKNOWN);
+        nextRetry = FIRST_RETRY;
+        connectJob = scheduler.schedule(this::connect, 0, TimeUnit.SECONDS);
+    }
 
-        // off the initializing thread: reading the reachability talks to the cloud, and without it the thing would
-        // stay UNKNOWN until the next poll of the bridge
-        scheduler.execute(() -> {
-            // only after initializing: openHAB drops state updates of a handler that is still starting up
-            updateState(CHANNEL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+    @Override
+    public void dispose() {
+        ScheduledFuture<?> job = connectJob;
+        if (job != null) {
+            job.cancel(true);
+            connectJob = null;
+        }
+        PullPointSubscriber localSubscriber = subscriber;
+        if (localSubscriber != null) {
+            localSubscriber.stop();
+            subscriber = null;
+        }
+        authService.removeCamera(accessToken);
+        cameraTrust.release(config.host);
+        client = null;
+    }
 
-            BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-            if (accountHandler == null) {
-                return;
-            }
-            List<VideoInput> cameras = accountHandler.getCameras();
-            if (cameras.isEmpty()) {
-                // nothing cached yet, the poll of the bridge pushes the settings to this thing as well
-                accountHandler.refreshFromCloud();
-            } else {
-                updateFromCameras(cameras, true);
-            }
-        });
+    @Override
+    public void bridgeStatusChanged(ThingStatusInfo bridgeStatusInfo) {
+        // the camera works without the cloud, so unlike the default this leaves the status of the thing alone
+        if (bridgeStatusInfo.getStatus() == ThingStatus.ONLINE) {
+            scheduler.execute(() -> {
+                BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+                if (accountHandler != null) {
+                    updateFromCloud(accountHandler.getCameras());
+                }
+            });
+        }
     }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        if (accountHandler == null) {
-            return;
-        }
-
         if (command instanceof RefreshType) {
-            // show what is known right away, the fresh values from the cloud follow
-            updateFromCameras(accountHandler.getCameras());
-            accountHandler.refreshFromCloud();
+            refresh(channelUID.getId());
             return;
         }
+        if (CHANNEL_LOCAL_PRIVACY_MODE.equals(channelUID.getId()) && command instanceof OnOffType onOff) {
+            setPrivacyMode(onOff == OnOffType.ON);
+        }
+    }
 
-        if (!(command instanceof OnOffType onOffCommand)) {
+    /**
+     * Switches the privacy mode through the cloud. The local API cannot change it, so without an account the
+     * command is refused and the switch goes back to what the camera reports.
+     */
+    private void setPrivacyMode(boolean on) {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        String id = accountHandler == null ? null : resolveCameraId(accountHandler);
+        if (accountHandler == null || id == null) {
+            logger.info("The privacy mode of {} can only be switched with a Bosch account bridge, the local API is "
+                    + "read only", getThing().getUID());
+            updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(privacyModeOn));
             return;
         }
-
-        boolean enabled = onOffCommand == OnOffType.ON;
         try {
-            switch (channelUID.getId()) {
-                case CHANNEL_PRIVACY_MODE -> accountHandler.getApi().setPrivacyMode(cameraId, enabled, null);
-                case CHANNEL_NOTIFICATIONS -> accountHandler.getApi().setNotifications(cameraId, enabled);
-                default -> {
-                    return;
+            accountHandler.getApi().setPrivacyMode(id, on, null);
+            // the camera confirms the change through the event subscription within a second
+            updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(on));
+        } catch (BoschSmartCamException e) {
+            logger.warn("Could not switch the privacy mode of {}: {}", getThing().getUID(), e.getMessage());
+            updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(privacyModeOn));
+        }
+    }
+
+    /**
+     * Makes sure the right camera answers and opens the event subscription. Tried again with a growing delay as long
+     * as that fails. The subscription delivers the complete state of the camera first, so nothing else is read.
+     */
+    private synchronized void connect() {
+        LocalCameraClient localClient = client;
+        PullPointSubscriber localSubscriber = subscriber;
+        if (localClient == null || localSubscriber == null) {
+            return;
+        }
+        if (identity == null && !checkIdentity(localClient)) {
+            retryLater();
+            return;
+        }
+        localSubscriber.start();
+    }
+
+    private synchronized void retryLater() {
+        if (client == null) {
+            // disposed in the meantime
+            return;
+        }
+        Duration delay = nextRetry;
+        nextRetry = nextRetry.multipliedBy(2).compareTo(MAX_RETRY) > 0 ? MAX_RETRY : nextRetry.multipliedBy(2);
+        connectJob = scheduler.schedule(this::connect, delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Answers a {@code REFRESH}, which openHAB sends for instance when an item is linked. Everything but the privacy
+     * mode is known already, the event channels are taken from the event log.
+     */
+    private void refresh(String channelId) {
+        switch (channelId) {
+            case CHANNEL_LOCAL_PRIVACY_MODE -> {
+                if (Duration.between(lastRefresh, Instant.now()).getSeconds() >= MIN_REFRESH_AGE_SECONDS) {
+                    lastRefresh = Instant.now();
+                    scheduler.execute(this::refreshPrivacyMode);
                 }
             }
-            updateState(channelUID, onOffCommand);
-            // the camera needs a moment to apply the change, so read the confirmed state a bit later
-            accountHandler.scheduleDelayedPoll();
+            case CHANNEL_LOCAL_SNAPSHOT_URL -> {
+                if (identity != null) {
+                    updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+                }
+            }
+            case CHANNEL_LOCAL_LAST_EVENT, CHANNEL_LOCAL_LAST_EVENT_TIME, CHANNEL_LOCAL_RECORDING -> {
+                List<CameraEvent> events = eventLog.list();
+                if (events.isEmpty()) {
+                    return;
+                }
+                CameraEvent last = events.getFirst();
+                switch (channelId) {
+                    case CHANNEL_LOCAL_LAST_EVENT -> updateState(channelId, new StringType(last.kind()));
+                    case CHANNEL_LOCAL_LAST_EVENT_TIME ->
+                        updateState(channelId, new DateTimeType(last.time().atZone(ZoneId.systemDefault())));
+                    default ->
+                        updateState(channelId, OnOffType.from(last.clipId() != null && last.recordingEnd() == null));
+                }
+            }
+            default -> logger.trace("Nothing to refresh for {}", channelId);
+        }
+    }
+
+    /**
+     * Reads the privacy mode on request. Normally not needed, the camera reports every change.
+     */
+    private void refreshPrivacyMode() {
+        LocalCameraClient localClient = client;
+        if (localClient == null) {
+            return;
+        }
+        try {
+            updatePrivacyMode(localClient.isPrivacyModeOn());
         } catch (BoschSmartCamException e) {
-            logger.debug("Could not send command {} to channel {}", command, channelUID, e);
+            logger.debug("Could not read the privacy mode of {}: {}", getThing().getUID(), e.getMessage());
+        }
+    }
+
+    private void updatePrivacyMode(boolean on) {
+        privacyModeOn = on;
+        updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(on));
+    }
+
+    /**
+     * Receives what the PullPoint subscription delivers. Runs on the threads of the HTTP client, so it only passes
+     * the events on.
+     */
+    private class EventListener implements PullPointSubscriber.Listener {
+
+        @Override
+        public void onNotifications(List<OnvifEvent> events) {
+            nextRetry = FIRST_RETRY;
+            updateStatus(ThingStatus.ONLINE);
+            for (OnvifEvent event : events) {
+                handleEvent(event);
+            }
+        }
+
+        @Override
+        public void onFailure(BoschSmartCamException e) {
+            logger.debug("Events of {} interrupted: {}", getThing().getUID(), e.getMessage());
+            reportLocalFailure(e);
+            // the address may have been handed to another device in the meantime
+            identity = null;
+            retryLater();
+        }
+    }
+
+    private void handleEvent(OnvifEvent event) {
+        String topic = event.topic();
+        logger.trace("{} reported {} ({}) {}", getThing().getUID(), topic,
+                Objects.requireNonNullElse(event.propertyOperation(), "event"), event.data());
+        if (TOPIC_PRIVACY_MODE.equals(topic)) {
+            updatePrivacyMode(event.isTrue(ITEM_STATE));
+        } else if (TOPIC_CLIP_RECORDING.equals(topic)) {
+            // the camera only reports the end of a recording, the start comes with the detection
+            boolean recording = event.isTrue(ITEM_STATE);
+            updateState(CHANNEL_LOCAL_RECORDING, OnOffType.from(recording));
+            String clipId = event.get(ITEM_CLIP_ID);
+            if (!recording && clipId != null && !clipId.isBlank()) {
+                eventLog.finishRecording(clipId, recordingEnd(event));
+            }
+        } else if (topic.endsWith(TOPIC_DETECTED_SUFFIX) && event.isTrue(ITEM_STATE)
+                && !OPERATION_INITIALIZED.equals(event.propertyOperation())) {
+            String kind = topic.substring(0, topic.length() - TOPIC_DETECTED_SUFFIX.length()).toUpperCase(Locale.ROOT);
+            if (isNewEvent(kind, event)) {
+                logger.debug("{} detected {}, clip {}", getThing().getUID(), kind, event.get(ITEM_CLIP_ID));
+                ZonedDateTime time = eventTime(event);
+                String clipId = event.get(ITEM_CLIP_ID);
+                boolean withClip = clipId != null && !clipId.isBlank();
+                triggerChannel(CHANNEL_LOCAL_EVENT, kind);
+                updateState(CHANNEL_LOCAL_LAST_EVENT, new StringType(kind));
+                updateState(CHANNEL_LOCAL_LAST_EVENT_TIME, new DateTimeType(time));
+                if (withClip) {
+                    updateState(CHANNEL_LOCAL_RECORDING, OnOffType.ON);
+                }
+                eventLog.add(new CameraEvent(time.toInstant(), kind, withClip ? clipId : null, null));
+            }
+        }
+    }
+
+    /**
+     * @return whether the event was not passed on yet - the same clip, or the same kind within a short window when
+     *         the camera sends no clip id
+     */
+    private boolean isNewEvent(String kind, OnvifEvent event) {
+        String clipId = event.get(ITEM_CLIP_ID);
+        Instant now = Instant.now();
+        synchronized (recentEvents) {
+            if (clipId != null && !clipId.isBlank()) {
+                return recentEvents.putIfAbsent(kind + "/" + clipId, now) == null;
+            }
+            Instant last = recentEvents.get(kind);
+            recentEvents.put(kind, now);
+            return last == null || Duration.between(last, now).compareTo(EVENT_WINDOW) > 0;
+        }
+    }
+
+    /**
+     * @return the end the camera gives for the clip, or now if it gives none
+     */
+    private static Instant recordingEnd(OnvifEvent event) {
+        String end = event.get(ITEM_END_TIME);
+        if (end != null && !end.isBlank()) {
+            try {
+                return Instant.ofEpochMilli(Long.parseLong(end));
+            } catch (NumberFormatException e) {
+                // fall through to now
+            }
+        }
+        return Instant.now();
+    }
+
+    /**
+     * @return when the event started: the start of its clip if the camera already knows it, which it only does from
+     *         the second message on, otherwise the time of the message
+     */
+    private static ZonedDateTime eventTime(OnvifEvent event) {
+        String start = event.get(ITEM_START_TIME);
+        Instant time = event.time();
+        if (start != null && !start.isBlank()) {
+            try {
+                time = Instant.ofEpochMilli(Long.parseLong(start));
+            } catch (NumberFormatException e) {
+                // keep the time of the message
+            }
+        }
+        return (time == null ? Instant.now() : time).atZone(ZoneId.systemDefault());
+    }
+
+    /**
+     * Makes sure the configured host is the camera this thing stands for, and reads what does not change while it
+     * runs. Done once after starting and again after the camera was unreachable.
+     *
+     * @return whether the camera at the host is the expected one
+     */
+    private boolean checkIdentity(LocalCameraClient localClient) {
+        CameraIdentity found;
+        try {
+            found = cameraTrust.readIdentity(config.host, HTTPS_PORT, config.trustAllCertificates);
+        } catch (SSLHandshakeException e) {
+            logger.debug("The certificate of {} is not trusted: {}", config.host, e.getMessage());
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "@text/offline.camera-untrusted [\"" + config.host + "\"]");
+            return false;
+        } catch (IOException e) {
+            logger.debug("No Bosch camera answered at {}: {}", config.host, e.getMessage());
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "@text/offline.camera-not-reachable [\"" + config.host + "\"]");
+            return false;
+        }
+        String expected = getThing().getProperties().get(Thing.PROPERTY_MAC_ADDRESS);
+        if (expected != null && !expected.isBlank() && !expected.equals(found.macAddress())) {
+            PullPointSubscriber localSubscriber = subscriber;
+            if (localSubscriber != null) {
+                localSubscriber.stop();
+            }
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "@text/offline.conf-error.other-camera [\"" + config.host + "\", \"" + found.macAddress() + "\", \""
+                            + expected + "\"]");
+            return false;
+        }
+
+        Map<String, String> properties = new HashMap<>(editProperties());
+        properties.put(Thing.PROPERTY_VENDOR, "Bosch");
+        properties.put(Thing.PROPERTY_MAC_ADDRESS, found.macAddress());
+        putIfPresent(properties, Thing.PROPERTY_SERIAL_NUMBER, found.serialNumber());
+        try {
+            putIfPresent(properties, Thing.PROPERTY_FIRMWARE_VERSION, localClient.getFirmwareVersion());
+        } catch (BoschSmartCamException e) {
+            reportLocalFailure(e);
+            return false;
+        }
+        updateProperties(properties);
+        identity = found;
+        // from now on every connection to the host has to present exactly this camera
+        cameraTrust.bind(config.host, found.macAddress());
+
+        // only now: openHAB drops state updates of a handler that is still initializing
+        updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
+        updateProperty(PROPERTY_EVENTS_PAGE, getUrl(EVENTS_PAGE_FILE));
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        if (accountHandler != null) {
+            updateFromCloud(accountHandler.getCameras());
+        }
+        return true;
+    }
+
+    private void reportLocalFailure(BoschSmartCamException e) {
+        if (e.getHttpStatus() == HttpStatus.UNAUTHORIZED_401) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "@text/offline.conf-error.local-credentials");
+        } else {
+            logger.debug("Talking to {} failed: {}", getThing().getUID(), e.getMessage());
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
         }
     }
 
     /**
-     * Applies the settings of the last poll without asking the cloud whether the camera is reachable.
+     * Takes over what the cloud knows about this camera. Called with the result of every poll of the account bridge.
      */
-    public void updateFromCameras(List<VideoInput> cameras) {
-        updateFromCameras(cameras, false);
+    public void updateFromCloud(List<VideoInput> cameras) {
+        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
+        String id = accountHandler == null ? null : resolveCameraId(accountHandler);
+        if (id == null) {
+            return;
+        }
+        VideoInput camera = cameras.stream().filter(input -> id.equals(input.id())).findFirst().orElse(null);
+        if (camera == null) {
+            return;
+        }
+
+        Map<String, String> properties = new HashMap<>(editProperties());
+        properties.put(PROPERTY_CAMERA_ID, id);
+        putIfPresent(properties, Thing.PROPERTY_MODEL_ID, camera.hardwareVersion());
+        CameraModel model = camera.model();
+        if (model != null) {
+            properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
+            properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
+        }
+        updateProperties(properties);
     }
 
     /**
-     * Applies the settings of the last poll.
-     *
-     * @param withReachability whether to ask the cloud whether the camera is reachable, which costs an extra request
-     *            per camera and must not be done while initializing
+     * @return the cloud id of this camera, or {@code null} as long as it is not known which camera this is or the
+     *         account does not have it
      */
-    public void updateFromCameras(List<VideoInput> cameras, boolean withReachability) {
-        updateState(CHANNEL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
-
-        VideoInput camera = cameras.stream().filter(input -> cameraId.equals(input.id())).findFirst().orElse(null);
-        if (camera == null) {
-            if (!cameras.isEmpty()) {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.GONE, "@text/offline.camera-not-in-account");
-            }
-            return;
+    private @Nullable String resolveCameraId(BoschSmartCamAccountHandler accountHandler) {
+        String known = cameraId;
+        CameraIdentity localIdentity = identity;
+        if (known != null || localIdentity == null) {
+            return known;
         }
-
-        updateProperties(camera);
-        updateState(CHANNEL_PRIVACY_MODE, OnOffType.from(camera.isPrivacyModeOn()));
-        updateState(CHANNEL_NOTIFICATIONS, OnOffType.from(camera.areNotificationsEnabled()));
-        updateRawState(CHANNEL_NOTIFICATIONS_STATUS, camera.notificationsEnabledStatus());
-
-        if (withReachability) {
-            updateReachability();
-        }
-    }
-
-    private void updateReachability() {
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        if (accountHandler == null) {
-            return;
-        }
-
-        CameraStatus status;
         try {
-            status = accountHandler.getApi().getCameraStatus(cameraId);
+            String found = accountHandler.findCameraId(localIdentity.macAddress());
+            if (found == null) {
+                logger.debug("{} with MAC address {} is not part of {}", getThing().getUID(),
+                        localIdentity.macAddress(), accountHandler.getThing().getUID());
+            }
+            cameraId = found;
+            return found;
         } catch (BoschSmartCamException e) {
-            logger.debug("Could not read the state of {}", cameraId, e);
-            return;
-        }
-
-        updateState(CHANNEL_STATUS, status == CameraStatus.UNKNOWN ? UnDefType.UNDEF : new StringType(status.name()));
-
-        switch (status) {
-            // a session limit says nothing about the camera, the settings keep working
-            case ONLINE, SESSION_LIMIT -> updateStatus(ThingStatus.ONLINE);
-            case OFFLINE -> updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                    "@text/offline.camera-not-reachable");
-            case UPDATING -> updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                    "@text/offline.camera-updating");
-            // keep whatever the thing had rather than flapping on an inconclusive answer
-            case UNKNOWN -> logger.debug("Neither endpoint told whether {} is reachable", cameraId);
-        }
-    }
-
-    @Override
-    public void dispose() {
-        authService.removeCamera(accessToken);
-        SnapshotFetcher fetcher = snapshotFetcher;
-        if (fetcher != null) {
-            fetcher.clear();
-            snapshotFetcher = null;
+            logger.debug("Could not look up {} in the cloud: {}", getThing().getUID(), e.getMessage());
+            return null;
         }
     }
 
@@ -227,157 +573,36 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      * @return the current still image of the camera, reused from the cache while it is fresh enough
      */
     public byte[] getSnapshot() throws BoschSmartCamException {
-        SnapshotFetcher fetcher = snapshotFetcher;
-        if (fetcher == null) {
+        LocalCameraClient localClient = client;
+        if (localClient == null) {
             throw new BoschSmartCamException("The camera is not initialized");
         }
-        return fetcher.getSnapshot(snapshotCache);
-    }
-
-    /**
-     * Collects what the camera says about ONVIF, read only. Diagnostic aid while it is still open whether the
-     * cameras can deliver events without the cloud.
-     */
-    public String probeOnvif() {
-        OnvifProbe probe = new OnvifProbe();
-        try {
-            probe.add("GET /v11/video_inputs/{id}/onvif_user",
-                    getRequiredAccountHandler().getApi().getOnvifUser(cameraId));
-        } catch (BoschSmartCamException e) {
-            probe.addFailure("GET /v11/video_inputs/{id}/onvif_user", e);
-        }
-
-        SnapshotFetcher fetcher = snapshotFetcher;
-        if (fetcher == null) {
-            probe.add("local", "the camera is not initialized");
-            return probe.toString();
-        }
-        for (String command : List.of(OnvifProbe.RCP_NETWORK_SERVICES, OnvifProbe.RCP_ONVIF_SCOPES)) {
-            String name = "RCP " + command;
-            try {
-                probe.add(name, OnvifProbe.describeRcp(fetcher.fetchFromCamera(OnvifProbe.rcpReadPath(command))));
-            } catch (BoschSmartCamException e) {
-                probe.addFailure(name, e);
-            }
-        }
-        Map<String, String> calls = new LinkedHashMap<>();
-        calls.put("GetSystemDateAndTime (no authorization needed)", OnvifProbe.GET_SYSTEM_DATE_AND_TIME);
-        calls.put("GetServices (needs authorization)", OnvifProbe.GET_SERVICES);
-        calls.put("GetEventProperties (needs authorization)", OnvifProbe.GET_EVENT_PROPERTIES);
-        calls.put("GetEventBrokers (already configured MQTT targets)", OnvifProbe.GET_EVENT_BROKERS);
-        calls.forEach((name, body) -> {
-            try {
-                byte[] answer = fetcher.postToCamera(OnvifProbe.DEVICE_SERVICE_PATH, body,
-                        OnvifProbe.SOAP_CONTENT_TYPE);
-                probe.add(name, new String(answer, StandardCharsets.UTF_8));
-            } catch (BoschSmartCamException e) {
-                probe.addFailure(name, e);
-            }
-        });
-        return probe.toString();
-    }
-
-    /**
-     * Tells the camera to publish its events to the configured MQTT broker, or removes that again. This is the one
-     * call in this binding that changes the configuration of the camera itself.
-     *
-     * @param remove whether to delete the broker instead of setting it
-     */
-    public String configureEventBroker(boolean remove) {
-        OnvifProbe probe = new OnvifProbe();
-        SnapshotFetcher fetcher = snapshotFetcher;
-        if (fetcher == null) {
-            probe.add("state", "the camera is not initialized");
-            return probe.toString();
-        }
-        String broker = config.mqttBroker;
-        if (broker.isBlank()) {
-            probe.add("configuration", "no broker configured on this thing, nothing to do");
-            return probe.toString();
-        }
-
-        String body = remove ? OnvifProbe.deleteEventBroker(broker)
-                : OnvifProbe.setEventBroker(broker, config.mqttUser, config.mqttPassword, config.mqttTopicPrefix);
-        String operation = remove ? "DeleteEventBroker " : "SetEventBroker ";
-        // which endpoint accepts this is not documented, so both get a turn
-        for (String path : List.of(OnvifProbe.EVENT_SERVICE_PATH, OnvifProbe.DEVICE_SERVICE_PATH)) {
-            String name = operation + broker + " via " + path;
-            try {
-                probe.add(name, new String(fetcher.postToCamera(path, body, OnvifProbe.SOAP_CONTENT_TYPE),
-                        StandardCharsets.UTF_8));
-                break;
-            } catch (BoschSmartCamException e) {
-                probe.addFailure(name, e);
-            }
-        }
-        try {
-            probe.add("GetEventBrokers afterwards", new String(fetcher.postToCamera(OnvifProbe.EVENT_SERVICE_PATH,
-                    OnvifProbe.GET_EVENT_BROKERS, OnvifProbe.SOAP_CONTENT_TYPE), StandardCharsets.UTF_8));
-        } catch (BoschSmartCamException e) {
-            probe.addFailure("GetEventBrokers afterwards", e);
-        }
-
-        // second candidate: let the camera push to us instead of to a broker
-        String consumer = openhabBaseUrl + SERVLET_PATH + "/" + accessToken + "/" + NOTIFY_FILE;
-        String subscribe = "Subscribe with ConsumerReference " + consumer;
-        try {
-            probe.add(subscribe, new String(fetcher.postToCamera(OnvifProbe.EVENT_SERVICE_PATH,
-                    OnvifProbe.subscribe(consumer, 10), OnvifProbe.SOAP_CONTENT_TYPE), StandardCharsets.UTF_8));
-        } catch (BoschSmartCamException e) {
-            probe.addFailure(subscribe, e);
-        }
-        return probe.toString();
-    }
-
-    /**
-     * Dumps the event list as the cloud sends it. Diagnostic, so the fields can be seen before they are mapped onto
-     * channels.
-     */
-    public String dumpEvents() {
-        StringBuilder dump = new StringBuilder();
-        try {
-            dump.append("unread count\n------------\n")
-                    .append(getRequiredAccountHandler().getApi().getUnreadEventCountRaw(cameraId)).append("\n\n");
-        } catch (BoschSmartCamException e) {
-            dump.append("unread count failed: ").append(e.getMessage()).append("\n\n");
-        }
-        try {
-            dump.append("events\n------\n").append(getRequiredAccountHandler().getApi().getEventsRaw(cameraId, 3));
-        } catch (BoschSmartCamException e) {
-            dump.append("events failed: ").append(e.getMessage());
-        }
-        return dump.toString();
+        return localClient.getSnapshot(snapshotCache);
     }
 
     /**
      * @param remoteAddress address the snapshot request came from
-     * @return whether that address is in the networks the account allows
+     * @return whether that address is in the networks the binding allows
      */
     public boolean isAllowedFrom(String remoteAddress) {
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        if (accountHandler == null) {
-            return false;
-        }
-        return accountHandler.getSnapshotNetworks().matches(remoteAddress);
+        return snapshotNetworks.get().matches(remoteAddress);
     }
 
     public String getSnapshotUrl() {
-        return url(SNAPSHOT_FILE);
+        return getUrl(SNAPSHOT_FILE);
     }
 
-    private String url(String file) {
+    private String getUrl(String file) {
         return openhabBaseUrl + SERVLET_PATH + "/" + accessToken + "/" + file;
     }
 
-    /**
-     * @return the account this camera belongs to, needed to talk to the cloud
-     */
-    private BoschSmartCamAccountHandler getRequiredAccountHandler() throws BoschSmartCamException {
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        if (accountHandler == null) {
-            throw new BoschSmartCamException("The camera has no account bridge");
-        }
-        return accountHandler;
+    public EventLog getEventLog() {
+        return eventLog;
+    }
+
+    public String getLabel() {
+        String label = getThing().getLabel();
+        return label == null || label.isBlank() ? getThing().getUID().getId() : label;
     }
 
     /**
@@ -392,32 +617,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         String token = UUID.randomUUID().toString();
         Map<String, String> properties = new HashMap<>(editProperties());
         properties.put(PROPERTY_ACCESS_TOKEN, token);
-        // a token of an earlier version of the binding, no longer used
-        properties.remove("snapshotToken");
         updateProperties(properties);
         return token;
-    }
-
-    /**
-     * Puts a value on a channel as the cloud sent it, so states this binding does not interpret stay visible.
-     */
-    private void updateRawState(String channelId, @Nullable String value) {
-        updateState(channelId, value == null || value.isBlank() ? UnDefType.UNDEF : new StringType(value));
-    }
-
-    private void updateProperties(VideoInput camera) {
-        Map<String, String> properties = new HashMap<>(editProperties());
-        properties.put(Thing.PROPERTY_VENDOR, "Bosch");
-        putIfPresent(properties, Thing.PROPERTY_MODEL_ID, camera.hardwareVersion());
-        putIfPresent(properties, Thing.PROPERTY_FIRMWARE_VERSION, camera.firmwareVersion());
-        putIfPresent(properties, CONFIG_CAMERA_ID, camera.id());
-
-        CameraModel model = camera.model();
-        if (model != null) {
-            properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
-            properties.put(PROPERTY_GENERATION, String.valueOf(model.getGeneration()));
-        }
-        updateProperties(properties);
     }
 
     private static void putIfPresent(Map<String, String> properties, String key, @Nullable String value) {
@@ -428,11 +629,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
     private @Nullable BoschSmartCamAccountHandler getAccountHandler() {
         Bridge bridge = getBridge();
-        if (bridge == null) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_UNINITIALIZED);
-            return null;
-        }
-        if (bridge.getHandler() instanceof BoschSmartCamAccountHandler accountHandler) {
+        if (bridge != null && bridge.getHandler() instanceof BoschSmartCamAccountHandler accountHandler) {
             return accountHandler;
         }
         return null;

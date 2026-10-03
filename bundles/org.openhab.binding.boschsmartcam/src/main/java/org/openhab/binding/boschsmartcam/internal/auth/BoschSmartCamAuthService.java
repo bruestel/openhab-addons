@@ -57,6 +57,7 @@ public class BoschSmartCamAuthService {
 
     private static final String TEMPLATE_INDEX = "templates/index.html";
     private static final String TEMPLATE_ACCOUNT = "templates/account.html";
+    private static final String TEMPLATE_EVENTS = "templates/events.html";
 
     private final Logger logger = LoggerFactory.getLogger(BoschSmartCamAuthService.class);
 
@@ -70,22 +71,21 @@ public class BoschSmartCamAuthService {
     @Activate
     protected void activate(ComponentContext componentContext, Map<String, Object> properties) {
         bundleContext = componentContext.getBundleContext();
-        String index;
-        String account;
+        BoschSmartCamAuthServlet.Templates templates;
         try {
-            index = readTemplate(TEMPLATE_INDEX);
-            account = readTemplate(TEMPLATE_ACCOUNT);
+            templates = new BoschSmartCamAuthServlet.Templates(readTemplate(TEMPLATE_INDEX),
+                    readTemplate(TEMPLATE_ACCOUNT), readTemplate(TEMPLATE_EVENTS));
         } catch (IOException e) {
             logger.warn("Could not read the templates of the authorization page: {}", e.getMessage());
             return;
         }
 
-        if (!register(SERVLET_PATH, new BoschSmartCamAuthServlet(this, index, account))) {
+        if (!register(SERVLET_PATH, new BoschSmartCamAuthServlet(this, templates))) {
             return;
         }
         // both are conveniences: the code can always be pasted into the page instead
-        register(CALLBACK_PATH, new BoschSmartCamAuthServlet.Callback(this, index, account));
-        register(DECLINE_PATH, new BoschSmartCamAuthServlet.Decline(this, index, account));
+        register(CALLBACK_PATH, new BoschSmartCamAuthServlet.Callback(this, templates));
+        register(DECLINE_PATH, new BoschSmartCamAuthServlet.Decline(this, templates));
     }
 
     @Deactivate

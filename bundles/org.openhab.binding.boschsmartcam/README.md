@@ -1,25 +1,61 @@
 # Bosch Smart Home Camera Binding
 
-This binding integrates the Bosch Smart Home Cameras (Eyes outdoor camera, 360° indoor camera) into openHAB.
+This binding integrates the Bosch Smart Home Cameras of the second generation (Eyes Outdoor Camera II, Eyes Indoor Camera II) into openHAB.
 
-The cameras are not reachable through the Bosch Smart Home Controller, they are managed by a separate Bosch cloud service that the Bosch Smart Camera app talks to.
-This binding uses the same cloud API as that app, so a Bosch SingleKey ID account is all that is needed.
-It is therefore unrelated to the Bosch Smart Home binding, which talks to the Smart Home Controller.
+It talks to each camera directly through the local API Bosch provides for these cameras.
+That API is read only, so an optional Bosch SingleKey ID account can be added for what only the Bosch cloud can do: switching the privacy mode, and the push notifications of the Bosch app.
+The binding is unrelated to the Bosch Smart Home binding, which talks to the Smart Home Controller.
 
-The binding covers the camera settings and serves a still image per camera.
-Video streams are not part of it - use the `ipcamera` binding for those.
+## Prerequisites
+
+The local API is switched on per camera in the Bosch app: _camera settings_, _More_, _Local Data Interface_.
+The app then shows the user and the password for it.
+Without this a camera cannot be added.
 
 ## Supported Things
 
-- `account`: A Bosch SingleKey ID account. This bridge holds the authorization and polls the cameras.
-- `camera`: A single camera of the account.
+- `camera`: A single camera, talked to in the local network. Works on its own.
+- `account`: A Bosch SingleKey ID account. Optional bridge for cameras whose privacy mode should be switchable, and the place of the push notifications.
 
 ## Discovery
 
-Cameras cannot be discovered before the account is authorized.
-Add an `account` thing, authorize it as described below, then start a scan for this binding to find all cameras of the account.
+Cameras are found in the local network, an account is not needed for that.
+The cameras answer neither mDNS nor WS-Discovery, so the binding probes every address of the IPv4 networks openHAB is directly attached to, up to a size of /22.
+A camera is recognized by two open ports, 443 for the local API and 9554 for the RTSP tunnel, and by a certificate below the root Bosch publishes for the local API.
+The tunnel only opens once the local data interface is enabled in the app, so cameras that could not be used anyway are not offered.
+
+A scan runs in the background every 30 minutes and can be started by hand at any time.
+It takes about ten seconds for a /22.
+
+Cameras in a network openHAB is not attached to, for example behind a router, are found through an online `account`: after the local scan, every camera of the account that was not found is looked for at the address the cloud names for it.
+That address is only a hint, the camera found there is checked the same way and has to have the MAC address the cloud names.
+Without an account such a camera has to be added by hand.
+
+A camera is identified by the MAC address it uses on the network, which is part of its certificate.
+It is used as thing id, in lower case and without separators, e.g. `boschsmartcam:camera:64daa0123456`.
+The id does not contain the account, so a camera keeps it when it is moved under an account later.
+
+If an online account has the camera, the result is put under that account and labeled with the name the camera has in the app, e.g. _Front Door (Eyes Outdoor Camera II)_.
+Only the password of the local API has to be entered when adding it.
 
 ## Thing Configuration
+
+### `camera` Thing Configuration
+
+| Name                 | Type    | Description                                                         | Default     | Required | Advanced |
+|----------------------|---------|---------------------------------------------------------------------|-------------|----------|----------|
+| host                 | text    | Address of the camera in the local network.                         | N/A         | yes      | no       |
+| user                 | text    | User of the local API, as shown in the Bosch app.                   | `localuser` | yes      | no       |
+| password             | text    | Password of the local API, as shown in the Bosch app.               | N/A         | yes      | no       |
+| snapshotCacheSeconds | integer | How long a fetched image is reused in sec.                          | 3           | no       | yes      |
+| trustAllCertificates | boolean | Accept any certificate instead of verifying it, see below.          | false       | no       | yes      |
+
+The binding verifies the certificate of the camera against the root Bosch publishes for the local API.
+The name in that certificate is the MAC address of the camera rather than its host name, so the host name itself is not checked.
+Instead the MAC address is compared with the one the thing was created for: if another device answers at the configured address, the thing goes offline with a note saying so.
+
+Should a firmware update ever bring a certificate below a different root, the thing goes offline saying its certificate is not trusted.
+`trustAllCertificates` is the way out until the binding knows the new root: the chain is no longer verified then, the MAC address is still read and compared.
 
 ### `account` Bridge Configuration
 
@@ -30,14 +66,11 @@ Add an `account` thing, authorize it as described below, then start a scan for t
 Commands sent from openHAB are read back a few seconds later, so `refreshInterval` only determines how fast a change made elsewhere, for example in the Bosch app, shows up in openHAB.
 The minimum is 30 seconds.
 
-A `REFRESH` command on any channel of a camera reads the settings from the cloud as well, so a rule can pick up the current state without waiting for the next poll.
-Such a refresh is skipped if the values were read less than 10 seconds ago, because openHAB sends `REFRESH` per channel.
+### Binding Configuration
 
-### `camera` Thing Configuration
-
-| Name     | Type | Description                                | Default | Required | Advanced |
-|----------|------|--------------------------------------------|---------|----------|----------|
-| cameraId | text | ID of the camera as used by the Bosch cloud | N/A     | yes      | no       |
+| Name                    | Type | Description                                                         | Default                         |
+|-------------------------|------|---------------------------------------------------------------------|---------------------------------|
+| snapshotAllowedNetworks | text | Networks that may fetch the snapshot URLs, as comma separated CIDR. | loopback and the private ranges |
 
 ## Authorization
 
@@ -64,50 +97,72 @@ The same page also lets you remove the stored tokens of an account, for example 
 
 ## Channels
 
-| Channel        | Type   | Read/Write | Description                                                                                         |
-|----------------|--------|------------|-----------------------------------------------------------------------------------------------------|
-| privacy-mode   | Switch | RW         | `ON` switches the camera off. The 360° indoor camera closes its shutter, the Eyes camera stops the feed. |
-| notifications  | Switch | RW         | Push notifications of this camera to the Bosch app.                                                  |
-| notifications-status | String | R    | The notification setting as the cloud reports it, e.g. `FOLLOW_CAMERA_SCHEDULE` or `ALWAYS_OFF`.      |
-| status         | String | R          | `ONLINE`, `OFFLINE`, `UPDATING` while a firmware update runs, or `SESSION_LIMIT`.                     |
-| snapshot-url   | String | R          | Address a still image can be fetched from. Contains a token, treat it as a secret.                    |
+### `camera` Channels
 
-After switching `privacy-mode` the camera needs a few seconds to apply the change, so the confirmed state arrives with a small delay.
+| Channel               | Type     | Read/Write | Description                                                                                     |
+|-----------------------|----------|------------|-------------------------------------------------------------------------------------------------|
+| local#privacy-mode    | Switch   | RW         | `ON` switches the camera off. The indoor camera closes its shutter. Switching needs an account.  |
+| local#event           | Trigger  |            | Fires once per detected event, with its kind as payload, see below.                             |
+| local#last-event      | String   | R          | Kind of the event detected last.                                                                |
+| local#last-event-time | DateTime | R          | When the camera detected the last event.                                                        |
+| local#recording       | Switch   | R          | `ON` while the camera records the clip of an event.                                             |
+| local#snapshot-url    | String   | R          | Address a still image can be fetched from. Contains a token, treat it as a secret.              |
+
+The camera reports what happens through an ONVIF PullPoint subscription that the binding keeps open.
+The connection goes out from openHAB, so nothing has to be reachable from the camera, and nothing is polled: the camera answers when something happens.
+As long as it answers, the thing is online; a failing cloud does not change that.
+When the subscription breaks, the binding checks that the right camera answers at the address before it subscribes again, with a delay growing from 5 seconds up to a minute.
+
+The `event` channel fires with `PERSON`, `INTRUSION`, `NOISE`, `GLASSBREAK`, `FIRE` or `WATER`, depending on what the camera supports.
+A kind the binding does not know yet is passed on as well, named after its topic.
+The camera repeats an event about every half second while it lasts; the binding passes on each event once, recognized by the id of the clip that belongs to it.
+`recording` goes `ON` with the event and `OFF` when the camera reports the clip as finished, usually 15 seconds later.
+
+The privacy mode is read from the camera, which reports every change within a second.
+Switching it has to go through the cloud, because the local API cannot change anything: without an account a command is refused with a note in the log, and the switch goes back to what the camera reports.
+
+### `account` Channels
+
+The push notifications are a setting of the Bosch app, the camera itself does not know about them.
+They therefore sit on the account, in one channel group per camera of the account, whether or not that camera is a thing in openHAB.
+The group is named after the cloud id of the camera, e.g. `boschsmartcam:account:home:1a2b3c4d5e6f40718293a4b5c6d7e8f9#notifications`, and the channels carry the name of the camera from the app.
+
+| Channel                   | Type   | Read/Write | Description                                                                                     |
+|---------------------------|--------|------------|-------------------------------------------------------------------------------------------------|
+| <camera>#notifications        | Switch | RW         | Push notifications of this camera to the Bosch app.                                            |
+| <camera>#notifications-status | String | R          | The notification setting as the cloud reports it, e.g. `FOLLOW_CAMERA_SCHEDULE` or `ALWAYS_OFF`. |
 
 The notification setting is not a plain on/off in the cloud: it can also follow a schedule.
 `notifications` therefore reads `ON` for everything that is not switched off, and writing `ON` always sets `FOLLOW_CAMERA_SCHEDULE`.
 Use `notifications-status` to see the exact setting: `FOLLOW_CAMERA_SCHEDULE`, `FOLLOW_SCHEDULE`, `ON_CAMERA_SCHEDULE`, `OFF_CAMERA_SCHEDULE`, `OFF_OVERRIDE`, `OFF_UNTIL` or `ALWAYS_OFF`.
 Everything starting with `OFF` counts as switched off, so a value Bosch adds later is read correctly as well.
 
-The reachability behind `status` is read from `/ping`, falling back to `/commissioned`, because the camera list does not carry a usable state for it.
-Bosch answers `ONLINE`, `OFFLINE`, `UNREACHABLE` or one of `UPDATING_REGULAR`, `UPDATING_FORCED` and `UPDATING_APP0`; the binding folds these into the four values above.
-That costs one extra request per camera and poll.
-`SESSION_LIMIT` means Bosch refused the request because too many live sessions are open at once - counted across every client of the account, so the Bosch app can cause it.
-It says nothing about the camera, which is why the thing stays online in that case.
-
 ## Properties
-
-The `camera` thing carries these properties, refreshed with every poll:
 
 | Property        | Description                                                                    |
 |-----------------|--------------------------------------------------------------------------------|
 | vendor          | Always `Bosch`.                                                                |
+| macAddress      | MAC address the camera uses on the network, read from its certificate.         |
+| serialNumber    | Serial number of the camera, read from its certificate.                        |
+| firmwareVersion | Firmware currently on the camera, written the way the Bosch app shows it.      |
+
+With an account these are added:
+
+| Property        | Description                                                                    |
+|-----------------|--------------------------------------------------------------------------------|
+| cameraId        | ID of the camera in the Bosch cloud.                                           |
 | modelId         | Model code from the cloud, e.g. `HOME_Eyes_Outdoor`.                           |
 | productName     | The name Bosch sells that model under, e.g. `Eyes Outdoor Camera II`.          |
-| generation      | Hardware generation, `1` or `2`. The two differ in the endpoints they support. |
-| firmwareVersion | Firmware currently on the camera.                                              |
-| cameraId        | ID of the camera in the Bosch cloud.                                           |
+| generation      | Hardware generation, `1` or `2`.                                               |
 
 `productName` and `generation` are only set for models the binding knows:
 
-| modelId             | productName          | generation |
-|---------------------|----------------------|------------|
+| modelId             | productName            | generation |
+|---------------------|------------------------|------------|
 | `INDOOR`            | 360° Indoor Camera     | 1          |
 | `OUTDOOR`           | Eyes Outdoor Camera    | 1          |
 | `HOME_Eyes_Indoor`  | Eyes Indoor Camera II  | 2          |
 | `HOME_Eyes_Outdoor` | Eyes Outdoor Camera II | 2          |
-
-Discovery uses the product name in the suggested label as well, e.g. _Garden (Eyes Outdoor Camera II)_.
 
 ## Snapshots
 
@@ -120,9 +175,9 @@ http://<youropenhab>:8080/boschsmartcam/<token>/snapshot.jpg
 The `snapshot-url` channel carries the ready made address, so linking a String item to it is the easiest way to get at it.
 Put that URL into an Image widget instead of an Image item and the picture is only fetched while somebody is actually looking at it - openHAB has no way to tell whether an item is being viewed, a browser request is the only honest signal for that.
 
-Fetched images are reused for `snapshotCacheSeconds`, 15 by default and never below 5.
+Fetched images are reused for `snapshotCacheSeconds`, 3 by default and never below 1.
 Ten viewers therefore cause no more traffic than one, and nobody looking causes none at all.
-A fetch costs one request to the cloud for the credentials, which are cached for 45 seconds, and one to the camera in the local network.
+A fetch is a single request to the camera in the local network, the cloud is not involved.
 
 ### Who may fetch them
 
@@ -132,7 +187,7 @@ The token is a random UUID and part of the path, so the address cannot be guesse
 It is stored as the `accessToken` property of the camera and survives restarts.
 Deleting that property hands out a new one on the next start, which makes every previously shared link fail.
 
-On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` on the account bridge, which defaults to loopback and the private ranges of IPv4 and IPv6.
+On top of that the request has to come from one of the networks in `snapshotAllowedNetworks` of the binding configuration, which defaults to loopback and the private ranges of IPv4 and IPv6.
 The comparison works on the raw address bytes against the CIDR blocks, so `192.168.0.9` does not accidentally match `192.168.0.99`.
 Behind a reverse proxy openHAB sees the address of the proxy, so add that one rather than the address of the browser.
 
@@ -142,18 +197,26 @@ Be aware of what such a URL is: whoever holds the link sees the picture, without
 
 ### Thing Configuration
 
+A camera on its own:
+
+```java
+Thing boschsmartcam:camera:64daa0123456 "Front Door" [ host="192.168.0.42", user="localuser", password="secret" ]
+```
+
+The same camera under an account:
+
 ```java
 Bridge boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=300 ] {
-    Thing camera garden "Garden" [ cameraId="21E99E8A-0000-0000-0000-000000000000" ]
+    Thing camera 64daa0123456 "Front Door" [ host="192.168.0.42", user="localuser", password="secret" ]
 }
 ```
 
 ### Item Configuration
 
 ```java
-Switch Garden_Privacy      "Garden Camera Off"       { channel="boschsmartcam:camera:home:garden:privacy-mode" }
-Switch Garden_Notification "Garden Notifications"    { channel="boschsmartcam:camera:home:garden:notifications" }
-String Garden_Status       "Garden Camera [%s]"      { channel="boschsmartcam:camera:home:garden:status" }
+Switch FrontDoor_Privacy      "Front Door Camera Off"    { channel="boschsmartcam:camera:home:64daa0123456:local#privacy-mode" }
+String FrontDoor_Snapshot     "Front Door Snapshot [%s]" { channel="boschsmartcam:camera:home:64daa0123456:local#snapshot-url" }
+Switch FrontDoor_Notification "Front Door Notifications" { channel="boschsmartcam:account:home:1a2b3c4d5e6f40718293a4b5c6d7e8f9#notifications" }
 ```
 
 ## Credentials
@@ -163,13 +226,12 @@ Client id and client secret identify that client, not the user, and are the same
 
 ## Credits
 
-Bosch does not document this cloud API, so the binding is built on work others did first.
+Bosch documents the local API of the cameras, but not its cloud API, so that part of the binding is built on work others did first.
 
 The [Bosch Smart Home Camera integration for Home Assistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) by Thomas Mosandl and its API client [bosch-shc-camera-client](https://github.com/mosandlt/bosch-shc-camera-client), both MIT licensed, were the reference for several details that would have taken a lot of guessing otherwise:
 
 - that `oss_residential_app` is the OAuth client Bosch provides for third party integrations, and that its only registered redirect URI is the one of the My Home Assistant service
 - the model codes behind `hardwareVersion` and which hardware generation they are
 - the full set of values the notification state can take
-- that reachability has to be read from `/ping` and `/commissioned` rather than from the camera list
 
 Thanks for documenting all of it in the open.

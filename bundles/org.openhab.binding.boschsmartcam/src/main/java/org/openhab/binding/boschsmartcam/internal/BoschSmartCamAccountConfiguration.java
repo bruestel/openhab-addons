@@ -27,10 +27,4 @@ public class BoschSmartCamAccountConfiguration {
      * back right away, so the poll only has to pick up changes made elsewhere, e.g. in the Bosch app.
      */
     public int refreshInterval = 300;
-
-    /**
-     * Networks that may fetch the snapshot URLs, as CIDR blocks. Defaults to loopback plus the private ranges of IPv4
-     * and IPv6, so the images do not leave the local network even if a link does.
-     */
-    public String snapshotAllowedNetworks = "127.0.0.0/8, ::1/128, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10";
 }

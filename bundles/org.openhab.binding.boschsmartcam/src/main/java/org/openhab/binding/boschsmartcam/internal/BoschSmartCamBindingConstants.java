@@ -16,6 +16,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.thing.ThingTypeUID;
+import org.openhab.core.thing.type.ChannelGroupTypeUID;
 
 /**
  * The {@link BoschSmartCamBindingConstants} class defines common constants, which are
@@ -34,19 +35,48 @@ public class BoschSmartCamBindingConstants {
 
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Set.of(THING_TYPE_ACCOUNT, THING_TYPE_CAMERA);
 
-    // List of all Channel ids
+    // Channel groups: what a camera reports itself, and per camera on the account what belongs to the user
+    public static final String GROUP_LOCAL = "local";
+    public static final ChannelGroupTypeUID GROUP_TYPE_NOTIFICATIONS = new ChannelGroupTypeUID(BINDING_ID,
+            "notifications");
+
+    // List of all Channel ids, without their group
     public static final String CHANNEL_PRIVACY_MODE = "privacy-mode";
+    public static final String CHANNEL_SNAPSHOT_URL = "snapshot-url";
+    public static final String CHANNEL_EVENT = "event";
+    public static final String CHANNEL_LAST_EVENT = "last-event";
+    public static final String CHANNEL_LAST_EVENT_TIME = "last-event-time";
+    public static final String CHANNEL_RECORDING = "recording";
     public static final String CHANNEL_NOTIFICATIONS = "notifications";
     public static final String CHANNEL_NOTIFICATIONS_STATUS = "notifications-status";
-    public static final String CHANNEL_STATUS = "status";
-    public static final String CHANNEL_SNAPSHOT_URL = "snapshot-url";
-
-    // Configuration parameters
-    public static final String CONFIG_CAMERA_ID = "cameraId";
 
     // Thing properties beyond the ones openHAB defines itself
+    public static final String PROPERTY_CAMERA_ID = "cameraId";
     public static final String PROPERTY_PRODUCT_NAME = "productName";
     public static final String PROPERTY_GENERATION = "generation";
+
+    /**
+     * Address of the page with the event log of a camera.
+     */
+    public static final String PROPERTY_EVENTS_PAGE = "eventsPage";
+
+    /**
+     * Name of the user the local API creates when it is enabled in the app.
+     */
+    public static final String DEFAULT_LOCAL_USER = "localuser";
+
+    // Configuration parameters of a camera
+    public static final String CONFIG_HOST = "host";
+
+    /**
+     * Port of the local API, open on every camera.
+     */
+    public static final int HTTPS_PORT = 443;
+
+    /**
+     * Port of the RTSP tunnel, open only once the local API is enabled in the app.
+     */
+    public static final int RTSP_PORT = 9554;
 
     /**
      * Unguessable token that guards the URLs of a camera. Kept as a property so links survive restarts, and so it can
@@ -87,25 +117,11 @@ public class BoschSmartCamBindingConstants {
     public static final String SNAPSHOT_FILE = "snapshot.jpg";
 
     /**
-     * Diagnostic counterpart of {@link #SNAPSHOT_FILE}, reachable the same way, answering in plain text.
+     * Page with the event log of a camera, and the stream it follows new events with. Same path and protection as
+     * {@link #SNAPSHOT_FILE}.
      */
-    public static final String ONVIF_PROBE_FILE = "onvif-probe.txt";
-
-    /**
-     * Diagnostic dump of the event list.
-     */
-    public static final String EVENTS_FILE = "events.txt";
-
-    /**
-     * Writes the configured MQTT broker to the camera. {@code mqtt-remove.txt} takes it back out.
-     */
-    public static final String MQTT_SETUP_FILE = "mqtt-setup.txt";
-    public static final String MQTT_REMOVE_FILE = "mqtt-remove.txt";
-
-    /**
-     * Where a camera would post its notifications to if it accepts a WS-BaseNotification subscription.
-     */
-    public static final String NOTIFY_FILE = "notify";
+    public static final String EVENTS_PAGE_FILE = "events.html";
+    public static final String EVENTS_STREAM_FILE = "events.stream";
 
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the

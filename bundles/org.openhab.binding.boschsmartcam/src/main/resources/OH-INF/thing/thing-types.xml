@@ -6,7 +6,9 @@
 
 	<bridge-type id="account">
 		<label>Bosch Smart Home Camera Account</label>
-		<description>A Bosch SingleKey ID account the cameras are registered with.</description>
+		<description>A Bosch SingleKey ID account the cameras are registered with. Has a channel group with the
+			notifications
+			of every camera of the account.</description>
 
 		<config-description>
 			<parameter name="refreshInterval" type="integer" unit="s" min="30">
@@ -14,14 +16,6 @@
 				<description>Interval the camera settings are polled from the Bosch cloud in sec. Only relevant for changes made
 					outside of openHAB.</description>
 				<default>300</default>
-			</parameter>
-			<parameter name="snapshotAllowedNetworks" type="text">
-				<label>Snapshot Networks</label>
-				<description>Networks that may fetch the snapshot URLs, as comma separated CIDR blocks. Defaults to loopback
-					and the
-					private ranges, so images stay in the local network even if a link leaks.</description>
-				<default>127.0.0.0/8, ::1/128, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10</default>
-				<advanced>true</advanced>
 			</parameter>
 		</config-description>
 	</bridge-type>
@@ -32,72 +26,125 @@
 		</supported-bridge-type-refs>
 
 		<label>Bosch Smart Home Camera</label>
-		<description>A Bosch Smart Home Camera (Eyes outdoor camera, 360° indoor camera).</description>
+		<description>A Bosch Smart Home Camera of the second generation, talked to directly through its local API. Put it
+			under an account to switch its privacy mode.</description>
 
-		<channels>
-			<channel id="privacy-mode" typeId="privacy-mode"/>
-			<channel id="notifications" typeId="notifications"/>
-			<channel id="notifications-status" typeId="notifications-status"/>
-			<channel id="status" typeId="status"/>
-			<channel id="snapshot-url" typeId="snapshot-url"/>
-		</channels>
+		<channel-groups>
+			<channel-group id="local" typeId="local"/>
+		</channel-groups>
 
-		<properties>
-			<property name="thingTypeVersion">1</property>
-		</properties>
-
-		<representation-property>cameraId</representation-property>
+		<representation-property>macAddress</representation-property>
 
 		<config-description>
-			<parameter name="cameraId" type="text" required="true">
-				<label>Camera ID</label>
-				<description>ID of the camera as used by the Bosch cloud.</description>
+			<parameter name="host" type="text" required="true">
+				<context>network-address</context>
+				<label>Host</label>
+				<description>Address of the camera in the local network.</description>
 			</parameter>
-			<parameter name="mqttBroker" type="text">
-				<label>MQTT Broker</label>
-				<description>Broker the camera publishes its events to, as a URI, e.g. mqtt://10.0.0.5:1883. Leave empty to
-					leave the
-					camera alone. Writing this to the camera changes its configuration.</description>
-				<advanced>true</advanced>
+			<parameter name="user" type="text" required="true">
+				<label>User</label>
+				<description>User of the local API. The Bosch app shows it once the local data interface is enabled (camera
+					settings, More, Local Data Interface).</description>
+				<default>localuser</default>
 			</parameter>
-			<parameter name="mqttUser" type="text">
-				<label>MQTT User</label>
-				<description>User the camera logs in to the broker with.</description>
-				<advanced>true</advanced>
-			</parameter>
-			<parameter name="mqttPassword" type="text">
+			<parameter name="password" type="text" required="true">
 				<context>password</context>
-				<label>MQTT Password</label>
-				<description>Password the camera logs in to the broker with.</description>
-				<advanced>true</advanced>
+				<label>Password</label>
+				<description>Password of the local API, shown in the Bosch app next to the user.</description>
 			</parameter>
-			<parameter name="mqttTopicPrefix" type="text">
-				<label>MQTT Topic Prefix</label>
-				<description>Prefix the camera puts in front of the topics it publishes.</description>
-				<default>boschsmartcam</default>
-				<advanced>true</advanced>
-			</parameter>
-			<parameter name="snapshotCacheSeconds" type="integer" unit="s" min="5">
+			<parameter name="snapshotCacheSeconds" type="integer" unit="s" min="1">
 				<label>Snapshot Cache</label>
 				<description>How long a fetched image is reused before the camera is asked again. The number of viewers does
 					not
 					matter, they all share it.</description>
-				<default>15</default>
+				<default>3</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="trustAllCertificates" type="boolean">
+				<label>Trust All Certificates</label>
+				<description>Accept any certificate instead of only those issued below the root Bosch publishes for the local
+					API.
+					Only meant as a way out should a firmware update bring a new root, the camera is not verified then.</description>
+				<default>false</default>
 				<advanced>true</advanced>
 			</parameter>
 		</config-description>
 	</thing-type>
 
+	<channel-group-type id="local">
+		<label>Camera</label>
+		<description>What the camera reports itself, available without an account.</description>
+		<channels>
+			<channel id="privacy-mode" typeId="privacy-mode"/>
+			<channel id="event" typeId="event"/>
+			<channel id="last-event" typeId="last-event"/>
+			<channel id="last-event-time" typeId="last-event-time"/>
+			<channel id="recording" typeId="recording"/>
+			<channel id="snapshot-url" typeId="snapshot-url"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="notifications">
+		<label>Notifications</label>
+		<description>Push notifications of one camera to the Bosch app of this account.</description>
+		<channels>
+			<channel id="notifications" typeId="notifications"/>
+			<channel id="notifications-status" typeId="notifications-status"/>
+		</channels>
+	</channel-group-type>
+
 	<channel-type id="privacy-mode">
 		<item-type>Switch</item-type>
 		<label>Privacy Mode</label>
-		<description>ON switches the camera off, the 360° indoor camera closes its shutter.</description>
+		<description>ON switches the camera off, the 360° indoor camera closes its shutter. Can only be switched while the
+			camera is under an account, the local API is read only.</description>
 	</channel-type>
 
-	<channel-type id="notifications">
+	<channel-type id="event">
+		<kind>trigger</kind>
+		<label>Event</label>
+		<description>Fires once per event the camera detects, with its kind as payload.</description>
+		<event>
+			<options>
+				<option value="PERSON">Person</option>
+				<option value="INTRUSION">Intrusion</option>
+				<option value="NOISE">Noise</option>
+				<option value="GLASSBREAK">Glass Break</option>
+				<option value="FIRE">Fire Alarm</option>
+				<option value="WATER">Water Alarm</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="last-event">
+		<item-type>String</item-type>
+		<label>Last Event</label>
+		<description>Kind of the event the camera detected last.</description>
+		<state readOnly="true">
+			<options>
+				<option value="PERSON">Person</option>
+				<option value="INTRUSION">Intrusion</option>
+				<option value="NOISE">Noise</option>
+				<option value="GLASSBREAK">Glass Break</option>
+				<option value="FIRE">Fire Alarm</option>
+				<option value="WATER">Water Alarm</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="last-event-time">
+		<item-type>DateTime</item-type>
+		<label>Last Event Time</label>
+		<description>When the camera detected the last event.</description>
+		<category>Time</category>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="recording">
 		<item-type>Switch</item-type>
-		<label>Notifications</label>
-		<description>Push notifications of this camera to the Bosch app.</description>
+		<label>Recording</label>
+		<description>ON while the camera records a clip of an event.</description>
+		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="snapshot-url">
@@ -107,17 +154,16 @@
 		<state readOnly="true"/>
 	</channel-type>
 
+	<channel-type id="notifications">
+		<item-type>Switch</item-type>
+		<label>Notifications</label>
+		<description>Push notifications of this camera to the Bosch app.</description>
+	</channel-type>
+
 	<channel-type id="notifications-status">
 		<item-type>String</item-type>
 		<label>Notifications Status</label>
 		<description>Notification setting as the cloud reports it, e.g. FOLLOW_CAMERA_SCHEDULE or ALWAYS_OFF.</description>
-		<state readOnly="true"/>
-	</channel-type>
-
-	<channel-type id="status">
-		<item-type>String</item-type>
-		<label>Connection Status</label>
-		<description>Connection state the Bosch cloud reports for this camera.</description>
 		<state readOnly="true"/>
 	</channel-type>
 </thing:thing-descriptions>

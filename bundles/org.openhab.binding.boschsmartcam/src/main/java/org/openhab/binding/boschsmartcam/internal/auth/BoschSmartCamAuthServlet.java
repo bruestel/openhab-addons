@@ -13,23 +13,27 @@
 package org.openhab.binding.boschsmartcam.internal.auth;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CALLBACK_PATH;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_FILE;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_PAGE_FILE;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.EVENTS_STREAM_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.INSTANCE_URL_SETTINGS;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.MQTT_REMOVE_FILE;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.MQTT_SETUP_FILE;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.NOTIFY_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.OAUTH_REDIRECT_URI;
-import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.ONVIF_PROBE_FILE;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SERVLET_PATH;
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.SNAPSHOT_FILE;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,6 +45,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
+import org.openhab.binding.boschsmartcam.internal.events.CameraEvent;
+import org.openhab.binding.boschsmartcam.internal.events.EventLog;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
 import org.slf4j.Logger;
@@ -92,15 +98,37 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
 
     private final transient Logger logger = LoggerFactory.getLogger(BoschSmartCamAuthServlet.class);
 
-    private final transient BoschSmartCamAuthService authService;
-    private final String indexTemplate;
-    private final String accountTemplate;
+    /**
+     * How many browsers may follow the events of one camera at once. Each holds a thread of the web server.
+     */
+    private static final int MAX_EVENT_STREAMS = 5;
 
-    public BoschSmartCamAuthServlet(BoschSmartCamAuthService authService, String indexTemplate,
-            String accountTemplate) {
+    /**
+     * A stream ends after this long and the browser opens a new one, so no request stays open forever.
+     */
+    private static final Duration EVENT_STREAM_DURATION = Duration.ofMinutes(10);
+    private static final long KEEPALIVE_SECONDS = 15;
+
+    // keys used in events.html
+    private static final String KEY_LABEL = "label";
+    private static final String KEY_ROWS = "rows";
+    private static final String KEY_EMPTY_HIDDEN = "emptyHidden";
+    private static final String KEY_CAPACITY = "capacity";
+    private static final String KEY_SNAPSHOT_FILE = "snapshotFile";
+    private static final String KEY_STREAM_FILE = "streamFile";
+
+    /**
+     * The HTML templates of the pages.
+     */
+    public record Templates(String index, String account, String events) {
+    }
+
+    private final transient BoschSmartCamAuthService authService;
+    private final Templates templates;
+
+    public BoschSmartCamAuthServlet(BoschSmartCamAuthService authService, Templates templates) {
         this.authService = authService;
-        this.indexTemplate = indexTemplate;
-        this.accountTemplate = accountTemplate;
+        this.templates = templates;
     }
 
     @Override
@@ -109,7 +137,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (request == null || response == null) {
             return;
         }
-        if (serveSnapshotIfRequested(request, response)) {
+        if (serveCameraIfRequested(request, response)) {
             return;
         }
 
@@ -142,10 +170,6 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (request == null || response == null) {
             return;
         }
-        if (receiveNotificationIfSent(request, response)) {
-            return;
-        }
-
         String thingUid = request.getParameter(PARAM_THING_UID);
         String outcome;
         if (ACTION_DEAUTHORIZE.equals(request.getParameter(PARAM_ACTION))) {
@@ -160,36 +184,13 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     }
 
     /**
-     * Takes a notification a camera pushed to {@code /<token>/notify} and writes it to the log. Diagnostic for now -
-     * whether the cameras deliver anything this way is exactly what is being found out.
+     * Serves the files of a camera below {@code /<token>/}: the snapshot, the event page and its stream. The token is
+     * the only thing standing between a request and the camera, so requests are additionally limited to the
+     * configured networks.
      *
-     * @return whether the request was such a notification and is now answered
+     * @return whether the request was for a camera and is now answered
      */
-    private boolean receiveNotificationIfSent(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
-        String path = request.getPathInfo();
-        if (path == null || !path.endsWith("/" + NOTIFY_FILE)) {
-            return false;
-        }
-        String body = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        logger.info("A camera pushed a notification from {}: {}", request.getRemoteAddr(),
-                body.length() > 4000 ? body.substring(0, 4000) + "…" : body);
-
-        // the sender expects a SOAP answer, an empty one is enough to acknowledge
-        response.setContentType("application/soap+xml; charset=utf-8");
-        response.getWriter().append(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Body/></s:Envelope>")
-                .close();
-        return true;
-    }
-
-    /**
-     * Serves {@code /<token>/snapshot.jpg}. The token is the only thing standing between a request and the image, so
-     * requests are additionally limited to the configured networks.
-     *
-     * @return whether the request was a snapshot request and is now answered
-     */
-    private boolean serveSnapshotIfRequested(HttpServletRequest request, HttpServletResponse response)
+    private boolean serveCameraIfRequested(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         String path = request.getPathInfo();
         if (path == null) {
@@ -200,11 +201,8 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         if (parts.length != 3) {
             return false;
         }
-        boolean probe = ONVIF_PROBE_FILE.equals(parts[2]);
-        boolean events = EVENTS_FILE.equals(parts[2]);
-        boolean mqttSetup = MQTT_SETUP_FILE.equals(parts[2]);
-        boolean mqttRemove = MQTT_REMOVE_FILE.equals(parts[2]);
-        if (!probe && !events && !mqttSetup && !mqttRemove && !SNAPSHOT_FILE.equals(parts[2])) {
+        String file = parts[2];
+        if (!SNAPSHOT_FILE.equals(file) && !EVENTS_PAGE_FILE.equals(file) && !EVENTS_STREAM_FILE.equals(file)) {
             return false;
         }
 
@@ -222,18 +220,12 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return true;
         }
 
-        if (probe || events || mqttSetup || mqttRemove) {
-            String answer;
-            if (probe) {
-                answer = camera.get().probeOnvif();
-            } else if (events) {
-                answer = camera.get().dumpEvents();
-            } else {
-                logger.info("Changing the event broker of a camera on request from {}", request.getRemoteAddr());
-                answer = camera.get().configureEventBroker(mqttRemove);
-            }
-            response.setContentType("text/plain;charset=UTF-8");
-            response.getWriter().append(answer).close();
+        if (EVENTS_PAGE_FILE.equals(file)) {
+            renderEvents(camera.get(), response);
+            return true;
+        }
+        if (EVENTS_STREAM_FILE.equals(file)) {
+            streamEvents(camera.get().getEventLog(), response);
             return true;
         }
 
@@ -249,6 +241,87 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         }
         return true;
+    }
+
+    private void renderEvents(BoschSmartCamCameraHandler camera, HttpServletResponse response) throws IOException {
+        List<CameraEvent> events = camera.getEventLog().list();
+        Map<String, String> replacements = new HashMap<>();
+        replacements.put(KEY_LABEL, escape(camera.getLabel()));
+        replacements.put(KEY_ROWS,
+                events.stream().map(BoschSmartCamAuthServlet::formatEventRow).collect(Collectors.joining()));
+        replacements.put(KEY_EMPTY_HIDDEN, events.isEmpty() ? "" : " hidden");
+        replacements.put(KEY_CAPACITY, String.valueOf(EventLog.CAPACITY));
+        replacements.put(KEY_SNAPSHOT_FILE, SNAPSHOT_FILE);
+        replacements.put(KEY_STREAM_FILE, EVENTS_STREAM_FILE);
+
+        response.setContentType(CONTENT_TYPE);
+        response.setHeader("Cache-Control", "no-store");
+        response.getWriter().append(replacePlaceholders(templates.events(), replacements)).close();
+    }
+
+    /**
+     * A row with the raw values only, the script of the page formats them in the time zone of the browser.
+     */
+    private static String formatEventRow(CameraEvent event) {
+        String clipId = event.clipId();
+        Instant end = event.recordingEnd();
+        return "<tr data-time=\"" + event.time() + "\" data-kind=\"" + escape(event.kind()) + "\" data-clip=\""
+                + (clipId == null ? "" : escape(clipId)) + "\" data-end=\"" + (end == null ? "" : end) + "\"><td>"
+                + event.time() + "</td><td>" + escape(event.kind()) + "</td><td></td><td class=\"clip\">"
+                + (clipId == null ? "" : escape(clipId)) + "</td></tr>";
+    }
+
+    /**
+     * Sends new events as server-sent events until the browser goes away or the stream has run for
+     * {@link #EVENT_STREAM_DURATION}. The browser reconnects on its own.
+     */
+    private void streamEvents(EventLog eventLog, HttpServletResponse response) throws IOException {
+        BlockingQueue<CameraEvent> queue = new LinkedBlockingQueue<>(EventLog.CAPACITY);
+        Consumer<CameraEvent> listener = queue::offer;
+        if (!eventLog.addListener(listener, MAX_EVENT_STREAMS)) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            return;
+        }
+        try {
+            response.setContentType("text/event-stream;charset=UTF-8");
+            response.setHeader("Cache-Control", "no-store");
+            PrintWriter writer = response.getWriter();
+            writer.write("retry: 5000\n\n");
+            writer.flush();
+            Instant end = Instant.now().plus(EVENT_STREAM_DURATION);
+            while (Instant.now().isBefore(end) && !writer.checkError()) {
+                CameraEvent event = queue.poll(KEEPALIVE_SECONDS, TimeUnit.SECONDS);
+                // a comment keeps proxies from closing an idle stream and shows when the browser is gone
+                writer.write(event == null ? ": keepalive\n\n" : "data: " + toJson(event) + "\n\n");
+                writer.flush();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            eventLog.removeListener(listener);
+        }
+    }
+
+    private static String toJson(CameraEvent event) {
+        String clipId = event.clipId();
+        Instant end = event.recordingEnd();
+        return "{\"time\":\"" + event.time() + "\",\"kind\":" + jsonString(event.kind()) + ",\"clipId\":"
+                + (clipId == null ? "null" : jsonString(clipId)) + ",\"recordingEnd\":"
+                + (end == null ? "null" : "\"" + end + "\"") + "}";
+    }
+
+    private static String jsonString(String value) {
+        StringBuilder json = new StringBuilder("\"");
+        for (char c : value.toCharArray()) {
+            if (c == '"' || c == '\\') {
+                json.append('\\').append(c);
+            } else if (c < 0x20) {
+                json.append(String.format("\\u%04x", (int) c));
+            } else {
+                json.append(c);
+            }
+        }
+        return json.append('"').toString();
     }
 
     private String authorize(@Nullable String thingUid, String redirectUrl) {
@@ -308,7 +381,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         replacements.put(KEY_ACCOUNTS, formatAccounts());
 
         response.setContentType(CONTENT_TYPE);
-        response.getWriter().append(replacePlaceholders(indexTemplate, replacements));
+        response.getWriter().append(replacePlaceholders(templates.index(), replacements));
         response.getWriter().close();
     }
 
@@ -348,7 +421,7 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             authorizationUrl = "";
         }
         replacements.put(KEY_ACCOUNT_AUTH_URL, authorizationUrl);
-        return replacePlaceholders(accountTemplate, replacements);
+        return replacePlaceholders(templates.account(), replacements);
     }
 
     private static String success(String message) {
@@ -384,8 +457,8 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
 
         private static final long serialVersionUID = 1L;
 
-        public Callback(BoschSmartCamAuthService authService, String indexTemplate, String accountTemplate) {
-            super(authService, indexTemplate, accountTemplate);
+        public Callback(BoschSmartCamAuthService authService, Templates templates) {
+            super(authService, templates);
         }
     }
 
@@ -397,8 +470,8 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
 
         private static final long serialVersionUID = 1L;
 
-        public Decline(BoschSmartCamAuthService authService, String indexTemplate, String accountTemplate) {
-            super(authService, indexTemplate, accountTemplate);
+        public Decline(BoschSmartCamAuthService authService, Templates templates) {
+            super(authService, templates);
         }
     }
 }
