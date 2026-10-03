@@ -20,6 +20,13 @@
 			<default>127.0.0.0/8, ::1/128, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10</default>
 			<advanced>true</advanced>
 		</parameter>
+		<parameter name="rtspPort" type="integer" min="0" max="65535">
+			<label>RTSP Port</label>
+			<description>Port openHAB offers the streams of all cameras on, as plain RTSP without password. Each camera has
+				its
+				own address there, with its token in it. Leave empty or 0 to offer none.</description>
+			<advanced>true</advanced>
+		</parameter>
 	</config-description>
 
 </addon:addon>

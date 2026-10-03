@@ -52,6 +52,12 @@
 				<label>Password</label>
 				<description>Password of the local API, shown in the Bosch app next to the user.</description>
 			</parameter>
+			<parameter name="rtspsPort" type="integer" min="0" max="65535">
+				<label>RTSPS Port</label>
+				<description>Port openHAB passes the stream of the camera through on, TLS included, for players that cannot reach
+					the camera themselves. Each camera needs a port of its own. Leave empty or 0 to offer none.</description>
+				<advanced>true</advanced>
+			</parameter>
 			<parameter name="snapshotCacheSeconds" type="integer" unit="s" min="1">
 				<label>Snapshot Cache</label>
 				<description>How long a fetched image is reused before the camera is asked again. The number of viewers does
@@ -81,6 +87,10 @@
 			<channel id="last-event-time" typeId="last-event-time"/>
 			<channel id="recording" typeId="recording"/>
 			<channel id="snapshot-url" typeId="snapshot-url"/>
+			<channel id="rtsp-url" typeId="rtsp-url"/>
+			<channel id="rtsp-substream-url" typeId="rtsp-substream-url"/>
+			<channel id="proxy-rtsps-url" typeId="proxy-rtsps-url"/>
+			<channel id="camera-rtsps-url" typeId="camera-rtsps-url"/>
 		</channels>
 	</channel-group-type>
 
@@ -151,6 +161,45 @@
 		<item-type>String</item-type>
 		<label>Snapshot URL</label>
 		<description>Address a still image of this camera can be fetched from. Contains a token, so treat it as a secret.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="rtsp-url">
+		<item-type>String</item-type>
+		<label>RTSP URL</label>
+		<description>Address of the stream through openHAB, as plain RTSP without TLS and without password: the token in
+			the
+			address stands in for it, so treat it as a secret. Only set when the RTSP port of the binding is
+			configured.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="rtsp-substream-url">
+		<item-type>String</item-type>
+		<label>RTSP Substream URL</label>
+		<description>Like the RTSP URL, but the small stream without sound (704×400), the one a video recorder detects
+			motion
+			on. Contains the token, so treat it as a secret.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="proxy-rtsps-url">
+		<item-type>String</item-type>
+		<label>Proxy RTSPS URL</label>
+		<description>Address of the stream through openHAB with the TLS of the camera passed through. Only set when an
+			RTSPS
+			port is configured. The player sees the certificate of the camera and logs in with its user and
+			password.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="camera-rtsps-url">
+		<item-type>String</item-type>
+		<label>Camera RTSPS URL (direct)</label>
+		<description>Address of the stream directly at the camera, with TLS. The player has to accept a certificate
+			that names
+			the MAC address of the camera instead of its host, and logs in with the user and password of the
+			camera.</description>
 		<state readOnly="true"/>
 	</channel-type>
 

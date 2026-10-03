@@ -43,6 +43,10 @@ public class BoschSmartCamBindingConstants {
     // List of all Channel ids, without their group
     public static final String CHANNEL_PRIVACY_MODE = "privacy-mode";
     public static final String CHANNEL_SNAPSHOT_URL = "snapshot-url";
+    public static final String CHANNEL_RTSP_URL = "rtsp-url";
+    public static final String CHANNEL_RTSP_SUBSTREAM_URL = "rtsp-substream-url";
+    public static final String CHANNEL_PROXY_RTSPS_URL = "proxy-rtsps-url";
+    public static final String CHANNEL_CAMERA_RTSPS_URL = "camera-rtsps-url";
     public static final String CHANNEL_EVENT = "event";
     public static final String CHANNEL_LAST_EVENT = "last-event";
     public static final String CHANNEL_LAST_EVENT_TIME = "last-event-time";
@@ -77,6 +81,16 @@ public class BoschSmartCamBindingConstants {
      * Port of the RTSP tunnel, open only once the local API is enabled in the app.
      */
     public static final int RTSP_PORT = 9554;
+
+    /**
+     * Path of the stream in full resolution with sound. {@code inst=2} gives the small resolution.
+     */
+    public static final String RTSP_PATH = "/rtsp_tunnel?line=1&inst=1&enableaudio=1";
+
+    /**
+     * Query of the small stream without sound, the one a video recorder detects motion on.
+     */
+    public static final String RTSP_SUBSTREAM_QUERY = "?line=1&inst=2&enableaudio=0";
 
     /**
      * Unguessable token that guards the URLs of a camera. Kept as a property so links survive restarts, and so it can

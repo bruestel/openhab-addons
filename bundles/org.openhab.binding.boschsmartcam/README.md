@@ -47,6 +47,7 @@ Only the password of the local API has to be entered when adding it.
 | host                 | text    | Address of the camera in the local network.                         | N/A         | yes      | no       |
 | user                 | text    | User of the local API, as shown in the Bosch app.                   | `localuser` | yes      | no       |
 | password             | text    | Password of the local API, as shown in the Bosch app.               | N/A         | yes      | no       |
+| rtspsPort            | integer | Port openHAB passes the stream through on, TLS included, see below. | N/A         | no       | yes      |
 | snapshotCacheSeconds | integer | How long a fetched image is reused in sec.                          | 3           | no       | yes      |
 | trustAllCertificates | boolean | Accept any certificate instead of verifying it, see below.          | false       | no       | yes      |
 
@@ -70,7 +71,8 @@ The minimum is 30 seconds.
 
 | Name                    | Type | Description                                                         | Default                         |
 |-------------------------|------|---------------------------------------------------------------------|---------------------------------|
-| snapshotAllowedNetworks | text | Networks that may fetch the snapshot URLs, as comma separated CIDR. | loopback and the private ranges |
+| snapshotAllowedNetworks | text | Networks that may fetch the snapshot URLs and the streams, as comma separated CIDR. | loopback and the private ranges |
+| rtspPort                | integer | Port the streams of all cameras are offered on as plain RTSP, see below. | N/A                    |
 
 ## Authorization
 
@@ -107,6 +109,10 @@ The same page also lets you remove the stored tokens of an account, for example 
 | local#last-event-time | DateTime | R          | When the camera detected the last event.                                                        |
 | local#recording       | Switch   | R          | `ON` while the camera records the clip of an event.                                             |
 | local#snapshot-url    | String   | R          | Address a still image can be fetched from. Contains a token, treat it as a secret.              |
+| local#rtsp-url        | String   | R          | Address of the video stream through openHAB, plain RTSP without password. Contains a token.     |
+| local#rtsp-substream-url | String | R          | The same for the small stream without sound, e.g. for motion detection in a video recorder.     |
+| local#proxy-rtsps-url | String   | R          | Address of the video stream through openHAB, TLS passed through. Only with an RTSPS port.       |
+| local#camera-rtsps-url | String  | R          | Address of the video stream directly at the camera, RTSP over TLS.                              |
 
 The camera reports what happens through an ONVIF PullPoint subscription that the binding keeps open.
 The connection goes out from openHAB, so nothing has to be reachable from the camera, and nothing is polled: the camera answers when something happens.
@@ -192,6 +198,48 @@ The comparison works on the raw address bytes against the CIDR blocks, so `192.1
 Behind a reverse proxy openHAB sees the address of the proxy, so add that one rather than the address of the browser.
 
 Be aware of what such a URL is: whoever holds the link sees the picture, without logging in to openHAB.
+
+## Video Streams
+
+The cameras send H.264 in full HD and AAC sound over RTSP, tunneled through TLS on port 9554.
+Three addresses are offered for players such as VLC, Frigate or a video recorder:
+
+| Channel            | Path                                            | Login                         | When to use it                                               |
+|--------------------|-------------------------------------------------|-------------------------------|--------------------------------------------------------------|
+| `rtsp-url`         | player to openHAB plain, openHAB to camera TLS  | none, a token in the address  | The usual choice: any player, no password, no certificate.   |
+| `rtsp-substream-url` | as `rtsp-url`, small stream without sound     | none, a token in the address  | Second stream for a video recorder, e.g. to detect motion on. |
+| `proxy-rtsps-url`  | player to openHAB to camera, TLS end to end     | user and password of the camera | Only openHAB reaches the camera, and TLS shall stay intact.  |
+| `camera-rtsps-url` | player to camera, TLS                           | user and password of the camera | The player reaches the camera itself.                        |
+
+`rtsp-url` reads `rtsp://<openhab>:<port>/<token>`, with the token of the snapshot.
+openHAB takes the TLS connection to the camera with the same checks as everything else, logs in with the user and password of the camera itself and passes the stream on; whatever the player sends as login is dropped.
+One port serves all cameras, set as `rtspPort` in the binding configuration.
+The connection is unencrypted on the network between player and openHAB.
+When a player goes away without ending its session, openHAB ends it at the camera, so the camera does not keep streaming to nobody.
+
+With `proxy-rtsps-url` and `camera-rtsps-url` the player speaks TLS with the camera and has to accept its certificate, which names its MAC address instead of its host; ffmpeg for instance needs `-tls_verify 0`.
+openHAB does not look into the passed through connection, so it cannot check the camera there, nor log in for the player.
+`proxy-rtsps-url` needs a free port per camera, set as `rtspsPort`.
+
+Only players in `snapshotAllowedNetworks` may use the addresses through openHAB.
+Players have to use RTSP over TCP, e.g. `-rtsp_transport tcp` for ffmpeg; only the one connection is passed on.
+
+### Stream Parameters
+
+The camera picks the stream by the query of the address, as documented by Bosch:
+
+| Parameter     | Value | Stream                                              |
+|---------------|-------|-----------------------------------------------------|
+| `line`        | `1`   | Always 1.                                           |
+| `inst`        | `1`   | Full resolution, 1920×1080.                         |
+| `inst`        | `2`   | Low resolution, 704×400.                            |
+| `inst`        | `3`   | Preview, refreshed once a second.                   |
+| `enableaudio` | `1`   | With sound (AAC, 16 kHz, mono).                     |
+| `enableaudio` | `0`   | Without sound.                                      |
+
+The channels carry `?line=1&inst=1&enableaudio=1`, `rtsp-substream-url` carries `?line=1&inst=2&enableaudio=0`.
+For `camera-rtsps-url` and `proxy-rtsps-url` change the query in place.
+`rtsp-url` has no query; append one and it replaces the default, e.g. `rtsp://<openhab>:<port>/<token>?line=1&inst=2&enableaudio=0` for the low resolution without sound.
 
 ## Full Example
 

@@ -14,6 +14,7 @@ package org.openhab.binding.boschsmartcam.internal;
 
 import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.*;
 
+import java.io.IOException;
 import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -23,6 +24,7 @@ import org.openhab.binding.boschsmartcam.internal.auth.BoschSmartCamAuthService;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamAccountHandler;
 import org.openhab.binding.boschsmartcam.internal.handler.BoschSmartCamCameraHandler;
 import org.openhab.binding.boschsmartcam.internal.local.CameraTrust;
+import org.openhab.binding.boschsmartcam.internal.local.RtspGateway;
 import org.openhab.binding.boschsmartcam.internal.net.CidrMatcher;
 import org.openhab.core.auth.client.oauth2.OAuthFactory;
 import org.openhab.core.io.net.http.HttpClientFactory;
@@ -66,6 +68,12 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
     private static final String DEFAULT_SNAPSHOT_NETWORKS = "127.0.0.0/8, ::1/128, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10";
 
     private static final String CONFIG_SNAPSHOT_NETWORKS = "snapshotAllowedNetworks";
+    private static final String CONFIG_RTSP_PORT = "rtspPort";
+    /**
+     * Connecting to the camera and the TLS handshake. Short, so a player gets an answer quickly should the stream
+     * service of the camera hang.
+     */
+    private static final int CAMERA_CONNECT_TIMEOUT_MILLIS = 5_000;
 
     /**
      * Talking to a camera needs its own client: the cameras carry a certificate from the Bosch device PKI and are
@@ -83,6 +91,12 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
 
     private volatile CidrMatcher snapshotNetworks = new CidrMatcher(DEFAULT_SNAPSHOT_NETWORKS);
 
+    /**
+     * Offers the streams of all cameras as plain RTSP on one port, see {@link RtspGateway}.
+     */
+    private @Nullable RtspGateway rtspGateway;
+    private volatile int rtspGatewayPort;
+
     @Activate
     public BoschSmartCamHandlerFactory(final @Reference OAuthFactory oAuthFactory,
             final @Reference HttpClientFactory httpClientFactory, final @Reference BoschSmartCamAuthService authService,
@@ -99,7 +113,8 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
     @Override
     protected void activate(ComponentContext componentContext) {
         super.activate(componentContext);
-        applyConfiguration(componentContext.getProperties().get(CONFIG_SNAPSHOT_NETWORKS));
+        applyConfiguration(componentContext.getProperties().get(CONFIG_SNAPSHOT_NETWORKS),
+                componentContext.getProperties().get(CONFIG_RTSP_PORT));
         try {
             cameraHttpClient.start();
         } catch (Exception e) {
@@ -109,6 +124,7 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
 
     @Override
     protected void deactivate(ComponentContext componentContext) {
+        stopRtspGateway();
         stop(cameraHttpClient);
         HttpClient trustAll = trustAllHttpClient;
         if (trustAll != null) {
@@ -144,12 +160,52 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
 
     @Modified
     protected void modified(Map<String, Object> configuration) {
-        applyConfiguration(configuration.get(CONFIG_SNAPSHOT_NETWORKS));
+        applyConfiguration(configuration.get(CONFIG_SNAPSHOT_NETWORKS), configuration.get(CONFIG_RTSP_PORT));
     }
 
-    private void applyConfiguration(@Nullable Object networks) {
+    private void applyConfiguration(@Nullable Object networks, @Nullable Object rtspPort) {
         snapshotNetworks = new CidrMatcher(
                 networks instanceof String value && !value.isBlank() ? value : DEFAULT_SNAPSHOT_NETWORKS);
+        int port = 0;
+        if (rtspPort instanceof Number number) {
+            port = number.intValue();
+        } else if (rtspPort instanceof String text && !text.isBlank()) {
+            try {
+                port = Integer.parseInt(text.strip());
+            } catch (NumberFormatException e) {
+                logger.warn("Ignoring the RTSP port '{}', it is no number", text);
+            }
+        }
+        if (port != rtspGatewayPort || (port > 0 && rtspGateway == null)) {
+            startRtspGateway(port);
+        }
+    }
+
+    private synchronized void startRtspGateway(int port) {
+        stopRtspGateway();
+        rtspGatewayPort = 0;
+        if (port <= 0) {
+            return;
+        }
+        RtspGateway gateway = new RtspGateway(port,
+                token -> authService.getCamera(token).map(BoschSmartCamCameraHandler::getRtspTarget).orElse(null),
+                target -> cameraTrust.openSocket(target.host(), RTSP_PORT, target.trustAll(),
+                        CAMERA_CONNECT_TIMEOUT_MILLIS));
+        try {
+            gateway.start();
+            rtspGateway = gateway;
+            rtspGatewayPort = port;
+        } catch (IOException e) {
+            logger.warn("Could not offer the camera streams on port {}: {}", port, e.getMessage());
+        }
+    }
+
+    private synchronized void stopRtspGateway() {
+        RtspGateway gateway = rtspGateway;
+        if (gateway != null) {
+            gateway.stop();
+            rtspGateway = null;
+        }
     }
 
     /**
@@ -174,7 +230,7 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
             return new BoschSmartCamAccountHandler(bridge, oAuthFactory, httpClient, authService);
         } else if (THING_TYPE_CAMERA.equals(thingTypeUID)) {
             return new BoschSmartCamCameraHandler(thing, authService, cameraHttpClient, this::getTrustAllHttpClient,
-                    cameraTrust, () -> snapshotNetworks, getOpenhabBaseUrl());
+                    cameraTrust, () -> snapshotNetworks, () -> rtspGatewayPort, getOpenhabBaseUrl());
         }
 
         return null;

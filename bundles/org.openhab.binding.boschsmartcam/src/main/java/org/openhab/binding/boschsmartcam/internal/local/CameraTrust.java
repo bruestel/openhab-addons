@@ -64,6 +64,7 @@ public class CameraTrust {
     private final KeyStore trustStore;
     private final X509TrustManager rootTrustManager;
     private final SSLContext sslContext;
+    private final SSLContext bindingContext;
     private final SSLContext trustAllContext;
 
     /**
@@ -89,6 +90,8 @@ public class CameraTrust {
             // reading the identity must work for any camera, that is how a camera becomes known in the first place
             sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, new TrustManager[] { new CameraTrustManager(false) }, null);
+            bindingContext = SSLContext.getInstance("TLS");
+            bindingContext.init(null, new TrustManager[] { new CameraTrustManager(true) }, null);
             trustAllContext = SSLContext.getInstance("TLS");
             trustAllContext.init(null, new TrustManager[] { new TrustAllManager() }, null);
         } catch (IOException | GeneralSecurityException e) {
@@ -141,6 +144,26 @@ public class CameraTrust {
         SslContextFactory.Client factory = new SslContextFactory.Client(true);
         factory.setEndpointIdentificationAlgorithm(null);
         return factory;
+    }
+
+    /**
+     * Opens a TLS connection to a camera for a protocol the HTTP client does not speak, such as RTSP. The same rules
+     * apply as for the HTTP client: below the Bosch root, and for a bound host only its camera.
+     *
+     * @param trustAll whether to accept any certificate
+     */
+    public SSLSocket openSocket(String host, int port, boolean trustAll, int timeoutMillis) throws IOException {
+        SSLContext context = trustAll ? trustAllContext : bindingContext;
+        SSLSocket socket = (SSLSocket) context.getSocketFactory().createSocket();
+        try {
+            socket.connect(new InetSocketAddress(host, port), timeoutMillis);
+            socket.setSoTimeout(timeoutMillis);
+            socket.startHandshake();
+            return socket;
+        } catch (IOException e) {
+            socket.close();
+            throw e;
+        }
     }
 
     /**
