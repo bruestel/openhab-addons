@@ -219,8 +219,7 @@ Two things guard the URL.
 
 The token is a random UUID and part of the path, so the address cannot be guessed.
 The binding keeps it in the storage of openHAB, so it survives restarts, also for things defined in files, and shows it as the `accessToken` property.
-Removing the camera in the UI revokes its addresses: added again, it gets a new token, unless one is set in its configuration.
-For a camera defined in a file, set a new `accessToken` instead.
+Removing the camera, in the UI or from a file, revokes its addresses: added again, it gets a new token, unless one is set in its configuration.
 To revoke addresses that leaked, enter a new token as `accessToken` in the configuration of the camera, at least 16 letters, digits, `-` or `_`; every address with the old one fails from then on.
 A token can also be set in a file right away, to keep addresses fixed that are written down elsewhere.
 

@@ -1132,15 +1132,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         return token;
     }
 
-    /**
-     * Removing the camera revokes its addresses: added again, it gets a new token.
-     */
-    @Override
-    public void handleRemoval() {
-        accessTokens.remove(getThing().getUID().getAsString());
-        super.handleRemoval();
-    }
-
     private static void putIfPresent(Map<String, String> properties, String key, @Nullable String value) {
         if (value != null && !value.isBlank()) {
             properties.put(key, value);

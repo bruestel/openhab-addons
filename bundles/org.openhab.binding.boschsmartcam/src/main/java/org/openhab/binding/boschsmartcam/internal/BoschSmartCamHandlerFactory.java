@@ -42,6 +42,7 @@ import org.openhab.core.storage.StorageService;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
+import org.openhab.core.thing.ThingUID;
 import org.openhab.core.thing.binding.BaseThingHandlerFactory;
 import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerFactory;
@@ -304,6 +305,17 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
         String host = networkAddressService.getPrimaryIpv4HostAddress();
         int port = HttpServiceUtil.getHttpServicePort(bundleContext);
         return "http://" + (host == null || host.isBlank() ? "localhost" : host) + ":" + (port > 0 ? port : 8080);
+    }
+
+    /**
+     * Removing a camera revokes its addresses: added again, it gets a new token. openHAB calls this when a thing is
+     * removed for good, from the UI as well as from a file, but not when it shuts down.
+     */
+    @Override
+    public void removeThing(ThingUID thingUID) {
+        // only cameras have a token, for any other thing this does nothing
+        accessTokens.remove(thingUID.getAsString());
+        super.removeThing(thingUID);
     }
 
     @Override
