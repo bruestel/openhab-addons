@@ -155,6 +155,10 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private static final String TOPIC_LIGHT_FRONT = "LightStatusFront";
     private static final String TOPIC_LIGHT_TOP = "LightStatusTop";
     private static final String TOPIC_LIGHT_BOTTOM = "LightStatusBottom";
+    /**
+     * Reported when an alarm starts or stops, e.g. {@code manual_alarm} and {@code alarm_muted}.
+     */
+    private static final String TOPIC_ALARM_MODE = "AlarmMode";
     private static final String ITEM_BRIGHTNESS = "Brightness";
     private static final String ALARM_NONE = "NONE";
     /**
@@ -567,6 +571,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 Objects.requireNonNullElse(event.propertyOperation(), "event"), event.data());
         if (TOPIC_PRIVACY_MODE.equals(topic)) {
             updatePrivacyMode(event.isTrue(ITEM_STATE));
+        } else if (TOPIC_ALARM_MODE.equals(topic) && !OPERATION_INITIALIZED.equals(event.propertyOperation())) {
+            // what sounds is read from the camera rather than derived from the names of the modes
+            scheduler.execute(this::refreshAlarm);
         } else if (TOPIC_LIGHT_FRONT.equals(topic) || TOPIC_LIGHT_TOP.equals(topic)
                 || TOPIC_LIGHT_BOTTOM.equals(topic)) {
             updateLight(topic, brightness(event.get(ITEM_BRIGHTNESS)));
