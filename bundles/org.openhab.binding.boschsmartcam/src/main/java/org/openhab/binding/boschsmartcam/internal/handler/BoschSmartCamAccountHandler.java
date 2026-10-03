@@ -164,13 +164,16 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
             logger.debug("No camera of {} belongs to {}", getHandle(), channelUID);
             return;
         }
-        try {
-            getApi().setNotifications(cameraId, onOff == OnOffType.ON);
-            updateState(channelUID, onOff);
-            scheduleDelayedPoll();
-        } catch (BoschSmartCamException e) {
-            logger.warn("Could not switch {}: {}", channelUID, e.getMessage());
-        }
+        // the cloud is not asked on the thread openHAB hands the command over on
+        scheduler.execute(() -> {
+            try {
+                getApi().setNotifications(cameraId, onOff == OnOffType.ON);
+                updateState(channelUID, onOff);
+                scheduleDelayedPoll();
+            } catch (BoschSmartCamException e) {
+                e.log(logger, "switch", channelUID);
+            }
+        });
     }
 
     @Override

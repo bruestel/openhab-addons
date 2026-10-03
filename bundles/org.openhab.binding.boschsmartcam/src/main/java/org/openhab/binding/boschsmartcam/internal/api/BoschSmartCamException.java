@@ -14,6 +14,7 @@ package org.openhab.binding.boschsmartcam.internal.api;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.slf4j.Logger;
 
 /**
  * Signals a failed communication with the Bosch cloud API.
@@ -71,6 +72,20 @@ public class BoschSmartCamException extends Exception {
      */
     public boolean isRateLimited() {
         return httpStatus == 444;
+    }
+
+    /**
+     * Logs that something could not be done: at info for a reason that is expected in operation, at warn otherwise.
+     *
+     * @param action what could not be done, e.g. {@code "switch the siren of"}
+     * @param subject what it was done to, e.g. the UID of the thing
+     */
+    public void log(Logger logger, String action, Object subject) {
+        if (isExpected()) {
+            logger.info("Could not {} {}: {}", action, subject, getReason());
+        } else {
+            logger.warn("Could not {} {}: {}", action, subject, getReason());
+        }
     }
 
     /**

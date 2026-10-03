@@ -383,6 +383,14 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      * @param what what is done, for the log, e.g. {@code "switch the siren of"}
      */
     private void inCloud(String what, CloudCall call) {
+        inCloud(what, call, () -> {
+        });
+    }
+
+    /**
+     * @param failed what to do when the command could not be sent, e.g. show the state of the camera again
+     */
+    private void inCloud(String what, CloudCall call, Runnable failed) {
         scheduler.execute(() -> {
             BoschSmartCamAccountHandler accountHandler = getAccountHandler();
             String id = accountHandler == null ? null : resolveCameraId(accountHandler);
@@ -390,15 +398,13 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                 if (accountHandler == null || id == null) {
                     logger.info("Can only {} {} with a Bosch account bridge, the local API is read only", what,
                             getThing().getUID());
+                    failed.run();
                 } else {
                     call.run(accountHandler.getApi(), id);
                 }
             } catch (BoschSmartCamException e) {
-                if (e.isExpected()) {
-                    logger.info("Could not {} {}: {}", what, getThing().getUID(), e.getReason());
-                } else {
-                    logger.warn("Could not {} {}: {}", what, getThing().getUID(), e.getReason());
-                }
+                e.log(logger, what, getThing().getUID());
+                failed.run();
             }
             scheduler.schedule(this::refreshSettings, READ_BACK_SECONDS, TimeUnit.SECONDS);
         });
@@ -409,26 +415,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      * command is refused and the switch goes back to what the camera reports.
      */
     private void setPrivacyMode(boolean on) {
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        String id = accountHandler == null ? null : resolveCameraId(accountHandler);
-        if (accountHandler == null || id == null) {
-            logger.info("The privacy mode of {} can only be switched with a Bosch account bridge, the local API is "
-                    + "read only", getThing().getUID());
-            updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(privacyModeOn));
-            return;
-        }
-        try {
-            accountHandler.getApi().setPrivacyMode(id, on, null);
-            // the camera confirms the change through the event subscription within a second
-            updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(on));
-        } catch (BoschSmartCamException e) {
-            if (e.isExpected()) {
-                logger.info("Could not switch the privacy mode of {}: {}", getThing().getUID(), e.getReason());
-            } else {
-                logger.warn("Could not switch the privacy mode of {}: {}", getThing().getUID(), e.getReason());
-            }
-            updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(privacyModeOn));
-        }
+        // the camera confirms the change through the event subscription within a second
+        inCloud("switch the privacy mode of", (api, id) -> api.setPrivacyMode(id, on, null),
+                () -> updateState(CHANNEL_LOCAL_PRIVACY_MODE, OnOffType.from(privacyModeOn)));
     }
 
     /**
@@ -651,6 +640,19 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      *
      * @return whether the camera at the host is the expected one
      */
+    /**
+     * @return the MAC address the thing was made for: the one seen before, or the id of the thing when that is a MAC
+     *         address, as discovery names them; {@code null} for a thing named otherwise that never saw its camera.
+     *         The id matters for things from files, which lose their properties on every restart.
+     */
+    private @Nullable String expectedMacAddress() {
+        String seen = getThing().getProperties().get(Thing.PROPERTY_MAC_ADDRESS);
+        if (seen != null && !seen.isBlank()) {
+            return seen;
+        }
+        return CameraIdentity.normalizeMacAddress(getThing().getUID().getId());
+    }
+
     private boolean checkIdentity(LocalCameraClient localClient) {
         CameraIdentity found;
         try {
@@ -666,8 +668,8 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     "@text/offline.camera-not-reachable [\"" + config.host + "\"]");
             return false;
         }
-        String expected = getThing().getProperties().get(Thing.PROPERTY_MAC_ADDRESS);
-        if (expected != null && !expected.isBlank() && !expected.equals(found.macAddress())) {
+        String expected = expectedMacAddress();
+        if (expected != null && !expected.equals(found.macAddress())) {
             PullPointSubscriber localSubscriber = subscriber;
             if (localSubscriber != null) {
                 localSubscriber.stop();
@@ -1103,7 +1105,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     /**
      * The configured token, otherwise the one of a previous run so links stay valid, otherwise a new one. It is kept
      * in the storage of openHAB, which unlike a thing property also survives a restart for things defined in files;
-     * the property only shows it. A token from the property of an older version is taken over.
+     * it is not shown as a property, as it opens the snapshot, the streams and the events. The addresses carry it.
      */
     private String currentOrNewAccessToken() {
         String uid = getThing().getUID().getAsString();
@@ -1112,13 +1114,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             token = accessTokens.get(uid);
         }
         if (token == null || token.isBlank()) {
-            token = getThing().getProperties().get(PROPERTY_ACCESS_TOKEN);
-        }
-        if (token == null || token.isBlank()) {
             token = UUID.randomUUID().toString();
         }
         accessTokens.put(uid, token);
-        updateProperty(PROPERTY_ACCESS_TOKEN, token);
         return token;
     }
 

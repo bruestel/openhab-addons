@@ -109,7 +109,6 @@ public class BoschSmartCamBindingConstants {
      * Unguessable token that guards the URLs of a camera. Kept as a property so links survive restarts, and so it can
      * be looked up or deleted when a link has to be revoked.
      */
-    public static final String PROPERTY_ACCESS_TOKEN = "accessToken";
     public static final String PROPERTY_EVENTS_API = "eventsApiUrl";
 
     // Bosch SingleKey ID (Keycloak) endpoints

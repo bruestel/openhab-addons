@@ -64,6 +64,11 @@ public class RtspGateway {
      * @param allowedFrom whether a player at the given address may watch
      */
     public record Target(String host, String user, String password, boolean trustAll, Predicate<String> allowedFrom) {
+        @Override
+        public String toString() {
+            // the password stays out of logs
+            return "Target[host=" + host + ", user=" + user + ", trustAll=" + trustAll + "]";
+        }
     }
 
     @FunctionalInterface
