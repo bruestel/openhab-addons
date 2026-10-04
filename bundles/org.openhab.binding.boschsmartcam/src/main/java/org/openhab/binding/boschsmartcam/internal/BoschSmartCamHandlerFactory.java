@@ -119,7 +119,7 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
     /**
      * Offers the streams of all cameras on one port, plain and over TLS, see {@link RtspGateway}.
      */
-    private @Nullable RtspGateway rtspGateway;
+    private volatile @Nullable RtspGateway rtspGateway;
     private volatile int rtspGatewayPort;
     /**
      * The certificate players over TLS see, {@code null} while the gateway offers plain RTSP only.

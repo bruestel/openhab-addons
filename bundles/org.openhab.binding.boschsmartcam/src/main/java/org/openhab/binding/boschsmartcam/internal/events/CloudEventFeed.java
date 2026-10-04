@@ -58,8 +58,14 @@ public class CloudEventFeed {
     private final Source source;
     private final Clock clock;
 
-    private @Nullable List<CloudEvent> newest;
-    private Instant newestFetched = Instant.MIN;
+    /**
+     * The newest page and when it was fetched. The cloud is never asked while a lock is held; two clients asking at
+     * once may fetch it twice, which does no harm.
+     */
+    private record Page(List<CloudEvent> events, Instant fetched) {
+    }
+
+    private volatile @Nullable Page newest;
     private final Map<String, CloudEvent> known = new LinkedHashMap<>() {
         private static final long serialVersionUID = 1L;
 
@@ -81,7 +87,7 @@ public class CloudEventFeed {
     /**
      * Drops the cached newest page, so the next request sees an event that just happened.
      */
-    public synchronized void invalidate() {
+    public void invalidate() {
         newest = null;
     }
 
@@ -91,7 +97,7 @@ public class CloudEventFeed {
      * @param since only events newer than the one with this id, for a client that already has the older ones
      * @return events, newest first; empty if {@code before} is not among the last {@link #MAX_PAGES} pages
      */
-    public synchronized List<CloudEvent> list(int limit, @Nullable String before, @Nullable String since)
+    public List<CloudEvent> list(int limit, @Nullable String before, @Nullable String since)
             throws BoschSmartCamException {
         List<CloudEvent> result = new ArrayList<>();
         if (before == null) {
@@ -125,22 +131,27 @@ public class CloudEventFeed {
      * @return the event with this id if it belongs to this camera, after a look at the newest page if it is not known
      *         yet
      */
-    public synchronized @Nullable CloudEvent find(String id, boolean needsClip) throws BoschSmartCamException {
-        CloudEvent event = known.get(id);
+    public @Nullable CloudEvent find(String id, boolean needsClip) throws BoschSmartCamException {
+        CloudEvent event = known(id);
         if (event == null || (needsClip && event.videoClipUrl() == null)) {
             invalidate();
             newest();
-            event = known.get(id);
+            event = known(id);
         }
         return event;
+    }
+
+    private @Nullable CloudEvent known(String id) {
+        synchronized (known) {
+            return known.get(id);
+        }
     }
 
     /**
      * Asks the cloud for its newest events, bypassing the cache, and returns the one that happened closest to a
      * local event, so long as it lies within the window.
      */
-    public synchronized @Nullable CloudEvent matching(Instant localTime, Duration window)
-            throws BoschSmartCamException {
+    public @Nullable CloudEvent matching(Instant localTime, Duration window) throws BoschSmartCamException {
         CloudEvent best = null;
         Duration bestDistance = window;
         for (CloudEvent event : fetch(0, RECENT_PAGE_SIZE)) {
@@ -158,22 +169,23 @@ public class CloudEventFeed {
     }
 
     private List<CloudEvent> newest() throws BoschSmartCamException {
-        List<CloudEvent> cached = newest;
+        Page cached = newest;
         Instant now = clock.instant();
-        if (cached == null || newestFetched.plus(CACHE_DURATION).isBefore(now)) {
-            cached = fetch(0, PAGE_SIZE);
+        if (cached == null || cached.fetched().plus(CACHE_DURATION).isBefore(now)) {
+            cached = new Page(fetch(0, PAGE_SIZE), now);
             newest = cached;
-            newestFetched = now;
         }
-        return cached;
+        return cached.events();
     }
 
     private List<CloudEvent> fetch(int page, int pageSize) throws BoschSmartCamException {
         List<CloudEvent> events = source.fetch(page, pageSize);
-        for (CloudEvent event : events) {
-            String id = event.id();
-            if (id != null) {
-                known.put(id, event);
+        synchronized (known) {
+            for (CloudEvent event : events) {
+                String id = event.id();
+                if (id != null) {
+                    known.put(id, event);
+                }
             }
         }
         return events;

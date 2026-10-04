@@ -23,6 +23,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -178,6 +179,36 @@ public class RtspGatewayTest {
     }
 
     @Test
+    public void streamsOfOneCameraAreLimited() throws Exception {
+        List<Socket> players = new ArrayList<>();
+        try {
+            for (int i = 0; i < RtspGateway.MAX_STREAMS_PER_CAMERA; i++) {
+                Socket player = connect();
+                players.add(player);
+                assertEquals(200, describe(player));
+            }
+            try (Socket onTooMany = connect()) {
+                assertEquals(453, describe(onTooMany));
+            }
+
+            players.removeFirst().close();
+            // the gateway notices the closed player on its own thread, bounded generously for slow machines
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            int status;
+            do {
+                Socket player = connect();
+                players.add(player);
+                status = describe(player);
+            } while (status == 453 && System.nanoTime() < deadline);
+            assertEquals(200, status);
+        } finally {
+            for (Socket player : players) {
+                player.close();
+            }
+        }
+    }
+
+    @Test
     public void addressesAreMappedOntoTheCamera() {
         String base = "rtsp://openhab:8554/" + TOKEN;
         assertEquals("rtsp://cam:9554/rtsp_tunnel?line=1&inst=1&enableaudio=1",
@@ -247,6 +278,12 @@ public class RtspGatewayTest {
         }
     }
 
+    private int describe(Socket player) throws IOException {
+        InputStream in = new BufferedInputStream(player.getInputStream());
+        send(player.getOutputStream(), "DESCRIBE " + playerUrl() + " RTSP/1.0\r\nCSeq: 2\r\n\r\n");
+        return RtspMessage.read(in, in.read()).status();
+    }
+
     private String playerUrl() {
         RtspGateway rtspGateway = gateway;
         return "rtsp://127.0.0.1:" + (rtspGateway == null ? 0 : rtspGateway.getLocalPort()) + "/" + TOKEN;
@@ -272,7 +309,18 @@ public class RtspGatewayTest {
      * Answers like a camera: 401 without a valid Digest login, otherwise 200, and media after PLAY.
      */
     private void serveCamera(ServerSocket server) {
-        try (Socket socket = server.accept()) {
+        while (!server.isClosed()) {
+            try {
+                Socket socket = server.accept();
+                Thread.ofVirtual().start(() -> serveConnection(socket));
+            } catch (IOException e) {
+                // the test closed the camera
+            }
+        }
+    }
+
+    private void serveConnection(Socket connection) {
+        try (Socket socket = connection) {
             InputStream in = new BufferedInputStream(socket.getInputStream());
             OutputStream out = socket.getOutputStream();
             while (true) {

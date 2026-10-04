@@ -243,7 +243,8 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
             return true;
         }
         if (!camera.get().isAllowedFrom(request.getRemoteAddr())) {
-            logger.warn("Refused a snapshot request from {}, it is not in the allowed networks",
+            // debug only: anyone outside could otherwise fill the log
+            logger.debug("Refused a snapshot request from {}, it is not in the allowed networks",
                     request.getRemoteAddr());
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return true;

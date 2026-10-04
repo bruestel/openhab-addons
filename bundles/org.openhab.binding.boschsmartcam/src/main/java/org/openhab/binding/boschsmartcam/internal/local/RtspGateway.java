@@ -94,6 +94,11 @@ public class RtspGateway {
 
     private static final int MAX_SESSIONS = 16;
     /**
+     * Streams one camera serves at once through the gateway. The cameras served ten without trouble when measured;
+     * the limit keeps headroom and spares the Wi-Fi they usually hang on.
+     */
+    static final int MAX_STREAMS_PER_CAMERA = 6;
+    /**
      * Names of the threads, so a thread dump shows what each one does: the one that accepts players, one per player
      * followed by its address, and one per camera connection followed by the camera.
      */
@@ -101,7 +106,11 @@ public class RtspGateway {
     private static final String PLAYER_THREAD_PREFIX = BoschSmartCamBindingConstants.BINDING_ID + "-rtsp-";
     private static final String CAMERA_THREAD_PREFIX = BoschSmartCamBindingConstants.BINDING_ID + "-rtsp-camera-";
     private static final int TLS_HANDSHAKE = 0x16;
-    private static final int HANDSHAKE_TIMEOUT_MILLIS = 10000;
+    /**
+     * How long a player may take for the TLS handshake and its first request. Until then a connection holds a thread
+     * without a camera behind it.
+     */
+    private static final int FIRST_REQUEST_TIMEOUT_MILLIS = 10000;
 
     private final Logger logger = LoggerFactory.getLogger(RtspGateway.class);
 
@@ -110,6 +119,7 @@ public class RtspGateway {
     private final CameraConnector connector;
     private final @Nullable SSLContext tls;
     private final Set<Socket> sockets = ConcurrentHashMap.newKeySet();
+    private final Map<String, Integer> streamsByCamera = new ConcurrentHashMap<>();
     private volatile @Nullable ServerSocket serverSocket;
 
     /**
@@ -167,6 +177,8 @@ public class RtspGateway {
                     close(player);
                     continue;
                 }
+                // tracked from the start, so stop() closes it and it counts against the limit before it logs in
+                sockets.add(player);
                 Thread.ofVirtual().name(PLAYER_THREAD_PREFIX + player.getInetAddress().getHostAddress())
                         .start(() -> new Session(player).run());
             } catch (IOException e) {
@@ -235,6 +247,7 @@ public class RtspGateway {
         private @Nullable RtspDigest digest;
         private String base = "";
         private String cameraHost = "";
+        private volatile boolean streamCounted;
 
         Session(Socket player) {
             this.player = player;
@@ -244,6 +257,7 @@ public class RtspGateway {
         void run() {
             String address = player.getInetAddress().getHostAddress();
             try {
+                player.setSoTimeout(FIRST_REQUEST_TIMEOUT_MILLIS);
                 // read unbuffered, so nothing beyond the first byte is taken from a TLS handshake
                 int first = player.getInputStream().read();
                 if (first < 0) {
@@ -259,9 +273,8 @@ public class RtspGateway {
                     SSLSocket ssl = (SSLSocket) context.getSocketFactory().createSocket(player,
                             new ByteArrayInputStream(new byte[] { (byte) first }), true);
                     connection = ssl;
-                    ssl.setSoTimeout(HANDSHAKE_TIMEOUT_MILLIS);
+                    ssl.setSoTimeout(FIRST_REQUEST_TIMEOUT_MILLIS);
                     ssl.startHandshake();
-                    ssl.setSoTimeout(0);
                 }
                 InputStream fromPlayer = new BufferedInputStream(connection.getInputStream());
                 OutputStream toPlayer = connection.getOutputStream();
@@ -280,13 +293,22 @@ public class RtspGateway {
                     RtspMessage.response(404, "Not Found", request.header("CSeq")).write(toPlayer);
                     return;
                 }
-                base = request.uri().substring(0, request.uri().indexOf(token) + token.length());
                 cameraHost = target.host();
+                if (!startStream(cameraHost)) {
+                    logger.debug("Refused an RTSP request from {}, {} streams of {} are running", address,
+                            MAX_STREAMS_PER_CAMERA, target.host());
+                    RtspMessage.response(453, "Not Enough Bandwidth", request.header("CSeq")).write(toPlayer);
+                    return;
+                }
+                streamCounted = true;
+                base = request.uri().substring(0, request.uri().indexOf(token) + token.length());
                 cameraUri = toCamera(request.uri(), base, cameraHost);
                 digest = new RtspDigest(target.user(), target.password());
                 Socket cameraSocket = connector.connect(target);
                 cameraSocket.setSoTimeout(0);
                 camera = cameraSocket;
+                // a stream may pause, from here on the player is only given up when it closes the connection
+                connection.setSoTimeout(0);
                 sockets.add(connection);
                 sockets.add(cameraSocket);
                 logger.debug("Relaying the stream of {} to {}", cameraHost, address);
@@ -421,6 +443,10 @@ public class RtspGateway {
             close(connection);
             close(player);
             sockets.remove(connection);
+            sockets.remove(player);
+            if (streamCounted) {
+                streamsByCamera.computeIfPresent(cameraHost, (host, count) -> count > 1 ? count - 1 : null);
+            }
             Socket current = camera;
             if (current != null) {
                 tearDown(current);
@@ -447,6 +473,19 @@ public class RtspGateway {
                 logger.trace("Could not end the session at {}: {}", cameraHost, e.getMessage());
             }
         }
+    }
+
+    /**
+     * @return whether the camera may serve one more stream, which is then counted
+     */
+    private boolean startStream(String host) {
+        boolean[] started = new boolean[1];
+        streamsByCamera.compute(host, (key, count) -> {
+            int current = count == null ? 0 : count;
+            started[0] = current < MAX_STREAMS_PER_CAMERA;
+            return started[0] ? current + 1 : current;
+        });
+        return started[0];
     }
 
     private static void close(Closeable closeable) {

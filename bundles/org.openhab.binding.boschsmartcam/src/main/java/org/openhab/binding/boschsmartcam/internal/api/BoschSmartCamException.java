@@ -75,17 +75,26 @@ public class BoschSmartCamException extends Exception {
     }
 
     /**
-     * Logs that something could not be done: at info for a reason that is expected in operation, at warn otherwise.
+     * Logs that a command could not be carried out. Lost connections and the codes Bosch answers with in operation are
+     * expected and logged at info, so the user learns why the command had no effect; only an answer the binding does
+     * not know is logged at warn.
      *
      * @param action what could not be done, e.g. {@code "switch the siren of"}
      * @param subject what it was done to, e.g. the UID of the thing
      */
     public void log(Logger logger, String action, Object subject) {
-        if (isExpected()) {
+        if (isExpected() || httpStatus == 0) {
             logger.info("Could not {} {}: {}", action, subject, getReason());
         } else {
             logger.warn("Could not {} {}: {}", action, subject, getReason());
         }
+    }
+
+    /**
+     * @return the text made safe as an argument of an {@code @text/...} status description, which ends at a quote
+     */
+    public static String asTextArgument(String text) {
+        return text.replace('"', '\'');
     }
 
     /**

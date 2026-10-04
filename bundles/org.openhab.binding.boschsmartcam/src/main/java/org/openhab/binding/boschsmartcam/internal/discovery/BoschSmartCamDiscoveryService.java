@@ -48,6 +48,8 @@ import org.openhab.binding.boschsmartcam.internal.local.CameraTrust;
 import org.openhab.core.config.discovery.AbstractDiscoveryService;
 import org.openhab.core.config.discovery.DiscoveryResultBuilder;
 import org.openhab.core.config.discovery.DiscoveryService;
+import org.openhab.core.i18n.LocaleProvider;
+import org.openhab.core.i18n.TranslationProvider;
 import org.openhab.core.net.CidrAddress;
 import org.openhab.core.net.NetUtil;
 import org.openhab.core.thing.Thing;
@@ -109,9 +111,13 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
     private @Nullable ScheduledFuture<?> backgroundJob;
 
     @Activate
-    public BoschSmartCamDiscoveryService(final @Reference BoschSmartCamAuthService authService) {
+    public BoschSmartCamDiscoveryService(final @Reference BoschSmartCamAuthService authService,
+            final @Reference LocaleProvider localeProvider, final @Reference TranslationProvider i18nProvider) {
         super(Set.of(THING_TYPE_CAMERA), SCAN_TIMEOUT_SECONDS, false);
         this.authService = authService;
+        // lets the base class translate the @text labels of the results
+        this.localeProvider = localeProvider;
+        this.i18nProvider = i18nProvider;
     }
 
     @Override
@@ -263,7 +269,7 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
         DiscoveryResultBuilder result = DiscoveryResultBuilder
                 .create(new ThingUID(THING_TYPE_CAMERA, identity.thingId())).withProperties(properties)
                 .withRepresentationProperty(Thing.PROPERTY_MAC_ADDRESS)
-                .withLabel("Bosch Smart Home Camera " + identity.macAddress());
+                .withLabel("@text/discovery.camera.label [\"" + identity.macAddress() + "\"]");
         addCloudDetails(result, properties, identity.macAddress());
         thingDiscovered(result.build());
     }
@@ -338,8 +344,10 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
     private static String buildLabel(@Nullable String title, @Nullable CameraModel model) {
         String productName = model == null ? null : model.getProductName();
         if (title == null || title.isBlank()) {
-            return productName == null ? "Bosch Smart Home Camera" : "Bosch " + productName;
+            return productName == null ? "@text/discovery.camera.default-label"
+                    : "@text/discovery.camera.product-label [\"" + productName + "\"]";
         }
+        // the name given in the app and the product name are names, nothing to translate
         return productName == null ? title : title + " (" + productName + ")";
     }
 }

@@ -89,9 +89,6 @@ public class LocalCameraClient {
     }
 
     /**
-     * @return the firmware version the way the app shows it, e.g. {@code 9.40.202}
-     */
-    /**
      * @return what the lights of an Eyes Outdoor Camera II show right now, the manual light as well as the motion or
      *         ambient light while it is on
      */
@@ -110,6 +107,9 @@ public class LocalCameraClient {
         return parse(get("/sh/data/alarm/status"), AlarmStatus.class);
     }
 
+    /**
+     * @return the firmware version the way the app shows it, e.g. {@code 9.40.202}
+     */
     public @Nullable String getFirmwareVersion() throws BoschSmartCamException {
         Version version = parse(get("/sh/data/version"), Version.class);
         String raw = version.firmwareVersion() != null ? version.firmwareVersion() : version.firmwareVersionCamel();

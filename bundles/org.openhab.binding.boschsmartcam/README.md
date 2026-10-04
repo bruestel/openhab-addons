@@ -14,8 +14,10 @@ Without this a camera cannot be added.
 
 ## Supported Things
 
-- `camera`: A single camera, talked to in the local network. Works on its own.
-- `account`: A Bosch SingleKey ID account. Optional bridge for cameras whose privacy mode should be switchable, and the place of the push notifications.
+- `camera`: A single camera, talked to in the local network.
+  Works on its own.
+- `account`: A Bosch SingleKey ID account.
+  Optional bridge for cameras whose privacy mode should be switchable, and the place of the push notifications.
 
 ## Discovery
 
@@ -24,7 +26,8 @@ The cameras answer neither mDNS nor WS-Discovery, so the binding probes every ad
 A camera is recognized by two open ports, 443 for the local API and 9554 for the RTSP tunnel, and by a certificate below the root Bosch publishes for the local API.
 The tunnel only opens once the local data interface is enabled in the app, so cameras that could not be used anyway are not offered.
 
-A scan runs when started by hand. Background discovery is off by default, because every scan probes the whole network and asks the cloud about the cameras it did not find; when enabled in the discovery settings of openHAB, it runs every 30 minutes.
+A scan runs when started by hand.
+Background discovery is off by default, because every scan probes the whole network and asks the cloud about the cameras it did not find; when enabled in the discovery settings of openHAB, it runs every 30 minutes.
 It takes about ten seconds for a /22.
 
 Cameras in a network openHAB is not attached to, for example behind a router, are found through an online `account`: after the local scan, every camera of the account that was not found is looked for at the address the cloud names for it.
@@ -48,7 +51,7 @@ Only the password of the local API has to be entered when adding it.
 | user                 | text    | User of the local API, as shown in the Bosch Smart Camera app.                   | `localuser` | yes      | no       |
 | password             | text    | Password of the local API, as shown in the Bosch Smart Camera app.               | N/A         | yes      | no       |
 | snapshotCacheSeconds | integer | How long a fetched image is reused in sec.                          | 3           | no       | yes      |
-| accessToken          | text    | Token in the addresses of snapshot, streams and events, see [Who may fetch them](#who-may-fetch-them). | generated | no | yes |
+| accessToken          | text    | Token in the addresses of snapshot, streams and events, see [Who May Fetch Them](#who-may-fetch-them). | generated | no | yes |
 | publishEventsApi     | boolean | Offer the events the cloud keeps as a JSON API, see below. Needs an account. | false | no  | yes      |
 | trustAllCertificates | boolean | Accept any certificate instead of verifying it, see below.          | false       | no       | yes      |
 
@@ -83,11 +86,16 @@ Bosch accepts exactly one return address for this client, `https://my.home-assis
 That address belongs to the My Home Assistant service, a static page that forwards the login to the instance URL stored in the browser and appends `/auth/external/callback`.
 The binding listens on that path, so pointing the instance URL at openHAB makes the authorization complete on its own.
 
-1. Add an `account` thing. It stays offline with the note that it is not authorized yet.
+1. Add an `account` thing.
+   It stays offline with the note that it is not authorized yet.
 1. Open `http://<youropenhab>:8080/boschsmartcam` in a browser.
-1. Follow step 1 on that page: open the My Home Assistant settings and set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`. The page shows the exact value and offers a button to copy it. This is stored only in that browser and is needed once.
-1. Click **Log in with Bosch SingleKey ID** and log in. If you are already signed in with your SingleKey ID in that browser, no login form appears and you are forwarded straight through.
-1. You land on a page titled _Link account to Home Assistant?_. Click **Link account**, not _Decline_.
+1. Follow step 1 on that page: open the My Home Assistant settings and set the instance URL to the address of your openHAB, e.g. `http://192.168.178.80:8080`.
+   The page shows the exact value and offers a button to copy it.
+   This is stored only in that browser and is needed once.
+1. Click **Log in with Bosch SingleKey ID** and log in.
+   If you are already signed in with your SingleKey ID in that browser, no login form appears and you are forwarded straight through.
+1. You land on a page titled _Link account to Home Assistant?_.
+   Click **Link account**, not _Decline_.
    The wording is misleading: no Home Assistant is involved, the button only forwards to the instance URL shown at the bottom of that page, which is your openHAB.
    The account thing goes online.
 
@@ -179,7 +187,6 @@ Everything starting with `OFF`, and `ALWAYS_OFF`, counts as switched off, so a v
 | firmwareVersion | Firmware currently on the camera, written the way the Bosch Smart Camera app shows it.      |
 | rtspsCertificate | Certificate openHAB presents for `rtsps-url`, as PEM, see [Video Streams](#video-streams). |
 | rtspsCertificateSha256 | SHA-256 fingerprint of that certificate.                                 |
-| eventsApiUrl    | Address of the events API, only while `publishEventsApi` is on; it answers only with an account. |
 
 With an account these are added:
 
@@ -215,7 +222,7 @@ Fetched images are reused for `snapshotCacheSeconds`, 3 by default and never bel
 Ten viewers therefore cause no more traffic than one, and nobody looking causes none at all.
 A fetch is a single request to the camera in the local network, the cloud is not involved.
 
-### Who may fetch them
+### Who May Fetch Them
 
 Two things guard the URL.
 
@@ -305,7 +312,8 @@ Like the snapshot they carry the token of the camera, are limited to `snapshotAl
 
 ### Events API
 
-With `publishEventsApi` switched on, all events the cloud keeps for the camera are offered as JSON at the address in the `eventsApiUrl` property, e.g. for an app of your own:
+With `publishEventsApi` switched on, all events the cloud keeps for the camera are offered as JSON, e.g. for an app of your own.
+The address is the one of the snapshot with `events` in place of `snapshot.jpg`; it is not shown as a property, as it carries the token:
 
 ```text
 http://<youropenhab>:8080/boschsmartcam/<token>/events

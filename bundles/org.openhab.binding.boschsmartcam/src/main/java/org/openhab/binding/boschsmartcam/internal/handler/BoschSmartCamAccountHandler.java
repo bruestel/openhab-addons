@@ -89,10 +89,14 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
     private final BoschSmartCamAuthService authService;
 
     private BoschSmartCamAccountConfiguration config = new BoschSmartCamAccountConfiguration();
-    private @Nullable OAuthClientService oAuthService;
-    private @Nullable BoschSmartCamApi api;
+    // read by the servlet threads of the login as well as by the scheduler
+    private volatile @Nullable OAuthClientService oAuthService;
+    private volatile @Nullable BoschSmartCamApi api;
+    private volatile @Nullable PkceChallenge pkceChallenge;
     private @Nullable ScheduledFuture<?> pollingJob;
-    private @Nullable PkceChallenge pkceChallenge;
+    private @Nullable ScheduledFuture<?> delayedPoll;
+    // a poll scheduled before dispose must not publish a status afterwards
+    private volatile boolean disposed;
 
     private volatile List<VideoInput> cameras = List.of();
     private volatile Instant lastPoll = Instant.EPOCH;
@@ -113,6 +117,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
 
     @Override
     public void initialize() {
+        disposed = false;
         config = getConfigAs(BoschSmartCamAccountConfiguration.class);
         cameraIdsByMacAddress.clear();
         authService.addAccountHandler(this);
@@ -127,11 +132,17 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
 
     @Override
     public void dispose() {
+        disposed = true;
         authService.removeAccountHandler(this);
         ScheduledFuture<?> job = pollingJob;
         if (job != null) {
             job.cancel(true);
             pollingJob = null;
+        }
+        ScheduledFuture<?> delayed = delayedPoll;
+        if (delayed != null) {
+            delayed.cancel(true);
+            delayedPoll = null;
         }
         OAuthClientService service = oAuthService;
         if (service != null) {
@@ -300,6 +311,9 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      * Polls the camera settings and pushes them to the camera things.
      */
     public void poll() {
+        if (disposed) {
+            return;
+        }
         lastPoll = Instant.now();
         if (!isAuthorized()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
@@ -333,12 +347,14 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
             logger.debug("Polling the Bosch cloud failed", e);
             if (e.isRateLimited()) {
                 // the account is fine, Bosch only wants fewer requests; the next poll tries again
-                logger.info("Polling the Bosch cloud skipped: {}", e.getReason());
+                logger.debug("Polling the Bosch cloud skipped: {}", e.getReason());
             } else if (e.isAuthorizationFailure()) {
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
                         "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]");
             } else {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
+                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                        "@text/offline.comm-error.cloud [\"" + BoschSmartCamException.asTextArgument(e.getReason())
+                                + "\"]");
             }
         }
     }
@@ -440,7 +456,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      * Triggers a poll shortly after a setting was changed, giving the camera time to apply it.
      */
     public void scheduleDelayedPoll() {
-        scheduler.schedule(this::poll, 5, TimeUnit.SECONDS);
+        delayedPoll = scheduler.schedule(this::poll, 5, TimeUnit.SECONDS);
     }
 
     // --- Authorization ----------------------------------------------------------------------------------------

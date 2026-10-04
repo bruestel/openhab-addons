@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -204,7 +205,7 @@ public class BoschSmartCamApi {
      */
     public void setLightOn(String cameraId, Light light, boolean on) throws BoschSmartCamException {
         execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/lighting/switch/" + light.path,
-                gson.toJson(java.util.Map.of("enabled", on)));
+                gson.toJson(Map.of("enabled", on)));
     }
 
     /**
@@ -236,7 +237,7 @@ public class BoschSmartCamApi {
      */
     public void setPanicAlarm(String cameraId, boolean on) throws BoschSmartCamException {
         execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/panic_alarm",
-                gson.toJson(java.util.Map.of("status", on ? "ON" : "OFF")));
+                gson.toJson(Map.of("status", on ? "ON" : "OFF")));
     }
 
     private String execute(HttpMethod method, String path, @Nullable String body) throws BoschSmartCamException {

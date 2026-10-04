@@ -641,12 +641,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Makes sure the configured host is the camera this thing stands for, and reads what does not change while it
-     * runs. Done once after starting and again after the camera was unreachable.
-     *
-     * @return whether the camera at the host is the expected one
-     */
-    /**
      * @return the MAC address the thing was made for: the one seen before, or the id of the thing when that is a MAC
      *         address, as discovery names them; {@code null} for a thing named otherwise that never saw its camera.
      *         The id matters for things from files, which lose their properties on every restart.
@@ -659,6 +653,12 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         return CameraIdentity.normalizeMacAddress(getThing().getUID().getId());
     }
 
+    /**
+     * Makes sure the configured host is the camera this thing stands for, and reads what does not change while it
+     * runs. Done once after starting and again after the camera was unreachable.
+     *
+     * @return whether the camera at the host is the expected one
+     */
     private boolean checkIdentity(LocalCameraClient localClient) {
         CameraIdentity found;
         try {
@@ -704,7 +704,6 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         // only now: openHAB drops state updates of a handler that is still initializing
         updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
         updateRtspUrls();
-        updateProperty(PROPERTY_EVENTS_API, config.publishEventsApi ? getUrl(EVENTS_PATH) : null);
         scheduler.execute(this::refreshSettings);
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
@@ -719,7 +718,9 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     "@text/offline.conf-error.local-credentials");
         } else {
             logger.debug("Talking to {} failed: {}", getThing().getUID(), e.getMessage());
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "@text/offline.comm-error.camera [\"" + BoschSmartCamException.asTextArgument(e.getReason())
+                            + "\"]");
         }
     }
 

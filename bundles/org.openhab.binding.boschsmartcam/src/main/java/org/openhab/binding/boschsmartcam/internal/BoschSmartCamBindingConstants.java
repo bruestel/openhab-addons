@@ -74,10 +74,6 @@ public class BoschSmartCamBindingConstants {
     public static final String PROPERTY_GENERATION = "generation";
 
     /**
-     * Address of the page with the event log of a camera.
-     */
-
-    /**
      * Name of the user the local API creates when it is enabled in the app.
      */
     public static final String DEFAULT_LOCAL_USER = "localuser";
@@ -104,12 +100,6 @@ public class BoschSmartCamBindingConstants {
      * Query of the small stream without sound, the one a video recorder detects motion on.
      */
     public static final String RTSP_SUBSTREAM_QUERY = "?line=1&inst=2&enableaudio=0";
-
-    /**
-     * Unguessable token that guards the URLs of a camera. Kept as a property so links survive restarts, and so it can
-     * be looked up or deleted when a link has to be revoked.
-     */
-    public static final String PROPERTY_EVENTS_API = "eventsApiUrl";
 
     // Bosch SingleKey ID (Keycloak) endpoints
     public static final String AUTH_BASE_URL = "https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect";
@@ -153,11 +143,6 @@ public class BoschSmartCamBindingConstants {
     public static final String EVENTS_PATH = "events";
     public static final String EVENT_IMAGE_FILE = "image.jpg";
     public static final String EVENT_CLIP_FILE = "clip.mp4";
-
-    /**
-     * Page with the event log of a camera, and the stream it follows new events with. Same path and protection as
-     * {@link #SNAPSHOT_FILE}.
-     */
 
     /**
      * Path {@code my.home-assistant.io} redirects to. It appends this to the instance URL that is stored in the
