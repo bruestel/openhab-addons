@@ -148,6 +148,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             + CHANNEL_LAST_CLIP_SNAPSHOT_URL;
     private static final String CHANNEL_CLOUD_LAST_CLIP_URL = GROUP_CLOUD + "#" + CHANNEL_LAST_CLIP_URL;
     private static final String CHANNEL_CLOUD_CLIP_READY = GROUP_CLOUD + "#" + CHANNEL_CLIP_READY;
+    private static final String CHANNEL_CLOUD_EVENTS_API_URL = GROUP_CLOUD + "#" + CHANNEL_EVENTS_API_URL;
     private static final String CHANNEL_LIGHT_FRONT = GROUP_LIGHT + "#" + CHANNEL_FRONT_LIGHT;
     private static final String CHANNEL_LIGHT_TOP_BOTTOM = GROUP_LIGHT + "#" + CHANNEL_TOP_BOTTOM_LIGHT;
     private static final String CHANNEL_LIGHT_MOTION = GROUP_LIGHT + "#" + CHANNEL_MOTION_LIGHT;
@@ -487,6 +488,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     updateState(channelId, new StringType(getEventFileUrl(id, EVENT_CLIP_FILE)));
                 }
             }
+            case CHANNEL_CLOUD_EVENTS_API_URL -> updateEventsApiUrl();
             case CHANNEL_LOCAL_LAST_EVENT, CHANNEL_LOCAL_LAST_EVENT_TIME, CHANNEL_LOCAL_RECORDING -> {
                 List<CameraEvent> events = eventLog.list();
                 if (events.isEmpty()) {
@@ -704,6 +706,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         // only now: openHAB drops state updates of a handler that is still initializing
         updateState(CHANNEL_LOCAL_SNAPSHOT_URL, new StringType(getSnapshotUrl()));
         updateRtspUrls();
+        updateEventsApiUrl();
         scheduler.execute(this::refreshSettings);
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
@@ -1050,10 +1053,19 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * @return whether the events the cloud keeps are offered as an API, see {@link #getCloudEvents()}
+     * @return whether the events the cloud keeps are offered as an API: switched on and its address linked
      */
     public boolean offersEventsApi() {
-        return config.publishEventsApi;
+        return config.publishEventsApi && isLinked(CHANNEL_CLOUD_EVENTS_API_URL);
+    }
+
+    /**
+     * Shows the address of the events API while it is switched on. It carries the token, so it is a channel like the
+     * other addresses, not a property, and the API only answers while it is linked.
+     */
+    private void updateEventsApiUrl() {
+        updateState(CHANNEL_CLOUD_EVENTS_API_URL,
+                config.publishEventsApi ? new StringType(getUrl(EVENTS_PATH)) : UnDefType.UNDEF);
     }
 
     public CloudEventFeed getCloudEvents() {
@@ -1067,7 +1079,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      * @param clip whether the clip is asked for, otherwise the image
      */
     public boolean offersEventMedia(String eventId, boolean clip) {
-        if (config.publishEventsApi) {
+        if (offersEventsApi()) {
             return true;
         }
         return clip ? isLinked(CHANNEL_CLOUD_LAST_CLIP_URL) && eventId.equals(lastClipEventId)

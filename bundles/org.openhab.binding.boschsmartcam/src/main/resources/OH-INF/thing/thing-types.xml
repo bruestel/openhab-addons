@@ -69,8 +69,8 @@
 			<parameter name="publishEventsApi" type="boolean">
 				<label>Publish Events as API</label>
 				<description>Offer the events the Bosch cloud keeps for this camera, with their images and clips, as JSON at the
-					snapshot address with events in place of snapshot.jpg. Like the snapshot it is guarded by the token in the address
-					and the networks of the binding. Needs an account.</description>
+					address in the Events API URL channel, which has to be linked. Like the snapshot it is guarded by the token in the
+					address and the networks of the binding. Needs an account.</description>
 				<default>false</default>
 				<advanced>true</advanced>
 			</parameter>
@@ -128,6 +128,7 @@
 			<channel id="last-clip-snapshot-url" typeId="last-clip-snapshot-url"/>
 			<channel id="last-clip-url" typeId="last-clip-url"/>
 			<channel id="clip-ready" typeId="clip-ready"/>
+			<channel id="events-api-url" typeId="events-api-url"/>
 		</channels>
 	</channel-group-type>
 
@@ -317,6 +318,14 @@
 		<label>Last Clip URL</label>
 		<description>Address of the video clip of the last event, served through openHAB once the camera has uploaded it.
 			Contains the token, so treat it as a secret. Only offered while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="events-api-url">
+		<item-type>String</item-type>
+		<label>Events API URL</label>
+		<description>Address of the events API while Publish Events as API is on. Contains the token, so treat it as a secret.
+			The API only answers while this channel is linked to an item.</description>
 		<state readOnly="true"/>
 	</channel-type>
 

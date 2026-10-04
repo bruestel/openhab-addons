@@ -132,6 +132,7 @@ The same page also lets you remove the stored tokens of an account, for example 
 | cloud#last-clip-snapshot-url | String | R      | Address of the still image of the last clip, as the cloud keeps it. Needs an account, only served while linked. |
 | cloud#last-clip-url   | String   | R          | Address of the clip of the last event, once uploaded. Needs an account, only served while linked. |
 | cloud#clip-ready      | Trigger  |            | Fires when the clip of an event is in the cloud, with the kind of the event as payload.          |
+| cloud#events-api-url  | String   | R          | Address of the events API while `publishEventsApi` is on. Contains the token; the API only answers while linked. |
 
 The camera reports what happens through an ONVIF PullPoint subscription that the binding keeps open.
 The connection goes out from openHAB, so nothing has to be reachable from the camera, and nothing is polled: the camera answers when something happens.
@@ -312,8 +313,8 @@ Like the snapshot they carry the token of the camera, are limited to `snapshotAl
 
 ### Events API
 
-With `publishEventsApi` switched on, all events the cloud keeps for the camera are offered as JSON, e.g. for an app of your own.
-The address is the one of the snapshot with `events` in place of `snapshot.jpg`; it is not shown as a property, as it carries the token:
+With `publishEventsApi` switched on and the `events-api-url` channel linked, all events the cloud keeps for the camera are offered as JSON, e.g. for an app of your own.
+The channel shows the address:
 
 ```text
 http://<youropenhab>:8080/boschsmartcam/<token>/events

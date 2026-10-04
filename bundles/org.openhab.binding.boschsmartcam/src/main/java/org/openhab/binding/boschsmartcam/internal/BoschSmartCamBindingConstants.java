@@ -59,6 +59,7 @@ public class BoschSmartCamBindingConstants {
     public static final String CHANNEL_LAST_CLIP_SNAPSHOT_URL = "last-clip-snapshot-url";
     public static final String CHANNEL_LAST_CLIP_URL = "last-clip-url";
     public static final String CHANNEL_CLIP_READY = "clip-ready";
+    public static final String CHANNEL_EVENTS_API_URL = "events-api-url";
     public static final String CHANNEL_FRONT_LIGHT = "front-light";
     public static final String CHANNEL_TOP_BOTTOM_LIGHT = "top-bottom-light";
     public static final String CHANNEL_MOTION_LIGHT = "motion-light";
