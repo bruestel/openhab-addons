@@ -1,0 +1,279 @@
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+package org.openhab.binding.boschsmartcam.internal.api;
+
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.API_BASE_URL;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CLOUD_OFF;
+import static org.openhab.binding.boschsmartcam.internal.BoschSmartCamBindingConstants.CLOUD_ON;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.api.Response;
+import org.eclipse.jetty.client.util.InputStreamResponseListener;
+import org.eclipse.jetty.client.util.StringContentProvider;
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpStatus;
+import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
+import org.openhab.binding.boschsmartcam.internal.api.dto.NotificationsRequest;
+import org.openhab.binding.boschsmartcam.internal.api.dto.PrivacyModeRequest;
+import org.openhab.binding.boschsmartcam.internal.api.dto.VideoInput;
+import org.openhab.binding.boschsmartcam.internal.api.dto.WifiInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
+
+/**
+ * Minimal client for the Bosch Smart Camera cloud API: the camera settings only the cloud can change, and the events
+ * the cloud keeps with their images and clips. Live video and snapshots come from the camera itself.
+ *
+ * @author Jonas Brüstel - Initial contribution
+ */
+@NonNullByDefault
+public class BoschSmartCamApi {
+
+    private static final String CONTENT_TYPE_JSON = "application/json";
+
+    // fields and paths of the cloud API that are written
+    private static final String FIELD_ENABLED = "enabled";
+    private static final String FIELD_STATUS = "status";
+    private static final String FIELD_LIGHT_ON_MOTION_ENABLED = "lightOnMotionEnabled";
+    private static final String LIGHTING_MOTION = "motion";
+
+    private static final long REQUEST_TIMEOUT_SECONDS = 30;
+
+    private final Logger logger = LoggerFactory.getLogger(BoschSmartCamApi.class);
+    private final Gson gson = new Gson();
+    // a light setting is written back as read, its nulls included
+    private final Gson gsonWithNulls = new GsonBuilder().serializeNulls().create();
+
+    private final HttpClient httpClient;
+    private final AccessTokenProvider tokenProvider;
+
+    public BoschSmartCamApi(HttpClient httpClient, AccessTokenProvider tokenProvider) {
+        this.httpClient = httpClient;
+        this.tokenProvider = tokenProvider;
+    }
+
+    /**
+     * Returns all cameras of the account.
+     */
+    public List<VideoInput> getVideoInputs() throws BoschSmartCamException {
+        String content = execute(HttpMethod.GET, "/v11/video_inputs", null);
+        try {
+            List<VideoInput> videoInputs = gson.fromJson(content, new TypeToken<List<VideoInput>>() {
+            }.getType());
+            return videoInputs == null ? List.of() : videoInputs;
+        } catch (JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected response for video inputs", e);
+        }
+    }
+
+    /**
+     * Switches a camera off (privacy mode on) or on again.
+     *
+     * @param cameraId id of the camera
+     * @param privacyModeOn {@code true} switches the camera off, {@code false} switches it on
+     * @param durationInSeconds optional time after which the camera switches itself on again
+     */
+    public void setPrivacyMode(String cameraId, boolean privacyModeOn, @Nullable Integer durationInSeconds)
+            throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/privacy",
+                gson.toJson(PrivacyModeRequest.of(privacyModeOn, durationInSeconds)));
+    }
+
+    /**
+     * Reads the network the camera is connected to, including the MAC address it uses there.
+     */
+    public WifiInfo getWifiInfo(String cameraId) throws BoschSmartCamException {
+        String content = execute(HttpMethod.GET, "/v11/video_inputs/" + cameraId + "/wifiinfo", null);
+        try {
+            WifiInfo wifiInfo = gson.fromJson(content, WifiInfo.class);
+            if (wifiInfo == null) {
+                throw new BoschSmartCamException("Empty wifiinfo for " + cameraId);
+            }
+            return wifiInfo;
+        } catch (JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected wifiinfo for " + cameraId, e);
+        }
+    }
+
+    /**
+     * Enables or disables the push notifications of a camera.
+     */
+    public void setNotifications(String cameraId, boolean enabled) throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/enable_notifications",
+                gson.toJson(NotificationsRequest.of(enabled)));
+    }
+
+    /**
+     * Returns events of a camera, newest first. The cloud ignores a {@code limit}, it pages instead.
+     *
+     * @param page the page, counted from 0
+     */
+    public List<CloudEvent> getEvents(String cameraId, int page, int pageSize) throws BoschSmartCamException {
+        String content = execute(HttpMethod.GET,
+                "/v11/events?page=" + page + "&pageSize=" + pageSize + "&videoInputId=" + cameraId, null);
+        try {
+            List<CloudEvent> events = gson.fromJson(content, new TypeToken<List<CloudEvent>>() {
+            }.getType());
+            return events == null ? List.of() : events;
+        } catch (JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected response for events", e);
+        }
+    }
+
+    /**
+     * An image or clip on its way from the cloud. Has to be closed.
+     */
+    public record Media(@Nullable String contentType, InputStream content) implements Closeable {
+        @Override
+        public void close() throws IOException {
+            content.close();
+        }
+    }
+
+    /**
+     * Opens the image or clip of an event. It is streamed rather than read whole, a clip is several megabytes.
+     *
+     * @param url the {@code imageUrl} or {@code videoClipUrl} of the event; only addresses of the cloud API are
+     *            followed, so the token of the account is never sent elsewhere
+     */
+    public Media openMedia(String url) throws BoschSmartCamException {
+        if (!url.startsWith(API_BASE_URL + "/")) {
+            throw new BoschSmartCamException("Refusing to fetch media outside the Bosch cloud: " + url);
+        }
+        InputStreamResponseListener listener = new InputStreamResponseListener();
+        httpClient.newRequest(url).method(HttpMethod.GET)
+                .header(HttpHeader.AUTHORIZATION, "Bearer " + tokenProvider.getAccessToken())
+                .timeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS).send(listener);
+        try {
+            Response response = listener.get(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            InputStream content = listener.getInputStream();
+            if (response.getStatus() != HttpStatus.OK_200) {
+                content.close();
+                throw new BoschSmartCamException("Fetching media failed with HTTP " + response.getStatus(),
+                        response.getStatus());
+            }
+            return new Media(response.getHeaders().get(HttpHeader.CONTENT_TYPE), content);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BoschSmartCamException("Fetching media was interrupted", e);
+        } catch (ExecutionException | TimeoutException | IOException e) {
+            throw new BoschSmartCamException("Fetching media failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * The lights of an Eyes Outdoor Camera II that have a button in the app, by their path below
+     * {@code lighting/switch}.
+     */
+    public enum Light {
+        FRONT("front"),
+        TOP_AND_BOTTOM("topdown");
+
+        private final String path;
+
+        Light(String path) {
+            this.path = path;
+        }
+    }
+
+    /**
+     * Switches a light of an Eyes Outdoor Camera II on or off, like the buttons of the app do.
+     */
+    public void setLightOn(String cameraId, Light light, boolean on) throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/lighting/switch/" + light.path,
+                gson.toJson(Map.of(FIELD_ENABLED, on)));
+    }
+
+    /**
+     * Switches whether the lights of an Eyes Outdoor Camera II go on with motion.
+     */
+    public void setMotionLight(String cameraId, boolean enabled) throws BoschSmartCamException {
+        setLightingEnabled(cameraId, LIGHTING_MOTION, FIELD_LIGHT_ON_MOTION_ENABLED, enabled);
+    }
+
+    /**
+     * Switches whether a light setting is active. The cloud wants the whole setting back, so it is read and written
+     * with only that field changed.
+     */
+    private void setLightingEnabled(String cameraId, String setting, String field, boolean enabled)
+            throws BoschSmartCamException {
+        String path = "/v11/video_inputs/" + cameraId + "/lighting/" + setting;
+        JsonObject body;
+        try {
+            body = JsonParser.parseString(execute(HttpMethod.GET, path, null)).getAsJsonObject();
+        } catch (IllegalStateException | JsonSyntaxException e) {
+            throw new BoschSmartCamException("Unexpected lighting " + setting + " for " + cameraId, e);
+        }
+        body.addProperty(field, enabled);
+        execute(HttpMethod.PUT, path, gsonWithNulls.toJson(body));
+    }
+
+    /**
+     * Sounds the siren of a camera until it is switched off again, or stops it.
+     */
+    public void setPanicAlarm(String cameraId, boolean on) throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/panic_alarm",
+                gson.toJson(Map.of(FIELD_STATUS, on ? CLOUD_ON : CLOUD_OFF)));
+    }
+
+    private String execute(HttpMethod method, String path, @Nullable String body) throws BoschSmartCamException {
+        String url = API_BASE_URL + path;
+        Request request = httpClient.newRequest(url).method(method)
+                .header(HttpHeader.AUTHORIZATION, "Bearer " + tokenProvider.getAccessToken())
+                .header(HttpHeader.ACCEPT, CONTENT_TYPE_JSON).timeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        if (body != null) {
+            request.content(new StringContentProvider(CONTENT_TYPE_JSON, body, StandardCharsets.UTF_8));
+        }
+
+        logger.trace("Sending {} {}", method, url);
+        try {
+            ContentResponse response = request.send();
+            int status = response.getStatus();
+            String content = response.getContentAsString();
+            if (status != HttpStatus.OK_200 && status != HttpStatus.NO_CONTENT_204
+                    && status != HttpStatus.ACCEPTED_202) {
+                throw new BoschSmartCamException(
+                        "%s %s failed with HTTP %d: %s".formatted(method, path, status, content), status);
+            }
+            logger.trace("Received {} for {} {}", status, method, url);
+            return content;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BoschSmartCamException("Request to %s was interrupted".formatted(path), e);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new BoschSmartCamException("Request to %s failed: %s".formatted(path, e.getMessage()), e);
+        }
+    }
+}

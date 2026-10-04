@@ -1,0 +1,65 @@
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+package org.openhab.binding.boschsmartcam.internal;
+
+import org.eclipse.jdt.annotation.NonNullByDefault;
+
+/**
+ * The {@link BoschSmartCamCameraConfiguration} holds the configuration of a camera thing.
+ *
+ * @author Jonas Brüstel - Initial contribution
+ */
+@NonNullByDefault
+public class BoschSmartCamCameraConfiguration {
+
+    public static final int DEFAULT_SNAPSHOT_CACHE_SECONDS = 3;
+
+    /**
+     * Address of the camera in the local network.
+     */
+    public String host = "";
+
+    /**
+     * User of the local API. The app shows it once the local data interface is enabled.
+     */
+    public String user = BoschSmartCamBindingConstants.DEFAULT_LOCAL_USER;
+
+    /**
+     * Password of the local API, from the QR code sticker that comes with the camera.
+     */
+    public String password = "";
+
+    /**
+     * How long a fetched still image is reused before the camera is asked again. Whoever opens the snapshot URL is
+     * served from that cache, so the number of viewers does not matter.
+     */
+    public int snapshotCacheSeconds = DEFAULT_SNAPSHOT_CACHE_SECONDS;
+
+    /**
+     * Token in the snapshot, stream and event addresses. Left empty, the binding creates one and keeps it; set, it
+     * replaces that one, which is how a leaked address is revoked.
+     */
+    public String accessToken = "";
+
+    /**
+     * Offer the events the cloud keeps for this camera, with their images and clips, as a small JSON API below the
+     * snapshot address. Needs an account.
+     */
+    public boolean publishEventsApi = false;
+
+    /**
+     * Accept any certificate instead of only those below the root Bosch publishes. A way out should a firmware update
+     * ever bring a new root.
+     */
+    public boolean trustAllCertificates = false;
+}

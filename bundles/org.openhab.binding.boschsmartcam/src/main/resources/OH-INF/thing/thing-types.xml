@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="boschsmartcam"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<thing-type id="account">
+		<label>Bosch Camera Account</label>
+		<description>A Bosch SingleKey ID account. Cameras it knows use it for what only the Bosch cloud can do; it has a
+			channel group with the push notifications of each of its cameras.</description>
+
+		<config-description>
+			<parameter name="refreshInterval" type="integer" unit="s" min="30">
+				<label>Refresh Interval</label>
+				<description>Interval the account is polled in sec. Only picks up what is changed in the Bosch Smart Camera app,
+					such as the notifications; commands from openHAB are read back right away.</description>
+				<default>3600</default>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- The account is optional and not a bridge: a camera finds an account that knows it by itself. -->
+	<thing-type id="camera">
+		<label>Bosch Smart Home Camera</label>
+		<description>A Bosch Smart Home Camera of the second generation, talked to directly through its local API. With an
+			account that knows it, its privacy mode, lights and siren can be switched; the camera finds such an account by
+			itself.</description>
+		<category>Camera</category>
+		<semantic-equipment-tag>Camera</semantic-equipment-tag>
+
+		<channel-groups>
+			<channel-group id="local" typeId="local"/>
+			<channel-group id="alarm" typeId="alarm"/>
+			<channel-group id="cloud" typeId="cloud"/>
+		</channel-groups>
+
+		<representation-property>macAddress</representation-property>
+
+		<config-description>
+			<parameter name="host" type="text" required="true">
+				<context>network-address</context>
+				<label>Host</label>
+				<description>Address of the camera in the local network.</description>
+			</parameter>
+			<parameter name="user" type="text" required="true">
+				<label>User</label>
+				<description>User of the local API. The Bosch Smart Camera app shows it once the local data interface is enabled
+					(camera settings, More, Local Data Interface).</description>
+				<default>localuser</default>
+			</parameter>
+			<parameter name="password" type="text" required="true">
+				<context>password</context>
+				<label>Password</label>
+				<description>Password of the local API. It is on the QR code sticker that comes in the box of the camera; on the
+					Eyes Indoor Camera II it is also under its base.</description>
+			</parameter>
+			<parameter name="snapshotCacheSeconds" type="integer" unit="s" min="1">
+				<label>Snapshot Cache</label>
+				<description>How long a fetched image is reused before the camera is asked again. The number of viewers does not
+					matter, they all share it.</description>
+				<default>3</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="accessToken" type="text" pattern="[A-Za-z0-9_-]{16,}">
+				<context>password</context>
+				<label>Access Token</label>
+				<description>Token in the addresses of snapshot, streams and events. Leave empty and the binding creates one and
+					keeps it. Enter a new one, at least 16 letters, digits, - or _, to revoke addresses that leaked.</description>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="publishEventsApi" type="boolean">
+				<label>Publish Events as API</label>
+				<description>Offer the events the Bosch cloud keeps for this camera, with their images and clips, as JSON at the
+					address in the Events API URL channel, which has to be linked. Like the snapshot it is guarded by the token in the
+					address and the networks of the binding. Needs an account.</description>
+				<default>false</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="trustAllCertificates" type="boolean">
+				<label>Trust All Certificates</label>
+				<description>Accept any certificate instead of only those issued below the root Bosch publishes for the local API.
+					Only meant as a way out should a firmware update bring a new root: the chain is not verified then, but the camera
+					still has to present the MAC address it was added with.</description>
+				<default>false</default>
+				<advanced>true</advanced>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<channel-group-type id="local">
+		<label>Camera</label>
+		<description>What the camera reports itself, available without an account.</description>
+		<channels>
+			<channel id="privacy-mode" typeId="privacy-mode"/>
+			<channel id="event" typeId="event"/>
+			<channel id="last-event" typeId="last-event"/>
+			<channel id="last-event-time" typeId="last-event-time"/>
+			<channel id="recording" typeId="recording"/>
+			<channel id="snapshot-url" typeId="snapshot-url"/>
+			<channel id="rtsp-url" typeId="rtsp-url"/>
+			<channel id="rtsp-substream-url" typeId="rtsp-substream-url"/>
+			<channel id="rtsps-url" typeId="rtsps-url"/>
+			<channel id="rtsps-substream-url" typeId="rtsps-substream-url"/>
+			<channel id="camera-rtsps-url" typeId="camera-rtsps-url"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="light">
+		<label>Light</label>
+		<description>The lights of the Eyes Outdoor Camera II, added once the camera has named its model. The camera reports
+			their state; switching them needs an account.</description>
+		<channels>
+			<channel id="front-light" typeId="front-light"/>
+			<channel id="top-bottom-light" typeId="top-bottom-light"/>
+			<channel id="motion-light" typeId="motion-light"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="alarm">
+		<label>Alarm</label>
+		<description>The siren of the camera. Read from the camera; switching it needs an account.</description>
+		<channels>
+			<channel id="siren" typeId="siren"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="cloud">
+		<label>Cloud</label>
+		<description>What the Bosch cloud keeps of the events of the camera. Needs an account.</description>
+		<channels>
+			<channel id="last-clip-snapshot-url" typeId="last-clip-snapshot-url"/>
+			<channel id="last-clip-url" typeId="last-clip-url"/>
+			<channel id="clip-ready" typeId="clip-ready"/>
+			<channel id="events-api-url" typeId="events-api-url"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="notifications">
+		<label>App Push Notifications</label>
+		<description>Push notifications of one camera to the Bosch Smart Camera app on the phones of this account.</description>
+		<channels>
+			<channel id="notifications" typeId="notifications"/>
+			<channel id="notifications-status" typeId="notifications-status"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-type id="privacy-mode">
+		<item-type>Switch</item-type>
+		<label>Privacy Mode</label>
+		<description>ON puts the camera into privacy mode: it stops recording and streaming, the Eyes Indoor Camera II lowers
+			its lens into the housing. Read from the camera; switching needs an account, as the local API only reads.</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="event">
+		<kind>trigger</kind>
+		<label>Event</label>
+		<description>Fires once per event the camera detects, with its kind as payload.</description>
+		<event>
+			<options>
+				<option value="PERSON">Person</option>
+				<option value="INTRUSION">Intrusion</option>
+				<option value="NOISE">Noise</option>
+				<option value="GLASSBREAK">Glass Break</option>
+				<option value="FIRE">Fire Alarm</option>
+				<option value="WATER">Water Alarm</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="last-event">
+		<item-type>String</item-type>
+		<label>Last Event</label>
+		<description>Kind of the event the camera detected last.</description>
+		<tags>
+			<tag>Status</tag>
+		</tags>
+		<state readOnly="true">
+			<options>
+				<option value="PERSON">Person</option>
+				<option value="INTRUSION">Intrusion</option>
+				<option value="NOISE">Noise</option>
+				<option value="GLASSBREAK">Glass Break</option>
+				<option value="FIRE">Fire Alarm</option>
+				<option value="WATER">Water Alarm</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="last-event-time">
+		<item-type>DateTime</item-type>
+		<label>Last Event Time</label>
+		<description>When the camera detected the last event.</description>
+		<category>Time</category>
+		<tags>
+			<tag>Status</tag>
+		</tags>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="recording">
+		<item-type>Switch</item-type>
+		<label>Recording</label>
+		<description>ON while the camera records a clip of an event.</description>
+		<tags>
+			<tag>Status</tag>
+		</tags>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="snapshot-url">
+		<item-type>String</item-type>
+		<label>Snapshot URL</label>
+		<description>Address a still image of this camera can be fetched from. Contains a token, so treat it as a secret. The
+			image is only offered while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="rtsp-url">
+		<item-type>String</item-type>
+		<label>RTSP URL</label>
+		<description>Address of the stream through openHAB as plain RTSP, without TLS and without password: the token in the
+			address stands in for it, so treat it as a secret. Only set when the RTSP port of the binding is configured. Plain
+			streams are only offered while this or the RTSP substream URL is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="rtsp-substream-url">
+		<item-type>String</item-type>
+		<label>RTSP Substream URL</label>
+		<description>Like the RTSP URL, but the small stream without sound (704×400), the one a video recorder detects motion
+			on. Contains the token, so treat it as a secret.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="rtsps-url">
+		<item-type>String</item-type>
+		<label>RTSPS URL</label>
+		<description>Address of the stream through openHAB over TLS, without password: the token in the address stands in for
+			it, so treat it as a secret. openHAB shows the certificate it serves HTTPS with, see the thing properties. Only set
+			when the RTSP port of the binding is configured. Streams over TLS are only offered while this or the RTSPS substream
+			URL is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="rtsps-substream-url">
+		<item-type>String</item-type>
+		<label>RTSPS Substream URL</label>
+		<description>Like the RTSPS URL, but the small stream without sound (704×400). Contains the token, so treat it as a
+			secret.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="camera-rtsps-url">
+		<item-type>String</item-type>
+		<label>Direct RTSPS URL</label>
+		<description>Address of the stream directly at the camera, with TLS. The player has to accept a certificate that is
+			issued to the camera rather than to its host name, and logs in with the user and password of the camera.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="front-light">
+		<item-type>Switch</item-type>
+		<label>Front Light</label>
+		<description>Switches the front light like the button in the app does. Shows ON while it shines, also when motion or
+			dusk turned it on.</description>
+		<category>Light</category>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Light</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="top-bottom-light">
+		<item-type>Switch</item-type>
+		<label>Top/Bottom Light</label>
+		<description>Switches the LEDs on top of and below the camera together, like the button in the app does. Shows ON
+			while either shines, also when motion or dusk turned them on.</description>
+		<category>Light</category>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Light</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="motion-light">
+		<item-type>Switch</item-type>
+		<label>Light on Motion</label>
+		<description>Whether the lights go on when the camera detects motion, as set in the app. A change made in the app
+			shows up with the next poll of the account.</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Enabled</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="siren">
+		<item-type>Switch</item-type>
+		<label>Siren</label>
+		<description>ON sounds the siren of the camera until it is switched off or the alarm time set in the app has passed.
+			Shows ON while the camera sounds any alarm. Switching needs an account.</description>
+		<category>Siren</category>
+		<tags>
+			<tag>Alarm</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="last-clip-snapshot-url">
+		<item-type>String</item-type>
+		<label>Clip Snapshot URL</label>
+		<description>Address of the still image of the last clip, as the cloud keeps it, served through openHAB. Contains the
+			token, so treat it as a secret. Only offered while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="last-clip-url">
+		<item-type>String</item-type>
+		<label>Last Clip URL</label>
+		<description>Address of the video clip of the last event, served through openHAB once the camera has uploaded it.
+			Contains the token, so treat it as a secret. Only offered while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="events-api-url">
+		<item-type>String</item-type>
+		<label>Events API URL</label>
+		<description>Address of the events API while Publish Events as API is on. Contains the token, so treat it as a secret.
+			The API only answers while this channel is linked to an item.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="clip-ready">
+		<kind>trigger</kind>
+		<label>Clip Ready</label>
+		<description>Fires when the clip of an event is in the cloud, with the kind of the event as payload.</description>
+		<event>
+			<options>
+				<option value="PERSON">Person</option>
+				<option value="INTRUSION">Intrusion</option>
+				<option value="NOISE">Noise</option>
+				<option value="GLASSBREAK">Glass Break</option>
+				<option value="FIRE">Fire Alarm</option>
+				<option value="WATER">Water Alarm</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="notifications">
+		<item-type>Switch</item-type>
+		<label>App Push Notifications</label>
+		<description>Whether the Bosch Smart Camera app sends push notifications for this camera to the phones of this
+			account. ON follows the schedule set in the app. A change made in the app shows up with the next poll of the account.</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Enabled</tag>
+		</tags>
+	</channel-type>
+
+	<channel-type id="notifications-status">
+		<item-type>String</item-type>
+		<label>App Push Status</label>
+		<description>The push setting as the Bosch cloud reports it, e.g. ON_CAMERA_SCHEDULE after switching on in openHAB,
+			OFF_OVERRIDE after switching off, or ALWAYS_OFF. Everything starting with OFF means no push notifications.</description>
+		<state readOnly="true"/>
+	</channel-type>
+</thing:thing-descriptions>

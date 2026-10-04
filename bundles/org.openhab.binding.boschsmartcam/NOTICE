@@ -1,0 +1,25 @@
+This content is produced and maintained by the openHAB project.
+
+* Project home: https://www.openhab.org
+
+== Declared Project Licenses
+
+This program and the accompanying materials are made available under the terms
+of the Eclipse Public License 2.0 which is available at
+https://www.eclipse.org/legal/epl-2.0/.
+
+== Source Code
+
+https://github.com/openhab/openhab-addons
+
+== Third-party Content
+
+Bosch certificates (src/main/resources/cert)
+* bosch-device-root-ca.pem: root of the device certificates of the cameras, as published by Robert Bosch Smart Home GmbH
+  with the documentation of the local camera API
+* bosch-st-root-ca.pem and bosch-video-ca-2a.pem: root and intermediate certificate of the Bosch cloud the cameras are
+  managed through; the intermediate is sent by the cloud, the root is the one the Bosch Smart Camera app ships and
+  trusts for it
+* Used only to verify TLS connections; public certificates, no keys
+* License: none, public certificates
+* Documentation: https://github.com/BoschSmartHome/bosch-camera-api-docs
