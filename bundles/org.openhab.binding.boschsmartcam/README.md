@@ -57,7 +57,7 @@ The name in that certificate is the MAC address of the camera rather than its ho
 Instead the MAC address is compared with the one the thing was created for: if another device answers at the configured address, the thing goes offline with a note saying so.
 
 Should a firmware update ever bring a certificate below a different root, the thing goes offline saying its certificate is not trusted.
-`trustAllCertificates` is the way out until the binding knows the new root: the chain is no longer verified then, the MAC address is still read and compared.
+`trustAllCertificates` is the way out until the binding knows the new root: the chain is no longer verified then, but the MAC address is still read, and every connection to the camera, for snapshots, events and streams alike, still has to present the camera the thing was made for.
 
 ### `account` Bridge Configuration
 

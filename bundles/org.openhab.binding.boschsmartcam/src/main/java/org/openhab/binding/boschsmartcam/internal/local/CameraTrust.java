@@ -65,6 +65,7 @@ public class CameraTrust {
     private final X509TrustManager rootTrustManager;
     private final SSLContext sslContext;
     private final SSLContext bindingContext;
+    private final SSLContext trustAllBindingContext;
     private final SSLContext trustAllContext;
 
     /**
@@ -88,15 +89,20 @@ public class CameraTrust {
                     .map(X509TrustManager.class::cast).findFirst()
                     .orElseThrow(() -> new GeneralSecurityException("No X509TrustManager available"));
             // reading the identity must work for any camera, that is how a camera becomes known in the first place
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[] { new CameraTrustManager(false) }, null);
-            bindingContext = SSLContext.getInstance("TLS");
-            bindingContext.init(null, new TrustManager[] { new CameraTrustManager(true) }, null);
-            trustAllContext = SSLContext.getInstance("TLS");
-            trustAllContext.init(null, new TrustManager[] { new TrustAllManager() }, null);
+            sslContext = createContext(new CameraTrustManager(true, false));
+            bindingContext = createContext(new CameraTrustManager(true, true));
+            trustAllContext = createContext(new CameraTrustManager(false, false));
+            // trusting any certificate skips the chain, not the camera a host is bound to
+            trustAllBindingContext = createContext(new CameraTrustManager(false, true));
         } catch (IOException | GeneralSecurityException e) {
             throw new IllegalStateException("Could not set up the trust in the cameras", e);
         }
+    }
+
+    private static SSLContext createContext(TrustManager trustManager) throws GeneralSecurityException {
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(null, new TrustManager[] { trustManager }, null);
+        return context;
     }
 
     /**
@@ -104,15 +110,21 @@ public class CameraTrust {
      *         Bosch root, and for a bound host only the camera with the bound MAC address.
      */
     public SslContextFactory.Client createSslContextFactory() {
+        return createSslContextFactory(new CameraTrustManager(true, true));
+    }
+
+    private SslContextFactory.Client createSslContextFactory(X509ExtendedTrustManager trustManager) {
         SslContextFactory.Client factory = new SslContextFactory.Client() {
             // the signature is Jetty's, without null annotations
             @Override
             @NonNullByDefault({})
             protected TrustManager[] getTrustManagers(KeyStore store, Collection<? extends CRL> crls) {
-                return new TrustManager[] { new CameraTrustManager(true) };
+                return new TrustManager[] { trustManager };
             }
         };
         factory.setTrustStore(trustStore);
+        // the trust manager identifies the camera by its MAC address, a host name is not in its certificate
+        factory.setEndpointIdentificationAlgorithm(null);
         return factory;
     }
 
@@ -133,27 +145,32 @@ public class CameraTrust {
      * @return the trust manager the HTTP clients use, for tests
      */
     X509ExtendedTrustManager createBindingTrustManager() {
-        return new CameraTrustManager(true);
+        return new CameraTrustManager(true, true);
     }
 
     /**
-     * @return the TLS configuration for a client that accepts any certificate. Only meant as a way out should Bosch
-     *         ever change the root its cameras chain up to.
+     * @return the trust manager of the clients that trust any certificate, for tests
+     */
+    X509ExtendedTrustManager createTrustAllBindingTrustManager() {
+        return new CameraTrustManager(false, true);
+    }
+
+    /**
+     * @return the TLS configuration for a client that accepts a certificate below any root. Only meant as a way out
+     *         should Bosch ever change the root its cameras chain up to; a bound host still has to present its camera.
      */
     public SslContextFactory.Client createTrustAllSslContextFactory() {
-        SslContextFactory.Client factory = new SslContextFactory.Client(true);
-        factory.setEndpointIdentificationAlgorithm(null);
-        return factory;
+        return createSslContextFactory(new CameraTrustManager(false, true));
     }
 
     /**
      * Opens a TLS connection to a camera for a protocol the HTTP client does not speak, such as RTSP. The same rules
      * apply as for the HTTP client: below the Bosch root, and for a bound host only its camera.
      *
-     * @param trustAll whether to accept any certificate
+     * @param trustAll whether to accept a certificate below any root; a bound host still has to present its camera
      */
     public SSLSocket openSocket(String host, int port, boolean trustAll, int timeoutMillis) throws IOException {
-        SSLContext context = trustAll ? trustAllContext : bindingContext;
+        SSLContext context = trustAll ? trustAllBindingContext : bindingContext;
         SSLSocket socket = (SSLSocket) context.getSocketFactory().createSocket();
         try {
             socket.connect(new InetSocketAddress(host, port), timeoutMillis);
@@ -188,31 +205,21 @@ public class CameraTrust {
         }
     }
 
-    private static class TrustAllManager implements X509TrustManager {
-
-        @Override
-        public void checkClientTrusted(X509Certificate @Nullable [] chain, @Nullable String authType) {
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate @Nullable [] chain, @Nullable String authType) {
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-        }
-    }
-
     /**
      * Verifies the chain against the Bosch root and, instead of the host name, the MAC address of a bound host. Being
      * an {@link X509ExtendedTrustManager}, the JDK leaves the identification of the peer entirely to it.
      */
     private class CameraTrustManager extends X509ExtendedTrustManager {
 
+        private final boolean verifyChain;
         private final boolean checkBinding;
 
-        CameraTrustManager(boolean checkBinding) {
+        /**
+         * @param verifyChain whether the chain has to lead to the Bosch root; off when any certificate is trusted
+         * @param checkBinding whether a bound host has to present the camera with its MAC address
+         */
+        CameraTrustManager(boolean verifyChain, boolean checkBinding) {
+            this.verifyChain = verifyChain;
             this.checkBinding = checkBinding;
         }
 
@@ -240,7 +247,9 @@ public class CameraTrust {
 
         private void checkServerTrusted(X509Certificate @Nullable [] chain, @Nullable String authType,
                 @Nullable String host) throws CertificateException {
-            rootTrustManager.checkServerTrusted(chain, authType);
+            if (verifyChain) {
+                rootTrustManager.checkServerTrusted(chain, authType);
+            }
             String expected = host == null ? null : macAddressByHost.get(host);
             if (!checkBinding || expected == null || chain == null || chain.length == 0) {
                 return;
