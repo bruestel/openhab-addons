@@ -185,21 +185,40 @@ public class BoschSmartCamApi {
     }
 
     /**
-     * Switches a light of an Eyes Outdoor Camera II on or off, like the buttons of the app do.
-     *
-     * @param light {@code front} for the front light, {@code topdown} for the LEDs on top and below
+     * The lights of an Eyes Outdoor Camera II that have a button in the app, by their path below
+     * {@code lighting/switch}.
      */
-    public void setLightOn(String cameraId, String light, boolean on) throws BoschSmartCamException {
-        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/lighting/switch/" + light,
+    public enum Light {
+        FRONT("front"),
+        TOP_AND_BOTTOM("topdown");
+
+        private final String path;
+
+        Light(String path) {
+            this.path = path;
+        }
+    }
+
+    /**
+     * Switches a light of an Eyes Outdoor Camera II on or off, like the buttons of the app do.
+     */
+    public void setLightOn(String cameraId, Light light, boolean on) throws BoschSmartCamException {
+        execute(HttpMethod.PUT, "/v11/video_inputs/" + cameraId + "/lighting/switch/" + light.path,
                 gson.toJson(java.util.Map.of("enabled", on)));
     }
 
     /**
-     * Switches whether a light setting of an Eyes Outdoor Camera II is active, such as {@code lightOnMotionEnabled} of
-     * {@code lighting/motion}. The cloud wants the whole setting back, so it is read and written with only that field
-     * changed.
+     * Switches whether the lights of an Eyes Outdoor Camera II go on with motion.
      */
-    public void setLightingEnabled(String cameraId, String setting, String field, boolean enabled)
+    public void setMotionLight(String cameraId, boolean enabled) throws BoschSmartCamException {
+        setLightingEnabled(cameraId, "motion", "lightOnMotionEnabled", enabled);
+    }
+
+    /**
+     * Switches whether a light setting is active. The cloud wants the whole setting back, so it is read and written
+     * with only that field changed.
+     */
+    private void setLightingEnabled(String cameraId, String setting, String field, boolean enabled)
             throws BoschSmartCamException {
         String path = "/v11/video_inputs/" + cameraId + "/lighting/" + setting;
         JsonObject body;

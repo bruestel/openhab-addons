@@ -49,6 +49,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.http.HttpStatus;
 import org.openhab.binding.boschsmartcam.internal.BoschSmartCamCameraConfiguration;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamApi;
+import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamApi.Light;
 import org.openhab.binding.boschsmartcam.internal.api.BoschSmartCamException;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CameraModel;
 import org.openhab.binding.boschsmartcam.internal.api.dto.CloudEvent;
@@ -328,6 +329,12 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
                     updateFromCloud(accountHandler.getCameras());
                 }
             });
+        } else {
+            // the clips are fetched from the cloud through the account, without it their addresses lead nowhere
+            lastImageEventId = null;
+            lastClipEventId = null;
+            updateState(CHANNEL_CLOUD_LAST_CLIP_SNAPSHOT_URL, UnDefType.UNDEF);
+            updateState(CHANNEL_CLOUD_LAST_CLIP_URL, UnDefType.UNDEF);
         }
     }
 
@@ -346,19 +353,18 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
             case CHANNEL_LIGHT_FRONT -> {
                 if (command instanceof OnOffType onOff) {
                     inCloud("switch the front light of",
-                            (api, id) -> api.setLightOn(id, "front", onOff == OnOffType.ON));
+                            (api, id) -> api.setLightOn(id, Light.FRONT, onOff == OnOffType.ON));
                 }
             }
             case CHANNEL_LIGHT_TOP_BOTTOM -> {
                 if (command instanceof OnOffType onOff) {
                     inCloud("switch the top and bottom light of",
-                            (api, id) -> api.setLightOn(id, "topdown", onOff == OnOffType.ON));
+                            (api, id) -> api.setLightOn(id, Light.TOP_AND_BOTTOM, onOff == OnOffType.ON));
                 }
             }
             case CHANNEL_LIGHT_MOTION -> {
                 if (command instanceof OnOffType onOff) {
-                    inCloud("switch the motion light of", (api, id) -> api.setLightingEnabled(id, "motion",
-                            "lightOnMotionEnabled", onOff == OnOffType.ON));
+                    inCloud("switch the motion light of", (api, id) -> api.setMotionLight(id, onOff == OnOffType.ON));
                 }
             }
             case CHANNEL_ALARM_SIREN -> {
@@ -781,7 +787,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         }
         try {
             if (getThing().getChannel(CHANNEL_LIGHT_FRONT) != null) {
-                updateState(CHANNEL_LIGHT_MOTION, OnOffType.from(localClient.isEnabled("lighting/motion")));
+                updateState(CHANNEL_LIGHT_MOTION, OnOffType.from(localClient.isMotionLightOn()));
                 ManualLighting lighting = localClient.getLighting();
                 updateLight(TOPIC_LIGHT_FRONT, brightness(lighting.front()));
                 updateLight(TOPIC_LIGHT_TOP, brightness(lighting.top()));

@@ -24,7 +24,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -57,6 +59,7 @@ public class RtspGatewayTest {
     private static final char[] KEYSTORE_PASSWORD = "testpass".toCharArray();
 
     private final List<RtspMessage> seenByCamera = new CopyOnWriteArrayList<>();
+    private final CompletableFuture<RtspMessage> teardownSeen = new CompletableFuture<>();
     // whether the camera offers its stream plain and over TLS, as if those channels were linked
     private volatile boolean plainOffered = true;
     private volatile boolean tlsOffered = true;
@@ -126,12 +129,8 @@ public class RtspGatewayTest {
             // the player goes away without a TEARDOWN
         }
 
-        RtspMessage teardown = null;
-        for (int i = 0; i < 50 && teardown == null; i++) {
-            teardown = seenByCamera.stream().filter(r -> "TEARDOWN".equals(r.method())).findFirst().orElse(null);
-            Thread.sleep(50);
-        }
-        assertNotNull(teardown);
+        // bounded generously for slow build machines; it is done as soon as the camera sees the TEARDOWN
+        RtspMessage teardown = teardownSeen.get(10, TimeUnit.SECONDS);
         assertEquals(SESSION, teardown.header("Session"));
         assertEquals("5", teardown.header("CSeq"));
         assertTrue(validDigest(teardown));
@@ -283,6 +282,9 @@ public class RtspGatewayTest {
                 }
                 RtspMessage request = RtspMessage.read(in, first);
                 seenByCamera.add(request);
+                if ("TEARDOWN".equals(request.method()) && validDigest(request)) {
+                    teardownSeen.complete(request);
+                }
                 String cseq = request.header("CSeq");
                 if (!validDigest(request)) {
                     send(out, "RTSP/1.0 401 Unauthorized\r\nCSeq: " + cseq + "\r\nWWW-Authenticate: Digest realm=\""

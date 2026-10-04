@@ -93,6 +93,13 @@ public class RtspGateway {
     static final String DEFAULT_QUERY = "?line=1&inst=1&enableaudio=1";
 
     private static final int MAX_SESSIONS = 16;
+    /**
+     * Names of the threads, so a thread dump shows what each one does: the one that accepts players, one per player
+     * followed by its address, and one per camera connection followed by the camera.
+     */
+    private static final String ACCEPT_THREAD_NAME = BoschSmartCamBindingConstants.BINDING_ID + "-rtsp-gateway";
+    private static final String PLAYER_THREAD_PREFIX = BoschSmartCamBindingConstants.BINDING_ID + "-rtsp-";
+    private static final String CAMERA_THREAD_PREFIX = BoschSmartCamBindingConstants.BINDING_ID + "-rtsp-camera-";
     private static final int TLS_HANDSHAKE = 0x16;
     private static final int HANDSHAKE_TIMEOUT_MILLIS = 10000;
 
@@ -126,7 +133,9 @@ public class RtspGateway {
         server.setReuseAddress(true);
         server.bind(new InetSocketAddress(port));
         serverSocket = server;
-        Thread.ofVirtual().name("boschsmartcam-rtsp-gateway").start(() -> accept(server));
+        // every connection blocks in socket I/O for as long as a stream runs, which would hold threads of the shared
+        // schedulers of openHAB for hours; virtual threads cost next to nothing while they wait
+        Thread.ofVirtual().name(ACCEPT_THREAD_NAME).start(() -> accept(server));
         logger.debug("Offering the camera streams on port {}", port);
     }
 
@@ -158,7 +167,7 @@ public class RtspGateway {
                     close(player);
                     continue;
                 }
-                Thread.ofVirtual().name("boschsmartcam-rtsp-" + player.getInetAddress().getHostAddress())
+                Thread.ofVirtual().name(PLAYER_THREAD_PREFIX + player.getInetAddress().getHostAddress())
                         .start(() -> new Session(player).run());
             } catch (IOException e) {
                 if (!server.isClosed()) {
@@ -283,7 +292,7 @@ public class RtspGateway {
                 logger.debug("Relaying the stream of {} to {}", cameraHost, address);
 
                 InputStream fromCamera = new BufferedInputStream(cameraSocket.getInputStream());
-                Thread.ofVirtual().name("boschsmartcam-rtsp-camera-" + cameraHost)
+                Thread.ofVirtual().name(CAMERA_THREAD_PREFIX + cameraHost)
                         .start(() -> cameraToPlayer(fromCamera, toPlayer));
                 forward(request);
                 playerToCamera(fromPlayer);

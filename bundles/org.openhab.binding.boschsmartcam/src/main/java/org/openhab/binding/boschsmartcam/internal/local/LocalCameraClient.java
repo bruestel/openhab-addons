@@ -100,11 +100,10 @@ public class LocalCameraClient {
     }
 
     /**
-     * @param setting {@code lighting/motion} or {@code lighting/ambient}
-     * @return whether that light setting is active
+     * @return whether the lights of an Eyes Outdoor Camera II go on with motion
      */
-    public boolean isEnabled(String setting) throws BoschSmartCamException {
-        return Boolean.TRUE.equals(parse(get("/sh/data/" + setting), Enabled.class).enable());
+    public boolean isMotionLightOn() throws BoschSmartCamException {
+        return Boolean.TRUE.equals(parse(get("/sh/data/lighting/motion"), Enabled.class).enable());
     }
 
     public AlarmStatus getAlarmStatus() throws BoschSmartCamException {

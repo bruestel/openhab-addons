@@ -151,7 +151,8 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
         long started = System.nanoTime();
         Set<String> found = ConcurrentHashMap.newKeySet();
 
-        // most probes wait for a timeout, so they are cheap on virtual threads; the semaphore sets the pace
+        // most probes wait for a timeout, so they are cheap on virtual threads, where the shared schedulers of openHAB
+        // would be blocked by them; the semaphore sets the pace
         Semaphore permits = new Semaphore(PARALLEL_PROBES);
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (InetAddress address : addresses) {
