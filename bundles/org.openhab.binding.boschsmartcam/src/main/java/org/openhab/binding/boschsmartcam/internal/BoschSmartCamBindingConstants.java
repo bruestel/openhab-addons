@@ -139,6 +139,14 @@ public class BoschSmartCamBindingConstants {
     public static final String SERVLET_PATH = "/" + BINDING_ID;
 
     /**
+     * Names of the HTTP clients for the cameras, verifying the certificate and trusting any. openHAB refuses names
+     * longer than {@link #MAX_HTTP_CLIENT_NAME_LENGTH} characters.
+     */
+    public static final String CAMERA_HTTP_CLIENT_NAME = BINDING_ID;
+    public static final String TRUST_ALL_HTTP_CLIENT_NAME = BINDING_ID + "-all";
+    public static final int MAX_HTTP_CLIENT_NAME_LENGTH = 20;
+
+    /**
      * Last part of a snapshot URL, which reads {@code /boschsmartcam/<token>/snapshot.jpg}.
      */
     public static final String SNAPSHOT_FILE = "snapshot.jpg";
