@@ -176,7 +176,8 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
     private synchronized HttpClient getTrustAllHttpClient() {
         HttpClient client = trustAllHttpClient;
         if (client == null) {
-            client = httpClientFactory.createHttpClient("boschsmartcam-trustall",
+            // openHAB allows at most 20 characters for the name
+            client = httpClientFactory.createHttpClient("boschsmartcam-all",
                     cameraTrust.createTrustAllSslContextFactory());
             try {
                 client.start();
