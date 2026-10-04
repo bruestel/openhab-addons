@@ -51,15 +51,13 @@ import org.openhab.core.auth.client.oauth2.OAuthFactory;
 import org.openhab.core.auth.client.oauth2.OAuthResponseException;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
-import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Channel;
 import org.openhab.core.thing.ChannelGroupUID;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
-import org.openhab.core.thing.binding.BaseBridgeHandler;
-import org.openhab.core.thing.binding.ThingHandler;
+import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerCallback;
 import org.openhab.core.thing.binding.builder.ChannelBuilder;
 import org.openhab.core.thing.binding.builder.ThingBuilder;
@@ -77,7 +75,7 @@ import org.slf4j.LoggerFactory;
  * @author Jonas Brüstel - Initial contribution
  */
 @NonNullByDefault
-public class BoschSmartCamAccountHandler extends BaseBridgeHandler
+public class BoschSmartCamAccountHandler extends BaseThingHandler
         implements AccessTokenProvider, AccessTokenRefreshListener {
 
     private static final long MIN_POLL_AGE_SECONDS = 10;
@@ -106,10 +104,15 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      * per camera, so it is only asked once.
      */
     private final Map<String, String> cameraIdsByMacAddress = new ConcurrentHashMap<>();
+    /**
+     * Cameras whose Wi-Fi details the cloud refuses to this account, as for one the camera is only shared with. Not
+     * asked again until the next login.
+     */
+    private final Set<String> macAddressUnreadable = ConcurrentHashMap.newKeySet();
 
-    public BoschSmartCamAccountHandler(Bridge bridge, OAuthFactory oAuthFactory, HttpClient httpClient,
+    public BoschSmartCamAccountHandler(Thing thing, OAuthFactory oAuthFactory, HttpClient httpClient,
             BoschSmartCamAuthService authService) {
-        super(bridge);
+        super(thing);
         this.oAuthFactory = oAuthFactory;
         this.httpClient = httpClient;
         this.authService = authService;
@@ -120,6 +123,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         disposed = false;
         config = getConfigAs(BoschSmartCamAccountConfiguration.class);
         cameraIdsByMacAddress.clear();
+        macAddressUnreadable.clear();
         authService.addAccountHandler(this);
 
         oAuthService = createOAuthService();
@@ -134,6 +138,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
     public void dispose() {
         disposed = true;
         authService.removeAccountHandler(this);
+        tellCamerasGone();
         ScheduledFuture<?> job = pollingJob;
         if (job != null) {
             job.cancel(true);
@@ -185,6 +190,50 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
                 e.log(logger, "switch", channelUID);
             }
         });
+    }
+
+    /**
+     * @return the status description that sends the user to the page to log in. The UI turns its
+     *         {@code http(s)://[YOUROPENHAB]:[YOURPORT]/...} into a link to the address it was opened at, which also
+     *         holds behind a reverse proxy.
+     */
+    private String notAuthorizedStatus() {
+        return "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]";
+    }
+
+    /**
+     * @return whether the account can be used for the cloud right now
+     */
+    public boolean isOnline() {
+        return !disposed && getThing().getStatus() == ThingStatus.ONLINE;
+    }
+
+    @Override
+    protected void updateStatus(ThingStatus status, ThingStatusDetail statusDetail, @Nullable String description) {
+        super.updateStatus(status, statusDetail, description);
+        if (status != ThingStatus.ONLINE) {
+            tellCamerasGone();
+        }
+    }
+
+    /**
+     * Drops what the account knew about its cameras, as a new login may be another Bosch user with other cameras. The
+     * cameras it served look for an account again.
+     */
+    private void forgetCameras() {
+        cameraIdsByMacAddress.clear();
+        macAddressUnreadable.clear();
+        cameras = List.of();
+        tellCamerasGone();
+    }
+
+    /**
+     * There is no bridge that would tell the cameras, so the account does: those it served look for another account.
+     */
+    private void tellCamerasGone() {
+        for (BoschSmartCamCameraHandler camera : authService.getCameraHandlers()) {
+            camera.accountGone(this);
+        }
     }
 
     @Override
@@ -265,7 +314,27 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      */
     public @Nullable String getMacAddress(String cameraId) throws BoschSmartCamException {
         String known = getKnownMacAddress(cameraId);
-        return known != null ? known : readWifiInfo(cameraId).normalizedMacAddress();
+        if (known != null || macAddressUnreadable.contains(cameraId)) {
+            return known;
+        }
+        try {
+            return readWifiInfo(cameraId).normalizedMacAddress();
+        } catch (BoschSmartCamException e) {
+            if (e.getHttpStatus() == 403 || e.getHttpStatus() == 404) {
+                logger.debug("{} may not read the Wi-Fi details of camera {}, it is probably only shared with it",
+                        getThing().getUID(), cameraId);
+                macAddressUnreadable.add(cameraId);
+                return null;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * @return whether the camera with this cloud id belongs to the account, owned or shared
+     */
+    public boolean knowsCamera(String cameraId) {
+        return cameras.stream().anyMatch(camera -> cameraId.equals(camera.id()));
     }
 
     /**
@@ -316,8 +385,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         }
         lastPoll = Instant.now();
         if (!isAuthorized()) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
-                    "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]");
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING, notAuthorizedStatus());
             return;
         }
         try {
@@ -337,11 +405,9 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
                 updateState(new ChannelUID(getThing().getUID(), groupId, CHANNEL_NOTIFICATIONS_STATUS),
                         status == null || status.isBlank() ? UnDefType.UNDEF : new StringType(status));
             }
-            for (Thing thing : getThing().getThings()) {
-                ThingHandler handler = thing.getHandler();
-                if (handler instanceof BoschSmartCamCameraHandler cameraHandler) {
-                    cameraHandler.updateFromCloud(videoInputs);
-                }
+            // there is no bridge: every camera takes what it finds about itself
+            for (BoschSmartCamCameraHandler camera : authService.getCameraHandlers()) {
+                camera.updateFromCloud(this, videoInputs);
             }
         } catch (BoschSmartCamException e) {
             logger.debug("Polling the Bosch cloud failed", e);
@@ -349,8 +415,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
                 // the account is fine, Bosch only wants fewer requests; the next poll tries again
                 logger.debug("Polling the Bosch cloud skipped: {}", e.getReason());
             } else if (e.isAuthorizationFailure()) {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
-                        "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]");
+                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING, notAuthorizedStatus());
             } else {
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                         "@text/offline.comm-error.cloud [\"" + BoschSmartCamException.asTextArgument(e.getReason())
@@ -392,13 +457,20 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
                 continue;
             }
             String groupId = existing.get(cameraId);
-            if (groupId == null) {
+            if (groupId == null || groupId.equals(fallbackGroupId(cameraId))) {
                 try {
-                    groupId = notificationGroupId(cameraId);
+                    String wanted = notificationGroupId(cameraId);
+                    if (groupId != null && !groupId.equals(wanted)) {
+                        // named by the cloud id while the MAC address was not known yet, renamed once it is
+                        replaced.addAll(getThing().getChannelsOfGroup(groupId));
+                    }
+                    groupId = wanted;
                 } catch (BoschSmartCamException e) {
                     logger.debug("Could not read the MAC address of {}, trying again with the next poll: {}",
                             camera.title(), e.getMessage());
-                    continue;
+                    if (groupId == null) {
+                        continue;
+                    }
                 }
             }
             String title = camera.title();
@@ -448,8 +520,37 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
      */
     private String notificationGroupId(String cameraId) throws BoschSmartCamException {
         String macAddress = getMacAddress(cameraId);
-        return macAddress != null ? CameraIdentity.thingId(macAddress)
-                : cameraId.replace("-", "").toLowerCase(Locale.ROOT);
+        if (macAddress == null) {
+            macAddress = macAddressKnownElsewhere(cameraId);
+        }
+        return macAddress != null ? CameraIdentity.thingId(macAddress) : fallbackGroupId(cameraId);
+    }
+
+    /**
+     * An account the camera is only shared with cannot read its MAC address; the account that owns the camera or the
+     * running camera itself knows it.
+     */
+    private @Nullable String macAddressKnownElsewhere(String cameraId) {
+        for (BoschSmartCamAccountHandler account : authService.getAccountHandlers()) {
+            String known = account.getKnownMacAddress(cameraId);
+            if (known != null) {
+                return known;
+            }
+        }
+        for (BoschSmartCamCameraHandler camera : authService.getCameraHandlers()) {
+            String known = camera.getMacAddress();
+            if (known != null && cameraId.equals(camera.getCameraId())) {
+                return known;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return the id of the group of a camera whose MAC address is not known, after its cloud id
+     */
+    private static String fallbackGroupId(String cameraId) {
+        return cameraId.replace("-", "").toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -521,6 +622,7 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
             // the code verifier must not be sent with the following refresh requests
             recreateOAuthService();
         }
+        forgetCameras();
         scheduler.execute(this::poll);
         return getLabel();
     }
@@ -535,9 +637,8 @@ public class BoschSmartCamAccountHandler extends BaseBridgeHandler
         }
         oAuthFactory.deleteServiceAndAccessToken(getHandle());
         oAuthService = createOAuthService();
-        cameras = List.of();
-        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING,
-                "@text/offline.conf-error.not-authorized [\"" + SERVLET_PATH + "\"]");
+        forgetCameras();
+        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_PENDING, notAuthorizedStatus());
     }
 
     public String getLabel() {

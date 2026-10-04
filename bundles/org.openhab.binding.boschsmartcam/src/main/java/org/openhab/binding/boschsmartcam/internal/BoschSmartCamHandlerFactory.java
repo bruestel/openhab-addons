@@ -39,7 +39,6 @@ import org.openhab.core.net.HttpServiceUtil;
 import org.openhab.core.net.NetworkAddressService;
 import org.openhab.core.storage.Storage;
 import org.openhab.core.storage.StorageService;
-import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.ThingUID;
@@ -328,8 +327,8 @@ public class BoschSmartCamHandlerFactory extends BaseThingHandlerFactory {
     protected @Nullable ThingHandler createHandler(Thing thing) {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
-        if (THING_TYPE_ACCOUNT.equals(thingTypeUID) && thing instanceof Bridge bridge) {
-            return new BoschSmartCamAccountHandler(bridge, oAuthFactory, httpClient, authService);
+        if (THING_TYPE_ACCOUNT.equals(thingTypeUID)) {
+            return new BoschSmartCamAccountHandler(thing, oAuthFactory, httpClient, authService);
         } else if (THING_TYPE_CAMERA.equals(thingTypeUID)) {
             return new BoschSmartCamCameraHandler(thing, authService, cameraHttpClient, this::getTrustAllHttpClient,
                     cameraTrust, () -> snapshotNetworks, () -> rtspGatewayPort, () -> rtspGatewayCertificate,

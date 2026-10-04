@@ -17,7 +17,8 @@ Without this a camera cannot be added.
 - `camera`: A single camera, talked to in the local network.
   Works on its own.
 - `account`: A Bosch SingleKey ID account.
-  Optional bridge for cameras whose privacy mode should be switchable, and the place of the push notifications.
+  Optional; a camera finds an account that knows it by itself and uses it for what only the cloud can do, such as switching its privacy mode, lights and siren.
+  The account is also the place of the push notifications.
 
 ## Discovery
 
@@ -36,9 +37,7 @@ Without an account such a camera has to be added by hand.
 
 A camera is identified by the MAC address it uses on the network, which is part of its certificate.
 It is used as thing id, in lower case and without separators, e.g. `boschsmartcam:camera:64daa0123456`.
-The id does not contain the account, so a camera keeps it when it is moved under an account later.
-
-If an online account has the camera, the result is put under that account and labeled with the name the camera has in the app, e.g. _Front Door (Eyes Outdoor Camera II)_.
+If an online account has the camera, the result is labeled with the name the camera has in the app, e.g. _Front Door (Eyes Outdoor Camera II)_.
 Only the password of the local API has to be entered when adding it.
 
 ## Thing Configuration
@@ -62,7 +61,7 @@ Instead the MAC address is compared with the one the thing was created for: if a
 Should a firmware update ever bring a certificate below a different root, the thing goes offline saying its certificate is not trusted.
 `trustAllCertificates` is the way out until the binding knows the new root: the chain is no longer verified then, but the MAC address is still read, and every connection to the camera, for snapshots, events and streams alike, still has to present the camera the thing was made for.
 
-### `account` Bridge Configuration
+### `account` Thing Configuration
 
 | Name            | Type    | Description                                                              | Default | Required | Advanced |
 |-----------------|---------|--------------------------------------------------------------------------|---------|----------|----------|
@@ -72,6 +71,10 @@ Everything the cameras report themselves, such as the privacy mode, arrives loca
 The poll only picks up what is changed in the Bosch Smart Camera app: the notifications, and cameras added to or removed from the account, which get or lose their group of notification channels.
 The cloud does not tell about such changes, so a notification setting switched in the app shows up in openHAB with the next poll.
 The minimum is 30 seconds.
+
+A camera is not put under an account.
+It uses the first online account that knows its MAC address; the cloud settings of a camera are the same through every account.
+If that account may not do what is asked, for example one the camera is only shared with, the next one that knows the camera is tried.
 
 ### Binding Configuration
 
@@ -106,7 +109,8 @@ If the instance URL cannot be set, for example because the login happens on a ph
 That page may show an error - it only carries the authorization code.
 
 From then on the binding refreshes the access token on its own, so this procedure is only needed again if the tokens are removed or revoked.
-The same page also lets you remove the stored tokens of an account, for example to authorize it with a different Bosch account.
+Once an account is authorized, the page offers to log it out, which removes its stored tokens, or to log it in with another Bosch account.
+If the browser is still logged in at Bosch, no login form appears and the same Bosch user is linked again; log out at Bosch first or use a private window to link another one.
 
 ## Channels
 
@@ -350,11 +354,11 @@ A camera on its own:
 Thing boschsmartcam:camera:64daa0123456 "Front Door" [ host="192.168.0.42", user="localuser", password="secret" ]
 ```
 
-The same camera under an account; the account is given as its bridge rather than nesting the camera in it, which would put the account into the id of the camera:
+With an account added, the camera finds it by itself, there is nothing to connect:
 
 ```java
-Bridge boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=3600 ]
-Thing boschsmartcam:camera:64daa0123456 "Front Door" (boschsmartcam:account:home) [ host="192.168.0.42", user="localuser", password="secret" ]
+Thing boschsmartcam:account:home "Bosch Camera Account" [ refreshInterval=3600 ]
+Thing boschsmartcam:camera:64daa0123456 "Front Door" [ host="192.168.0.42", user="localuser", password="secret" ]
 ```
 
 ### Item Configuration

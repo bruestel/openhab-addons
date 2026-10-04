@@ -275,7 +275,7 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
     }
 
     /**
-     * Puts the result under the online account that has this camera, with the name the camera has in the app.
+     * Names the result like the camera is named in the app, as an online account that knows it tells.
      */
     private void addCloudDetails(DiscoveryResultBuilder result, Map<String, Object> properties, String macAddress) {
         for (BoschSmartCamAccountHandler accountHandler : authService.getAccountHandlers()) {
@@ -301,8 +301,7 @@ public class BoschSmartCamDiscoveryService extends AbstractDiscoveryService {
             if (model != null) {
                 properties.put(PROPERTY_PRODUCT_NAME, model.getProductName());
             }
-            result.withBridge(accountHandler.getThing().getUID()).withProperties(properties)
-                    .withLabel(buildLabel(camera.title(), model));
+            result.withProperties(properties).withLabel(buildLabel(camera.title(), model));
             return;
         }
     }

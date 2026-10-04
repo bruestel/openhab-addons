@@ -26,6 +26,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,14 +73,12 @@ import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.storage.Storage;
-import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Channel;
 import org.openhab.core.thing.ChannelGroupUID;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
-import org.openhab.core.thing.ThingStatusInfo;
 import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerCallback;
 import org.openhab.core.thing.binding.builder.ThingBuilder;
@@ -96,7 +95,8 @@ import org.slf4j.LoggerFactory;
  * Events arrive through an ONVIF PullPoint subscription the handler keeps open. As long as the camera answers it, the
  * thing is online; a failing cloud does not change that.
  *
- * The account bridge is optional. With one the privacy mode can be switched, because the local API cannot change
+ * An account is optional; the camera finds one that knows it by itself. With one the privacy mode can be switched,
+ * because the local API cannot change
  * anything.
  *
  * @author Jonas Brüstel - Initial contribution
@@ -233,9 +233,14 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     private volatile @Nullable CameraIdentity identity;
 
     /**
-     * Id of this camera in the cloud, found through its MAC address. Only known with an account bridge.
+     * Id of this camera in the cloud, found through its MAC address. Only known with an account.
      */
     private volatile @Nullable String cameraId;
+
+    /**
+     * The account the cloud is reached through, see {@link #getAccountHandler(Set)}.
+     */
+    private volatile @Nullable BoschSmartCamAccountHandler account;
 
     private volatile boolean privacyModeOn;
     private volatile Instant lastRefresh = Instant.EPOCH;
@@ -272,6 +277,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
 
         identity = null;
         cameraId = null;
+        account = null;
         snapshotCache = Duration.ofSeconds(Math.max(MIN_SNAPSHOT_CACHE_SECONDS, config.snapshotCacheSeconds));
         String token = currentOrNewAccessToken();
         if (!ACCESS_TOKEN_PATTERN.matcher(token).matches()) {
@@ -320,18 +326,16 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         client = null;
     }
 
-    @Override
-    public void bridgeStatusChanged(ThingStatusInfo bridgeStatusInfo) {
-        // the camera works without the cloud, so unlike the default this leaves the status of the thing alone
-        if (bridgeStatusInfo.getStatus() == ThingStatus.ONLINE) {
-            scheduler.execute(() -> {
-                BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-                if (accountHandler != null) {
-                    updateFromCloud(accountHandler.getCameras());
-                }
-            });
-        } else {
-            // the clips are fetched from the cloud through the account, without it their addresses lead nowhere
+    /**
+     * Told by an account when it goes offline or away. The camera then looks for another account that knows it; if
+     * there is none, the addresses of the last clip lead nowhere, as the clips are fetched through an account.
+     */
+    public void accountGone(BoschSmartCamAccountHandler gone) {
+        if (!gone.equals(account)) {
+            return;
+        }
+        account = null;
+        if (getAccountHandler() == null) {
             lastImageEventId = null;
             lastClipEventId = null;
             updateState(CHANNEL_CLOUD_LAST_CLIP_SNAPSHOT_URL, UnDefType.UNDEF);
@@ -399,19 +403,36 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
      */
     private void inCloud(String what, CloudCall call, Runnable failed) {
         scheduler.execute(() -> {
-            BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-            String id = accountHandler == null ? null : resolveCameraId(accountHandler);
-            try {
+            // an account the camera is only shared with may not be allowed to, then the next one that knows it is tried
+            Set<BoschSmartCamAccountHandler> refused = new HashSet<>();
+            while (true) {
+                BoschSmartCamAccountHandler accountHandler = getAccountHandler(refused);
+                String id = accountHandler == null ? null : resolveCameraId(accountHandler);
                 if (accountHandler == null || id == null) {
-                    logger.info("Can only {} {} with a Bosch account bridge, the local API is read only", what,
-                            getThing().getUID());
+                    if (refused.isEmpty()) {
+                        logger.info("Can only {} {} with a Bosch account, the local API is read only", what,
+                                getThing().getUID());
+                    } else {
+                        logger.info("Could not {} {}: no account that knows the camera may do that, an account it is "
+                                + "only shared with may not", what, getThing().getUID());
+                    }
                     failed.run();
-                } else {
-                    call.run(accountHandler.getApi(), id);
+                    break;
                 }
-            } catch (BoschSmartCamException e) {
-                e.log(logger, what, getThing().getUID());
-                failed.run();
+                try {
+                    call.run(accountHandler.getApi(), id);
+                    break;
+                } catch (BoschSmartCamException e) {
+                    if (e.isAuthorizationFailure()) {
+                        logger.debug("{} refused to {} {}, trying another account", accountHandler.getThing().getUID(),
+                                what, getThing().getUID());
+                        refused.add(accountHandler);
+                        continue;
+                    }
+                    e.log(logger, what, getThing().getUID());
+                    failed.run();
+                    break;
+                }
             }
             scheduler.schedule(this::refreshSettings, READ_BACK_SECONDS, TimeUnit.SECONDS);
         });
@@ -710,7 +731,7 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
         scheduler.execute(this::refreshSettings);
         BoschSmartCamAccountHandler accountHandler = getAccountHandler();
         if (accountHandler != null) {
-            updateFromCloud(accountHandler.getCameras());
+            updateFromCloud(accountHandler, accountHandler.getCameras());
         }
         return true;
     }
@@ -728,14 +749,30 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     /**
-     * Takes over what the cloud knows about this camera. Called with the result of every poll of the account bridge.
+     * Takes over what the cloud knows about this camera. Every account calls this with the result of each of its polls;
+     * an account that does not know the camera is ignored, the first one that does serves it from then on.
      */
-    public void updateFromCloud(List<VideoInput> cameras) {
-        BoschSmartCamAccountHandler accountHandler = getAccountHandler();
-        String id = accountHandler == null ? null : resolveCameraId(accountHandler);
+    public void updateFromCloud(BoschSmartCamAccountHandler source, List<VideoInput> cameras) {
+        CameraIdentity localIdentity = identity;
+        if (localIdentity == null) {
+            return;
+        }
+        String id;
+        try {
+            id = source.findCameraId(localIdentity.macAddress());
+        } catch (BoschSmartCamException e) {
+            logger.debug("Could not look up {} in {}: {}", getThing().getUID(), source.getThing().getUID(),
+                    e.getMessage());
+            return;
+        }
         if (id == null) {
             return;
         }
+        BoschSmartCamAccountHandler current = account;
+        if (current == null || !current.isOnline()) {
+            account = source;
+        }
+        cameraId = id;
         VideoInput camera = cameras.stream().filter(input -> id.equals(input.id())).findFirst().orElse(null);
         if (camera == null) {
             return;
@@ -1146,9 +1183,62 @@ public class BoschSmartCamCameraHandler extends BaseThingHandler {
     }
 
     private @Nullable BoschSmartCamAccountHandler getAccountHandler() {
-        Bridge bridge = getBridge();
-        if (bridge != null && bridge.getHandler() instanceof BoschSmartCamAccountHandler accountHandler) {
-            return accountHandler;
+        return getAccountHandler(Set.of());
+    }
+
+    /**
+     * @return the id of the camera in the cloud, once an account told it
+     */
+    public @Nullable String getCameraId() {
+        return cameraId;
+    }
+
+    /**
+     * @return the MAC address of the camera, once its certificate was read
+     */
+    public @Nullable String getMacAddress() {
+        CameraIdentity localIdentity = identity;
+        return localIdentity == null ? null : localIdentity.macAddress();
+    }
+
+    /**
+     * The account the camera is served by: the one used before while it is online, otherwise the first online account
+     * that knows the MAC address of the camera. The cloud settings of a camera are the same through every account.
+     *
+     * @param refused accounts that were not allowed to do what is asked and are skipped
+     * @return the account, or {@code null} if no account knows the camera
+     */
+    private @Nullable BoschSmartCamAccountHandler getAccountHandler(Set<BoschSmartCamAccountHandler> refused) {
+        BoschSmartCamAccountHandler current = account;
+        if (current != null && current.isOnline() && !refused.contains(current)) {
+            return current;
+        }
+        CameraIdentity localIdentity = identity;
+        if (localIdentity == null) {
+            return null;
+        }
+        for (BoschSmartCamAccountHandler candidate : authService.getAccountHandlers()) {
+            if (!candidate.isOnline() || refused.contains(candidate)) {
+                continue;
+            }
+            try {
+                String id = candidate.findCameraId(localIdentity.macAddress());
+                String known = cameraId;
+                if (id == null && known != null && candidate.knowsCamera(known)) {
+                    // the camera is only shared with this account, which cannot read its MAC address
+                    id = known;
+                }
+                if (id != null) {
+                    if (refused.isEmpty()) {
+                        account = candidate;
+                    }
+                    cameraId = id;
+                    return candidate;
+                }
+            } catch (BoschSmartCamException e) {
+                logger.debug("Could not look up {} in {}: {}", getThing().getUID(), candidate.getThing().getUID(),
+                        e.getMessage());
+            }
         }
         return null;
     }

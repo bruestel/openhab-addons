@@ -5,24 +5,32 @@
   </div>
   <p class="uid">${account.uid}</p>
 
-  <p><a class="button" href="${account.authorizationUrl}">Log in with Bosch SingleKey ID</a></p>
+  <div${account.loginHidden}>
+    <p><a class="button" href="${account.authorizationUrl}">Log in with Bosch SingleKey ID</a></p>
+    <p class="hint">Already logged in at Bosch in this browser? Then no login form appears and the account is linked to
+    that Bosch user. To use another Bosch account, log out at Bosch first or use a private window.</p>
 
-  <details class="fallback">
-    <summary>The login did not return to openHAB? Paste the address here</summary>
-    <p>Use this if step 1 was skipped, or if you authorized from another browser or device. After the login you land on
-    a page that may show an error &ndash; that is expected, it only carries the authorization code. Copy its complete
-    address from the address bar.</p>
-    <form class="authorize" method="post" action="${servletPath}">
+    <details class="fallback">
+      <summary>The login did not return to openHAB? Paste the address here</summary>
+      <p>Use this if step 1 was skipped, or if you authorized from another browser or device. After the login you land on
+      a page that may show an error &ndash; that is expected, it only carries the authorization code. Copy its complete
+      address from the address bar.</p>
+      <form class="authorize" method="post" action="${servletPath}">
+        <input type="hidden" name="thingUid" value="${account.uid}">
+        <label for="url-${account.uid}">Address you were redirected to:</label>
+        <textarea id="url-${account.uid}" name="redirectUrl" spellcheck="false" placeholder="https://my.home-assistant.io/redirect/oauth?code=...&amp;state=..."></textarea>
+        <p><button type="submit">Complete authorization</button></p>
+      </form>
+    </details>
+  </div>
+
+  <div${account.logoutHidden}>
+    <form method="post" action="${servletPath}">
       <input type="hidden" name="thingUid" value="${account.uid}">
-      <label for="url-${account.uid}">Address you were redirected to:</label>
-      <textarea id="url-${account.uid}" name="redirectUrl" spellcheck="false" placeholder="https://my.home-assistant.io/redirect/oauth?code=...&amp;state=..."></textarea>
-      <p><button type="submit">Complete authorization</button></p>
+      <input type="hidden" name="action" value="deauthorize">
+      <button type="submit" class="secondary">Log out this account</button>
     </form>
-  </details>
-
-  <form method="post" action="${servletPath}">
-    <input type="hidden" name="thingUid" value="${account.uid}">
-    <input type="hidden" name="action" value="deauthorize">
-    <button type="submit" class="secondary">Remove stored tokens</button>
-  </form>
+    <p class="hint"><a href="${account.authorizationUrl}">Log in with another Bosch account</a> &ndash; log out at Bosch
+    first or use a private window, otherwise the same Bosch user is linked again.</p>
+  </div>
 </section>

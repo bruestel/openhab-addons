@@ -4,10 +4,10 @@
 	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
 	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
 
-	<bridge-type id="account">
+	<thing-type id="account">
 		<label>Bosch Camera Account</label>
-		<description>A Bosch SingleKey ID account the cameras are registered with. Has a channel group with the notifications
-			of every camera of the account.</description>
+		<description>A Bosch SingleKey ID account. Cameras it knows use it for what only the Bosch cloud can do; it has a
+			channel group with the push notifications of each of its cameras.</description>
 
 		<config-description>
 			<parameter name="refreshInterval" type="integer" unit="s" min="30">
@@ -17,14 +17,14 @@
 				<default>3600</default>
 			</parameter>
 		</config-description>
-	</bridge-type>
+	</thing-type>
 
-	<!-- The account is optional: listing it as a supported bridge would make openHAB refuse cameras without one.
-		Discovery puts a camera under an account it belongs to, a file or the code view of the UI can do the same. -->
+	<!-- The account is optional and not a bridge: a camera finds an account that knows it by itself. -->
 	<thing-type id="camera">
 		<label>Bosch Smart Home Camera</label>
-		<description>A Bosch Smart Home Camera of the second generation, talked to directly through its local API. Put it
-			under an account to switch its privacy mode.</description>
+		<description>A Bosch Smart Home Camera of the second generation, talked to directly through its local API. With an
+			account that knows it, its privacy mode, lights and siren can be switched; the camera finds such an account by
+			itself.</description>
 		<semantic-equipment-tag>Camera</semantic-equipment-tag>
 
 		<channel-groups>

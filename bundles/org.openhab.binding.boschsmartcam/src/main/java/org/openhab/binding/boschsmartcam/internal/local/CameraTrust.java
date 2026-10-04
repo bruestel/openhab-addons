@@ -123,8 +123,8 @@ public class CameraTrust {
             }
         };
         factory.setTrustStore(trustStore);
-        // the trust manager identifies the camera by its MAC address, a host name is not in its certificate
-        factory.setEndpointIdentificationAlgorithm(null);
+        // the host name is not checked by the JDK: an X509ExtendedTrustManager identifies the peer itself, here by the
+        // MAC address in its certificate
         return factory;
     }
 

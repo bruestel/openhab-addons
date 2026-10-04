@@ -50,6 +50,13 @@ public class BoschSmartCamAuthService {
     }
 
     /**
+     * @return the cameras that are running, for the accounts to tell them what the cloud knows
+     */
+    public List<BoschSmartCamCameraHandler> getCameraHandlers() {
+        return List.copyOf(camerasByToken.values());
+    }
+
+    /**
      * @param token the token from the requested URL
      * @return the camera behind it, if the token belongs to one
      */

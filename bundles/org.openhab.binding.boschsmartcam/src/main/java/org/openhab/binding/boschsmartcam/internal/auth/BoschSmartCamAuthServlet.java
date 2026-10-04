@@ -109,6 +109,9 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
     private static final String KEY_ACCOUNT_STATE_CLASS = "account.stateClass";
     private static final String KEY_ACCOUNT_STATE_TEXT = "account.stateText";
     private static final String KEY_ACCOUNT_AUTH_URL = "account.authorizationUrl";
+    private static final String KEY_ACCOUNT_LOGIN_HIDDEN = "account.loginHidden";
+    private static final String KEY_ACCOUNT_LOGOUT_HIDDEN = "account.logoutHidden";
+    private static final String HIDDEN = " hidden";
 
     private static final String PARAM_LIMIT = "limit";
     private static final String PARAM_BEFORE = "before";
@@ -453,6 +456,9 @@ public class BoschSmartCamAuthServlet extends HttpServlet {
         replacements.put(KEY_ACCOUNT_UID, escape(handler.getThing().getUID().getAsString()));
         replacements.put(KEY_ACCOUNT_STATE_CLASS, authorized ? "ok" : "pending");
         replacements.put(KEY_ACCOUNT_STATE_TEXT, authorized ? "authorized" : "not authorized");
+        // an authorized account offers to log out, one that is not to log in
+        replacements.put(KEY_ACCOUNT_LOGIN_HIDDEN, authorized ? HIDDEN : "");
+        replacements.put(KEY_ACCOUNT_LOGOUT_HIDDEN, authorized ? "" : HIDDEN);
 
         String authorizationUrl;
         try {
