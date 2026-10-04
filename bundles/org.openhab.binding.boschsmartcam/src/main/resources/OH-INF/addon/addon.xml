@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon:addon id="boschsmartcam" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:addon="https://openhab.org/schemas/addon/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/addon/v1.0.0 https://openhab.org/schemas/addon-1.0.0.xsd">
+
+	<type>binding</type>
+	<name>Bosch Smart Home Camera Binding</name>
+	<description>This is the binding for the Bosch Smart Home Cameras of the second generation (Eyes Outdoor Camera II,
+		Eyes Indoor Camera II). It talks to the cameras through their local API, an optional account adds what only the
+		Bosch
+		cloud can do.</description>
+	<connection>hybrid</connection>
+
+	<config-description>
+		<parameter name="snapshotAllowedNetworks" type="text">
+			<label>Snapshot Networks</label>
+			<description>Networks that may fetch the snapshot URLs, as comma separated CIDR blocks. Defaults to loopback and
+				the
+				private ranges, so images stay in the local network even if a link leaks.</description>
+			<default>127.0.0.0/8, ::1/128, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, fc00::/7, fe80::/10</default>
+			<advanced>true</advanced>
+		</parameter>
+		<parameter name="rtspPort" type="integer" min="0" max="65535">
+			<label>RTSP Port</label>
+			<description>Port openHAB offers the streams of all cameras on, as plain RTSP and over TLS, without password. Each
+				camera has its own address there, with its token in it. Leave empty or 0 to offer none.</description>
+			<advanced>true</advanced>
+		</parameter>
+	</config-description>
+
+</addon:addon>
